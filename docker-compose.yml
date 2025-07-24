@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Main application service
+  app:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - poetry_cache:/app/.venv
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - OUTPUT_DIRECTORY=/app/output
+      - TEMP_DIRECTORY=/app/temp
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - ifc_network
+    restart: unless-stopped
+
+  # Redis for caching and task queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ifc_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # PostgreSQL for metadata storage
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ifc_chunking
+      - POSTGRES_USER=ifc_user
+      - POSTGRES_PASSWORD=ifc_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - ifc_network
+    restart: unless-stopped
+
+  # Development tools container
+  dev-tools:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - poetry_cache:/app/.venv
+    environment:
+      - ENVIRONMENT=development
+    networks:
+      - ifc_network
+    profiles:
+      - tools
+    command: tail -f /dev/null
+
+  # Testing service
+  test:
+    build:
+      context: .
+      target: testing
+    volumes:
+      - .:/app
+      - ./test-results:/app/test-results
+    environment:
+      - ENVIRONMENT=testing
+      - DATABASE_URL=postgresql://ifc_user:ifc_password@postgres:5432/ifc_chunking_test
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ifc_network
+    profiles:
+      - testing
+
+  # Linting service
+  lint:
+    build:
+      context: .
+      target: linting
+    volumes:
+      - .:/app
+    profiles:
+      - linting
+
+  # Production-like service
+  production:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8080:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://ifc_user:ifc_password@postgres:5432/ifc_chunking
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - ifc_network
+    profiles:
+      - production
+    restart: unless-stopped
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - ifc_network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+  # Grafana for dashboards (optional)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ifc_network
+    profiles:
+      - monitoring
+    restart: unless-stopped
+
+networks:
+  ifc_network:
+    driver: bridge
+
+volumes:
+  poetry_cache:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
