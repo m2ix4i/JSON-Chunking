@@ -39,6 +39,9 @@ typer = "^0.9.0"
 rich = "^13.7.0"
 # JSON processing
 ujson = "^5.9.0"
+ijson = "^3.2.0"
+# System monitoring
+psutil = "^5.9.0"
 # Configuration
 python-dotenv = "^1.0.0"
 # Async support
