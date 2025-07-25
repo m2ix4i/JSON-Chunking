@@ -141,7 +141,7 @@ class ChunkingEngine:
         # Finalize progress
         progress_tracker.update(file_size)
         
-        elapsed = 0  # Will be recalculated in caller
+        elapsed = time.time() - time.time()  # Will be recalculated in caller
         return ProcessingResult(
             chunks=chunks,
             processed_objects=processed_objects,
@@ -351,18 +351,3 @@ class ElementProcessingOutcome:
         self.validation_failed = validation_failed
         self.chunk_created = chunk_created
         self.chunk = chunk
-    
-    @classmethod
-    def validation_failed(cls) -> 'ElementProcessingOutcome':
-        """Create outcome for validation failure."""
-        return cls(validation_failed=True, chunk_created=False)
-    
-    @classmethod
-    def chunk_created(cls, chunk: 'Chunk') -> 'ElementProcessingOutcome':
-        """Create outcome for successful chunk creation."""
-        return cls(validation_failed=False, chunk_created=True, chunk=chunk)
-    
-    @classmethod
-    def skipped(cls) -> 'ElementProcessingOutcome':
-        """Create outcome for skipped element (no chunk needed)."""
-        return cls(validation_failed=False, chunk_created=False)
