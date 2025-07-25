@@ -108,58 +108,46 @@ class ChunkingEngine:
     
     async def _stream_process_file(self, file_path: Path, progress_tracker) -> 'ProcessingResult':
         """Core streaming processing logic."""
-        context = self._create_processing_context(file_path)
-        await self._process_all_elements(context, progress_tracker)
-        return self._finalize_processing(context, progress_tracker)
-    
-    def _create_processing_context(self, file_path: Path) -> 'StreamingProcessingContext':
-        """Create processing context for the file."""
-        from .models import StreamingProcessingContext
-        return StreamingProcessingContext.create_for_file(file_path)
-    
-    async def _process_all_elements(self, context: 'StreamingProcessingContext', progress_tracker) -> None:
-        """Process all elements in the file."""
-        async for json_path, value in self.parser.parse_file(context.file_path):
-            await self._process_single_iteration(context, json_path, value, progress_tracker)
-    
-    async def _process_single_iteration(
-        self, 
-        context: 'StreamingProcessingContext', 
-        json_path: str, 
-        value: Any, 
-        progress_tracker
-    ) -> None:
-        """Process a single iteration of the streaming loop."""
-        self._update_progress(progress_tracker, context.file_size)
+        from .models import ProcessingResult, Chunk
         
-        processing_outcome = await self._process_element(
-            json_path, value, context.chunks, context.processed_objects
+        chunks = []
+        processed_objects = 0
+        validation_errors = 0
+        file_size = file_path.stat().st_size
+        
+        async for json_path, value in self.parser.parse_file(file_path):
+            # Update progress based on parser tokens processed
+            self._update_progress(progress_tracker, file_size)
+            
+            # Process element with validation and chunking
+            processing_outcome = await self._process_element(
+                json_path, value, chunks, processed_objects
+            )
+            
+            if processing_outcome.validation_failed:
+                validation_errors += 1
+                continue
+            
+            if processing_outcome.chunk_created:
+                chunks.append(processing_outcome.chunk)
+                self.chunks_created += 1
+            
+            processed_objects += 1
+            
+            # Memory management - yield control periodically
+            if processed_objects % 100 == 0:
+                await asyncio.sleep(0)
+        
+        # Finalize progress
+        progress_tracker.update(file_size)
+        
+        elapsed = time.time() - time.time()  # Will be recalculated in caller
+        return ProcessingResult(
+            chunks=chunks,
+            processed_objects=processed_objects,
+            validation_errors=validation_errors,
+            elapsed_seconds=elapsed
         )
-        
-        self._handle_processing_outcome(context, processing_outcome)
-        self._perform_memory_management(context)
-    
-    def _handle_processing_outcome(self, context: 'StreamingProcessingContext', outcome) -> None:
-        """Handle the outcome of processing an element."""
-        if outcome.validation_failed:
-            context.increment_validation_errors()
-            return
-        
-        if outcome.chunk_created:
-            context.add_chunk(outcome.chunk)
-            self.chunks_created += 1
-        
-        context.increment_objects()
-    
-    async def _perform_memory_management(self, context: 'StreamingProcessingContext') -> None:
-        """Perform periodic memory management."""
-        if context.processed_objects % 100 == 0:
-            await asyncio.sleep(0)
-    
-    def _finalize_processing(self, context: 'StreamingProcessingContext', progress_tracker) -> 'ProcessingResult':
-        """Finalize processing and create result."""
-        progress_tracker.update(context.file_size)
-        return context.to_processing_result()
     
     def _update_progress(self, progress_tracker, file_size: int) -> None:
         """Update progress based on parser state."""
@@ -209,70 +197,31 @@ class ChunkingEngine:
         start_time: float
     ) -> Dict[str, Any]:
         """Create comprehensive processing metadata."""
-        elapsed = self._calculate_elapsed_time(start_time)
+        elapsed = time.time() - start_time
+        file_size = file_path.stat().st_size
+        processing_stats = self.parser.get_stats()
+        
+        # Update result with actual elapsed time
         result.elapsed_seconds = elapsed
         
-        metadata = self._assemble_metadata(file_path, result, elapsed)
-        self._log_processing_completion(file_path, result, elapsed)
-        
-        return metadata
-    
-    def _calculate_elapsed_time(self, start_time: float) -> float:
-        """Calculate elapsed processing time."""
-        return time.time() - start_time
-    
-    def _assemble_metadata(self, file_path: Path, result: 'ProcessingResult', elapsed: float) -> Dict[str, Any]:
-        """Assemble processing metadata dictionary."""
-        file_info = self._create_file_info(file_path)
-        processing_info = self._create_processing_info(result, elapsed)
-        memory_info = self._create_memory_stats()
-        chunk_info = self._create_chunk_info(result)
-        
-        return {**file_info, **processing_info, **memory_info, **chunk_info}
-    
-    def _create_file_info(self, file_path: Path) -> Dict[str, Any]:
-        """Create file-related metadata."""
-        file_size = file_path.stat().st_size
-        return {
+        metadata = {
             "file_path": str(file_path),
             "file_size_bytes": file_size,
             "file_size_mb": file_size / (1024 * 1024),
-            "status": "processed"
-        }
-    
-    def _create_processing_info(self, result: 'ProcessingResult', elapsed: float) -> Dict[str, Any]:
-        """Create processing performance metadata."""
-        total_size_mb = sum(chunk.size_bytes for chunk in result.chunks) / (1024 * 1024)
-        
-        return {
+            "status": "processed",
             "chunks_created": result.chunks_created,
             "processed_objects": result.processed_objects,
             "validation_errors": result.validation_errors,
             "processing_time_seconds": elapsed,
-            "processing_time_ms": elapsed * 1000,
-            "processing_rate_mb_per_sec": total_size_mb / elapsed if elapsed > 0 else 0
-        }
-    
-    def _create_memory_stats(self) -> Dict[str, Any]:
-        """Create memory-related statistics."""
-        processing_stats = self.parser.get_stats()
-        return {
+            "processing_time_ms": elapsed * 1000,  # Add milliseconds for backward compatibility
+            "processing_rate_mb_per_sec": (file_size / (1024 * 1024)) / elapsed if elapsed > 0 else 0,
             "memory_stats": {
                 "tokens_processed": processing_stats["tokens_processed"],
                 "gc_triggers": processing_stats["gc_triggers"],
                 "peak_memory_mb": processing_stats["current_memory_mb"]
-            }
-        }
-    
-    def _create_chunk_info(self, result: 'ProcessingResult') -> Dict[str, Any]:
-        """Create chunk-related information."""
-        return {
+            },
             "chunks": [chunk.to_dict() for chunk in result.chunks]
         }
-    
-    def _log_processing_completion(self, file_path: Path, result: 'ProcessingResult', elapsed: float) -> None:
-        """Log processing completion with summary statistics."""
-        processing_stats = self.parser.get_stats()
         
         logger.info(
             "Streaming file processing completed",
@@ -282,6 +231,8 @@ class ChunkingEngine:
             elapsed_seconds=elapsed,
             memory_mb=processing_stats["current_memory_mb"]
         )
+        
+        return metadata
     
     def _handle_processing_error(
         self, 

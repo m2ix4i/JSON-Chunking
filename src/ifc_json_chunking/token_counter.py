@@ -137,25 +137,30 @@ class TokenCounter:
     
     def _estimate_gemini_tokens(self, text: str) -> int:
         """Estimate tokens for Gemini models."""
-        # Gemini tokenization considerations:
-        # - JSON structure tokens
-        # - IFC-specific terms may be single tokens
-        # - Average ~4 chars per token
-        
-        # Count JSON structural elements
-        json_tokens = text.count('{') + text.count('}') + text.count('[') + text.count(']')
-        json_tokens += text.count(',') + text.count(':')
-        
-        # Count IFC-specific patterns that likely form single tokens
+        json_tokens = self._count_json_structure_tokens(text)
+        ifc_bonus = self._calculate_ifc_complexity_bonus(text)
+        base_tokens = self._calculate_base_tokens(text, json_tokens, ifc_bonus)
+        return self._log_and_return_gemini_total(json_tokens, ifc_bonus, base_tokens)
+    
+    def _count_json_structure_tokens(self, text: str) -> int:
+        """Count JSON structural elements as tokens."""
+        structural_chars = text.count('{') + text.count('}') + text.count('[') + text.count(']')
+        return structural_chars + text.count(',') + text.count(':')
+    
+    def _calculate_ifc_complexity_bonus(self, text: str) -> int:
+        """Calculate bonus tokens for IFC-specific patterns."""
         ifc_patterns = re.findall(r'Ifc[A-Z][a-zA-Z]+', text)
-        ifc_tokens = len(ifc_patterns)
-        
-        # Estimate remaining content
-        remaining_chars = len(text) - (len(''.join(ifc_patterns)) + json_tokens)
-        base_tokens = remaining_chars // 4
-        
+        return len(ifc_patterns)
+    
+    def _calculate_base_tokens(self, text: str, json_tokens: int, ifc_bonus: int) -> int:
+        """Calculate base tokens from remaining character content."""
+        ifc_pattern_chars = len(''.join(re.findall(r'Ifc[A-Z][a-zA-Z]+', text)))
+        remaining_chars = len(text) - (ifc_pattern_chars + json_tokens)
+        return remaining_chars // 4
+    
+    def _log_and_return_gemini_total(self, json_tokens: int, ifc_tokens: int, base_tokens: int) -> int:
+        """Log token breakdown and return total for Gemini estimation."""
         total_tokens = json_tokens + ifc_tokens + base_tokens
-        
         logger.debug(
             "Gemini token estimation",
             total_tokens=total_tokens,
@@ -163,7 +168,6 @@ class TokenCounter:
             ifc_tokens=ifc_tokens,
             base_tokens=base_tokens
         )
-        
         return total_tokens
     
     def _estimate_gpt_tokens(self, text: str) -> int:
@@ -219,45 +223,60 @@ class TokenCounter:
             Dictionary with token metrics
         """
         if not chunks:
-            return {
-                "total_chunks": 0,
-                "total_tokens": 0,
-                "avg_tokens_per_chunk": 0,
-                "max_tokens_per_chunk": 0,
-                "min_tokens_per_chunk": 0,
-                "chunks_over_limit": 0,
-                "efficiency_score": 0.0
-            }
+            return self._empty_metrics_dict()
         
         token_counts = [self.count_tokens(chunk) for chunk in chunks]
-        total_tokens = sum(token_counts)
-        max_tokens = max(token_counts)
-        min_tokens = min(token_counts)
-        avg_tokens = total_tokens / len(chunks)
+        basic_stats = self._calculate_basic_stats(token_counts)
+        efficiency_score = self._calculate_efficiency_score(token_counts)
         
+        metrics = self._build_metrics_dict(basic_stats, efficiency_score, len(chunks))
+        logger.info("Chunk token metrics calculated", **metrics)
+        return metrics
+    
+    def _empty_metrics_dict(self) -> Dict[str, Any]:
+        """Return empty metrics dictionary for no chunks case."""
+        return {
+            "total_chunks": 0,
+            "total_tokens": 0,
+            "avg_tokens_per_chunk": 0,
+            "max_tokens_per_chunk": 0,
+            "min_tokens_per_chunk": 0,
+            "chunks_over_limit": 0,
+            "efficiency_score": 0.0
+        }
+    
+    def _calculate_basic_stats(self, token_counts: List[int]) -> Dict[str, Any]:
+        """Calculate basic statistical metrics from token counts."""
+        total_tokens = sum(token_counts)
         chunks_over_limit = sum(1 for count in token_counts if count > self.limits.effective_chunk_size)
         
-        # Calculate efficiency score (0-1, higher is better)
-        # Based on how well chunks utilize available token space
+        return {
+            "total_tokens": total_tokens,
+            "max_tokens": max(token_counts),
+            "min_tokens": min(token_counts),
+            "avg_tokens": total_tokens / len(token_counts),
+            "chunks_over_limit": chunks_over_limit
+        }
+    
+    def _calculate_efficiency_score(self, token_counts: List[int]) -> float:
+        """Calculate efficiency score based on token space utilization."""
         target_size = self.limits.effective_chunk_size
         efficiency_scores = [min(count / target_size, 1.0) for count in token_counts]
-        efficiency_score = sum(efficiency_scores) / len(efficiency_scores)
-        
-        metrics = {
-            "total_chunks": len(chunks),
-            "total_tokens": total_tokens,
-            "avg_tokens_per_chunk": avg_tokens,
-            "max_tokens_per_chunk": max_tokens,
-            "min_tokens_per_chunk": min_tokens,
-            "chunks_over_limit": chunks_over_limit,
+        return sum(efficiency_scores) / len(efficiency_scores)
+    
+    def _build_metrics_dict(self, basic_stats: Dict[str, Any], efficiency_score: float, chunk_count: int) -> Dict[str, Any]:
+        """Build complete metrics dictionary from calculated components."""
+        return {
+            "total_chunks": chunk_count,
+            "total_tokens": basic_stats["total_tokens"],
+            "avg_tokens_per_chunk": basic_stats["avg_tokens"],
+            "max_tokens_per_chunk": basic_stats["max_tokens"],
+            "min_tokens_per_chunk": basic_stats["min_tokens"],
+            "chunks_over_limit": basic_stats["chunks_over_limit"],
             "efficiency_score": efficiency_score,
-            "target_tokens_per_chunk": target_size,
+            "target_tokens_per_chunk": self.limits.effective_chunk_size,
             "model": self.model.value
         }
-        
-        logger.info("Chunk token metrics calculated", **metrics)
-        
-        return metrics
     
     def suggest_optimization(self, token_count: int) -> Dict[str, Any]:
         """
@@ -272,27 +291,33 @@ class TokenCounter:
         target_size = self.limits.effective_chunk_size
         
         if token_count <= target_size:
-            return {
-                "status": "optimal",
-                "message": f"Chunk size ({token_count} tokens) is within optimal range",
-                "suggestions": []
-            }
+            return self._optimal_size_response(token_count)
         
         overage = token_count - target_size
         overage_percentage = (overage / target_size) * 100
+        suggestions = self._generate_optimization_suggestions(overage_percentage)
         
-        suggestions = []
-        
+        return self._oversized_response(overage, overage_percentage, suggestions)
+    
+    def _optimal_size_response(self, token_count: int) -> Dict[str, Any]:
+        """Generate response for optimally sized chunks."""
+        return {
+            "status": "optimal",
+            "message": f"Chunk size ({token_count} tokens) is within optimal range",
+            "suggestions": []
+        }
+    
+    def _generate_optimization_suggestions(self, overage_percentage: float) -> List[str]:
+        """Generate optimization suggestions based on overage percentage."""
         if overage_percentage > 50:
-            suggestions.append("Consider splitting into multiple chunks")
-            suggestions.append("Use hierarchical chunking strategy")
+            return ["Consider splitting into multiple chunks", "Use hierarchical chunking strategy"]
         elif overage_percentage > 20:
-            suggestions.append("Remove redundant information")
-            suggestions.append("Compress property representations")
+            return ["Remove redundant information", "Compress property representations"]
         else:
-            suggestions.append("Minor optimization needed")
-            suggestions.append("Consider slight size reduction")
-        
+            return ["Minor optimization needed", "Consider slight size reduction"]
+    
+    def _oversized_response(self, overage: int, overage_percentage: float, suggestions: List[str]) -> Dict[str, Any]:
+        """Generate response for oversized chunks."""
         return {
             "status": "oversized",
             "message": f"Chunk exceeds optimal size by {overage} tokens ({overage_percentage:.1f}%)",
