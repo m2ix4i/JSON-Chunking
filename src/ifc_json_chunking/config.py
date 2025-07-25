@@ -113,6 +113,14 @@ class Config:
     overlap_strategy: str = field(default_factory=lambda: ConfigurationParser.get_str_env("OVERLAP_STRATEGY", "token_based"))
     enable_token_optimization: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_TOKEN_OPTIMIZATION", True))
     
+    # LLM Integration settings
+    gemini_api_key: str = field(default_factory=lambda: ConfigurationParser.get_str_env("GEMINI_API_KEY", ""))
+    max_concurrent_requests: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_CONCURRENT_REQUESTS", 10))
+    request_timeout: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REQUEST_TIMEOUT", 30))
+    rate_limit_rpm: int = field(default_factory=lambda: ConfigurationParser.get_int_env("RATE_LIMIT_RPM", 60))
+    enable_caching: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_CACHING", True))
+    redis_url: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_URL", ""))
+    
     # Processing settings
     max_workers: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_WORKERS", 4))
     timeout_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("TIMEOUT_SECONDS", 300))
@@ -175,6 +183,10 @@ class Config:
             "target_llm_model": self.target_llm_model,
             "overlap_strategy": self.overlap_strategy,
             "enable_token_optimization": self.enable_token_optimization,
+            "max_concurrent_requests": self.max_concurrent_requests,
+            "request_timeout": self.request_timeout,
+            "rate_limit_rpm": self.rate_limit_rpm,
+            "enable_caching": self.enable_caching,
             "max_workers": self.max_workers,
             "timeout_seconds": self.timeout_seconds,
             "output_directory": str(self.output_directory),
