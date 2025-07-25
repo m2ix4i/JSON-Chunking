@@ -59,15 +59,15 @@ class PerformanceBenchmarks:
     
     async def setup_monitoring(self):
         """Initialize monitoring components for testing."""
-        await self.redis_cache.initialize()
-        await self.metrics_collector.start()
-        await self.memory_profiler.start()
+        await self.redis_cache.connect()
+        self.metrics_collector.start_collection()
+        self.memory_profiler.start_monitoring()
     
     async def cleanup_monitoring(self):
         """Clean up monitoring components after testing."""
-        await self.memory_profiler.stop()
-        await self.metrics_collector.stop()
-        await self.redis_cache.cleanup()
+        self.memory_profiler.stop_monitoring()
+        self.metrics_collector.stop_collection()
+        await self.redis_cache.disconnect()
     
     def create_test_file(self, size_mb: int) -> Path:
         """Create a test JSON file of specified size."""

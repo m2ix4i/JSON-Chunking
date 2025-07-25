@@ -45,7 +45,7 @@ class TestProductionConfiguration:
         
         try:
             # Test initialization
-            await redis_cache.initialize()
+            await redis_cache.connect()
             
             # Test basic operations
             test_key = "test_production_config"
@@ -66,69 +66,63 @@ class TestProductionConfiguration:
         except Exception as e:
             pytest.skip(f"Redis not available for testing: {e}")
         finally:
-            await redis_cache.cleanup()
+            await redis_cache.disconnect()
     
     @pytest.mark.asyncio
     async def test_metrics_collector_initialization(self):
         """Test metrics collector initializes and works correctly."""
         metrics_collector = MetricsCollector(self.config)
         
-        await metrics_collector.start()
+        metrics_collector.start_collection()
         
         try:
             # Test metric recording
-            await metrics_collector.record_metric("test_metric", 42.0)
-            await metrics_collector.record_metric("test_counter", 1.0)
-            await metrics_collector.record_metric("test_counter", 1.0)
+            metrics_collector.register_metric("test_metric", "Test metric for production config", "units")
+            metrics_collector.register_metric("test_counter", "Test counter for production config", "count")
+            
+            metrics_collector.record_value("test_metric", 42.0)
+            metrics_collector.record_value("test_counter", 1.0)
+            metrics_collector.record_value("test_counter", 2.0)
             
             # Wait for metrics to be processed
             await asyncio.sleep(0.1)
             
             # Test metric retrieval
-            metrics = await metrics_collector.get_metrics_summary()
-            assert len(metrics) > 0, "Metrics collector should have recorded metrics"
+            all_metrics = metrics_collector.get_all_metrics()
+            assert len(all_metrics["metrics"]) > 0, "Metrics collector should have recorded metrics"
             
             # Test specific metrics
-            test_metric = next((m for m in metrics if m["name"] == "test_metric"), None)
+            test_metric = metrics_collector.get_metric("test_metric")
             assert test_metric is not None, "Test metric should be recorded"
-            assert test_metric["latest_value"] == 42.0, "Metric value should be correct"
+            assert test_metric.get_latest() == 42.0, "Metric value should be correct"
             
             print("✅ Metrics collector initialization and recording working")
             
         finally:
-            await metrics_collector.stop()
+            metrics_collector.stop_collection()
     
     @pytest.mark.asyncio
     async def test_memory_profiler_initialization(self):
         """Test memory profiler initializes and monitors correctly."""
         memory_profiler = MemoryProfiler(self.config)
         
-        await memory_profiler.start()
+        memory_profiler.start_monitoring()
         
         try:
-            # Test memory monitoring
-            await memory_profiler.record_operation_start("test_operation")
-            
-            # Simulate some memory usage
-            large_data = [i for i in range(10000)]  # Allocate some memory
-            
-            await memory_profiler.record_operation_end("test_operation")
-            
+            # Test memory monitoring by getting current stats
             # Get memory stats
-            stats = await memory_profiler.get_memory_stats()
+            stats = memory_profiler.get_current_memory_usage()
             assert stats["current_memory_mb"] > 0, "Memory profiler should track memory usage"
             
-            # Test memory pressure detection
-            is_under_pressure = await memory_profiler.is_memory_pressure()
-            assert isinstance(is_under_pressure, bool), "Memory pressure check should return boolean"
+            # Test memory health detection
+            health = memory_profiler.health_check()
+            assert isinstance(health, dict), "Health check should return dict"
+            assert "status" in health, "Health check should include status"
             
             print(f"✅ Memory profiler working - Current memory: {stats['current_memory_mb']:.1f}MB")
             
-            # Clean up memory
-            del large_data
-            
         finally:
-            await memory_profiler.stop()
+            memory_profiler.stop_monitoring()
     
     @pytest.mark.asyncio
     async def test_integrated_monitoring_system(self):
@@ -140,12 +134,12 @@ class TestProductionConfiguration:
         
         # Start all components
         try:
-            await redis_cache.initialize()
+            await redis_cache.connect()
         except Exception:
             pytest.skip("Redis not available for integration test")
         
-        await metrics_collector.start()
-        await memory_profiler.start()
+        metrics_collector.start_collection()
+        memory_profiler.start_monitoring()
         
         try:
             # Create query service with all monitoring components
@@ -176,7 +170,7 @@ class TestProductionConfiguration:
             query_request = QueryRequest(
                 query="Test integrated monitoring",
                 file_id="test_integration",
-                intent_hint=QueryIntent.COMPONENT_ANALYSIS,
+                intent_hint=QueryIntent.COMPONENT,
                 cache_results=True
             )
             
@@ -187,17 +181,17 @@ class TestProductionConfiguration:
             # Verify monitoring data was collected
             await asyncio.sleep(0.2)  # Allow metrics to be processed
             
-            metrics = await metrics_collector.get_metrics_summary()
-            memory_stats = await memory_profiler.get_memory_stats()
+            all_metrics = metrics_collector.get_all_metrics()
+            memory_stats = memory_profiler.get_current_memory_usage()
             cache_stats = await redis_cache.get_stats()
             
             # Validate monitoring data
-            assert len(metrics) > 0, "Metrics should be collected during query processing"
+            assert len(all_metrics["metrics"]) > 0, "Metrics should be collected during query processing"
             assert memory_stats["current_memory_mb"] > 0, "Memory stats should be updated"
             assert cache_stats.total_size_bytes >= 0, "Cache stats should be available"
             
             print("✅ Integrated monitoring system working correctly")
-            print(f"   - Metrics collected: {len(metrics)}")
+            print(f"   - Metrics collected: {len(all_metrics['metrics'])}")
             print(f"   - Memory usage: {memory_stats['current_memory_mb']:.1f}MB")
             print(f"   - Cache operations: {cache_stats.sets} sets, {cache_stats.hits} hits")
             
@@ -206,9 +200,9 @@ class TestProductionConfiguration:
             
         finally:
             # Clean up all components
-            await memory_profiler.stop()
-            await metrics_collector.stop()
-            await redis_cache.cleanup()
+            memory_profiler.stop_monitoring()
+            metrics_collector.stop_collection()
+            await redis_cache.disconnect()
     
     def test_production_configuration_values(self):
         """Test that configuration values are appropriate for production."""
@@ -279,16 +273,17 @@ class TestProductionConfiguration:
         metrics_collector = MetricsCollector(config_with_monitoring)
         memory_profiler = MemoryProfiler(config_with_monitoring)
         
-        await metrics_collector.start()
-        await memory_profiler.start()
+        metrics_collector.start_collection()
+        memory_profiler.start_monitoring()
         
         try:
+            # Register metric for recording results
+            metrics_collector.register_metric("operation_result", "Operation result for overhead test", "count")
+            
             start_time = time.time()
             for i in range(10):
-                await memory_profiler.record_operation_start(f"operation_{i}")
                 result = await simple_operation()
-                await metrics_collector.record_metric("operation_result", result)
-                await memory_profiler.record_operation_end(f"operation_{i}")
+                metrics_collector.record_value("operation_result", result)
             time_with_monitoring = time.time() - start_time
             
             # Calculate overhead
@@ -310,8 +305,8 @@ class TestProductionConfiguration:
                 print("⚠️  Monitoring overhead is significant but within limits (<25%)")
         
         finally:
-            await memory_profiler.stop()
-            await metrics_collector.stop()
+            memory_profiler.stop_monitoring()
+            metrics_collector.stop_collection()
     
     def test_error_handling_configuration(self):
         """Test error handling and fallback configurations."""
@@ -361,8 +356,8 @@ async def test_production_readiness_checklist():
     # 1. Redis Cache System
     try:
         redis_cache = RedisCache(config)
-        await redis_cache.initialize()
-        await redis_cache.cleanup()
+        await redis_cache.connect()
+        await redis_cache.disconnect()
         checklist_results.append(("Redis Cache System", True, "Available and functional"))
     except Exception as e:
         checklist_results.append(("Redis Cache System", False, f"Not available: {e}"))
@@ -370,9 +365,10 @@ async def test_production_readiness_checklist():
     # 2. Metrics Collection
     try:
         metrics_collector = MetricsCollector(config)
-        await metrics_collector.start()
-        await metrics_collector.record_metric("test", 1.0)
-        await metrics_collector.stop()
+        metrics_collector.start_collection()
+        metrics_collector.register_metric("test", "Test metric for readiness check", "units")
+        metrics_collector.record_value("test", 1.0)
+        metrics_collector.stop_collection()
         checklist_results.append(("Metrics Collection", True, "Working correctly"))
     except Exception as e:
         checklist_results.append(("Metrics Collection", False, f"Error: {e}"))
@@ -380,9 +376,9 @@ async def test_production_readiness_checklist():
     # 3. Memory Profiling
     try:
         memory_profiler = MemoryProfiler(config)
-        await memory_profiler.start()
-        stats = await memory_profiler.get_memory_stats()
-        await memory_profiler.stop()
+        memory_profiler.start_monitoring()
+        stats = memory_profiler.get_current_memory_usage()
+        memory_profiler.stop_monitoring()
         checklist_results.append(("Memory Profiling", True, f"Current memory: {stats['current_memory_mb']:.1f}MB"))
     except Exception as e:
         checklist_results.append(("Memory Profiling", False, f"Error: {e}"))

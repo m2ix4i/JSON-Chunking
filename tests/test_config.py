@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from ifc_json_chunking.config import Config
+from src.ifc_json_chunking.config import Config
 
 
 class TestConfig:

@@ -11,13 +11,13 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from ifc_json_chunking.streaming import (
+from src.ifc_json_chunking.streaming import (
     StreamingJSONParser, 
     MemoryMonitor, 
     StreamingValidator
 )
-from ifc_json_chunking.config import Config
-from ifc_json_chunking.exceptions import ProcessingError, ChunkingError, ValidationError
+from src.ifc_json_chunking.config import Config
+from src.ifc_json_chunking.exceptions import ProcessingError, ChunkingError, ValidationError
 
 
 class TestMemoryMonitor:

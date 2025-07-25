@@ -6,9 +6,9 @@ import pytest
 from pathlib import Path
 from typing import Dict, Any
 
-from ifc_json_chunking.core import ChunkingEngine
-from ifc_json_chunking.config import Config
-from ifc_json_chunking.exceptions import IFCChunkingError
+from src.ifc_json_chunking.core import ChunkingEngine
+from src.ifc_json_chunking.config import Config
+from src.ifc_json_chunking.exceptions import IFCChunkingError
 
 from .conftest import assert_valid_metadata
 

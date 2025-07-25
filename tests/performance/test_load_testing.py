@@ -59,27 +59,27 @@ class LoadTester:
     
     async def setup(self):
         """Initialize monitoring components."""
-        await self.redis_cache.initialize()
-        await self.metrics_collector.start()
-        await self.memory_profiler.start()
+        await self.redis_cache.connect()
+        self.metrics_collector.start_collection()
+        self.memory_profiler.start_monitoring()
     
     async def cleanup(self):
         """Clean up monitoring components."""
-        await self.memory_profiler.stop()
-        await self.metrics_collector.stop()
-        await self.redis_cache.cleanup()
+        self.memory_profiler.stop_monitoring()
+        self.metrics_collector.stop_collection()
+        await self.redis_cache.disconnect()
     
     def create_test_queries(self, count: int) -> List[QueryRequest]:
         """Create a list of diverse test query requests."""
         query_templates = [
-            ("Wie viel Kubikmeter Beton sind verbaut?", QueryIntent.QUANTITY_ANALYSIS),
-            ("Welche Türen sind im 2. Stock?", QueryIntent.COMPONENT_ANALYSIS),
-            ("Material der Stützen analysieren", QueryIntent.MATERIAL_ANALYSIS),
-            ("Was ist in Raum R101?", QueryIntent.SPATIAL_ANALYSIS),
-            ("Kosten für Stahlträger berechnen", QueryIntent.COST_ANALYSIS),
-            ("Analysiere die Gebäudestruktur", QueryIntent.COMPREHENSIVE_ANALYSIS),
-            ("Finde alle Fenster im Erdgeschoss", QueryIntent.COMPONENT_ANALYSIS),
-            ("Berechne die Wandflächen", QueryIntent.QUANTITY_ANALYSIS),
+            ("Wie viel Kubikmeter Beton sind verbaut?", QueryIntent.QUANTITY),
+            ("Welche Türen sind im 2. Stock?", QueryIntent.COMPONENT),
+            ("Material der Stützen analysieren", QueryIntent.MATERIAL),
+            ("Was ist in Raum R101?", QueryIntent.SPATIAL),
+            ("Kosten für Stahlträger berechnen", QueryIntent.COST),
+            ("Analysiere die Gebäudestruktur", QueryIntent.RELATIONSHIP),
+            ("Finde alle Fenster im Erdgeschoss", QueryIntent.COMPONENT),
+            ("Berechne die Wandflächen", QueryIntent.QUANTITY),
         ]
         
         queries = []

@@ -10,9 +10,9 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 
-from ifc_json_chunking.core import ChunkingEngine
-from ifc_json_chunking.config import Config
-from ifc_json_chunking.exceptions import IFCChunkingError
+from src.ifc_json_chunking.core import ChunkingEngine
+from src.ifc_json_chunking.config import Config
+from src.ifc_json_chunking.exceptions import IFCChunkingError
 
 
 class TestChunkingEngineStreaming:
