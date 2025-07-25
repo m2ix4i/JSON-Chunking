@@ -274,22 +274,21 @@ class HierarchicalChunkingStrategy(ChunkingStrategy):
     
     def _is_hierarchy_boundary(self, ifc_type: str, level: int, existing_chunks: List[Chunk]) -> bool:
         """Check if this entity represents a significant hierarchy boundary."""
-        # Always create chunk for site and building level
         if level <= 2:
             return True
         
-        # For floors and spaces, check if we're crossing containers
-        if level >= 3:
-            # Check if current chunks are from different spatial container
-            recent_chunks = existing_chunks[-5:] if existing_chunks else []
-            for chunk in recent_chunks:
-                if hasattr(chunk, 'data') and isinstance(chunk.data, dict):
-                    chunk_type = self._extract_ifc_type(chunk.data)
-                    if chunk_type in self.hierarchy_levels:
-                        chunk_level = self.hierarchy_levels[chunk_type]
-                        if chunk_level != level:
-                            return True
-        
+        return self._check_container_level_changes(level, existing_chunks)
+    
+    def _check_container_level_changes(self, current_level: int, existing_chunks: List[Chunk]) -> bool:
+        """Check if recent chunks represent a change in hierarchy level."""
+        recent_chunks = existing_chunks[-5:] if existing_chunks else []
+        for chunk in recent_chunks:
+            if hasattr(chunk, 'data') and isinstance(chunk.data, dict):
+                chunk_type = self._extract_ifc_type(chunk.data)
+                if chunk_type in self.hierarchy_levels:
+                    chunk_level = self.hierarchy_levels[chunk_type]
+                    if chunk_level != current_level:
+                        return True
         return False
     
     def _is_building_element(self, ifc_type: str) -> bool:
@@ -302,27 +301,28 @@ class HierarchicalChunkingStrategy(ChunkingStrategy):
     
     def _evaluate_spatial_grouping(self, json_path: str, value: Any, existing_chunks: List[Chunk]) -> ChunkingDecision:
         """Evaluate whether to group building elements by spatial container."""
-        # Extract spatial container reference from element
         spatial_container = self._extract_spatial_container(value)
         
-        if spatial_container:
-            # Check if recent chunks are from same spatial container
-            recent_chunks = existing_chunks[-10:] if existing_chunks else []
-            same_container_chunks = [
-                chunk for chunk in recent_chunks 
-                if self._get_chunk_spatial_container(chunk) == spatial_container
-            ]
-            
-            # If we have elements from same container, group them
-            if len(same_container_chunks) > 0:
-                return ChunkingDecision.no(f"Grouping with same spatial container: {spatial_container}")
-            else:
-                return ChunkingDecision.yes(
-                    f"New spatial container: {spatial_container}",
-                    ChunkType.IFC_OBJECT
-                )
+        if not spatial_container:
+            return ChunkingDecision.no("No spatial container information")
         
-        return ChunkingDecision.no("No spatial container information")
+        return self._decide_based_on_container_grouping(spatial_container, existing_chunks)
+    
+    def _decide_based_on_container_grouping(self, spatial_container: str, existing_chunks: List[Chunk]) -> ChunkingDecision:
+        """Decide whether to create new chunk based on spatial container grouping."""
+        recent_chunks = existing_chunks[-10:] if existing_chunks else []
+        same_container_chunks = [
+            chunk for chunk in recent_chunks 
+            if self._get_chunk_spatial_container(chunk) == spatial_container
+        ]
+        
+        if len(same_container_chunks) > 0:
+            return ChunkingDecision.no(f"Grouping with same spatial container: {spatial_container}")
+        else:
+            return ChunkingDecision.yes(
+                f"New spatial container: {spatial_container}",
+                ChunkType.IFC_OBJECT
+            )
     
     def _extract_spatial_container(self, value: Any) -> str:
         """Extract spatial container ID from building element."""
