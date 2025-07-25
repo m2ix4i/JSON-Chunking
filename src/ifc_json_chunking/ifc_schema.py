@@ -20,8 +20,114 @@ from .config import Config
 logger = structlog.get_logger(__name__)
 
 
+class SpatialElements(Enum):
+    """IFC spatial structure elements."""
+    SITE = "IfcSite"
+    BUILDING = "IfcBuilding"
+    BUILDING_STOREY = "IfcBuildingStorey"
+    SPACE = "IfcSpace"
+    ROOM = "IfcRoom"
+    ZONE = "IfcZone"
+
+
+class ArchitecturalElements(Enum):
+    """IFC architectural building elements."""
+    WALL = "IfcWall"
+    DOOR = "IfcDoor"
+    WINDOW = "IfcWindow"
+    ROOF = "IfcRoof"
+    STAIR = "IfcStair"
+    RAMP = "IfcRamp"
+    CURTAIN_WALL = "IfcCurtainWall"
+
+
+class StructuralElements(Enum):
+    """IFC structural building elements."""
+    BEAM = "IfcBeam"
+    COLUMN = "IfcColumn"
+    SLAB = "IfcSlab"
+    FOOTING = "IfcFooting"
+    PILE = "IfcPile"
+    PLATE = "IfcPlate"
+    MEMBER = "IfcMember"
+    REINFORCING_BAR = "IfcReinforcingBar"
+
+
+class MEPElements(Enum):
+    """IFC mechanical, electrical, and plumbing elements."""
+    PIPE = "IfcPipe"
+    DUCT = "IfcDuct"
+    CABLE_CARRIER_FITTING = "IfcCableCarrierFitting"
+    FLOW_TERMINAL = "IfcFlowTerminal"
+    DISTRIBUTION_ELEMENT = "IfcDistributionElement"
+    FLOW_CONTROLLER = "IfcFlowController"
+    FLOW_MOVING_DEVICE = "IfcFlowMovingDevice"
+    ENERGY_CONVERSION_DEVICE = "IfcEnergyConversionDevice"
+    FLOW_STORAGE_DEVICE = "IfcFlowStorageDevice"
+
+
+class RelationshipTypes(Enum):
+    """IFC relationship types."""
+    REL_CONTAINED_IN_SPATIAL = "IfcRelContainedInSpatialStructure"
+    REL_AGGREGATES = "IfcRelAggregates"
+    REL_ASSIGNS_TO_GROUP = "IfcRelAssignsToGroup"
+    REL_DEFINES_BY_PROPERTIES = "IfcRelDefinesByProperties"
+    REL_CONNECTS_ELEMENTS = "IfcRelConnectsElements"
+    REL_CONNECTS_PATH_ELEMENTS = "IfcRelConnectsPathElements"
+
+
+class IFCEntityRegistry:
+    """Registry for all IFC entity types organized by domain."""
+    
+    # Combine all entity types
+    ALL_ENTITIES = {
+        **{e.name: e.value for e in SpatialElements},
+        **{e.name: e.value for e in ArchitecturalElements},
+        **{e.name: e.value for e in StructuralElements},
+        **{e.name: e.value for e in MEPElements},
+        **{e.name: e.value for e in RelationshipTypes}
+    }
+    
+    # Group by discipline for easy access
+    SPATIAL = {e.name: e.value for e in SpatialElements}
+    ARCHITECTURAL = {e.name: e.value for e in ArchitecturalElements}
+    STRUCTURAL = {e.name: e.value for e in StructuralElements}
+    MEP = {e.name: e.value for e in MEPElements}
+    RELATIONSHIPS = {e.name: e.value for e in RelationshipTypes}
+    
+    @classmethod
+    def from_string(cls, type_str: str) -> str:
+        """Convert string to IFC entity type."""
+        # Normalize input
+        normalized = type_str.strip()
+        
+        # Direct match
+        for entity_value in cls.ALL_ENTITIES.values():
+            if entity_value.lower() == normalized.lower():
+                return entity_value
+        
+        return "Unknown"
+    
+    @classmethod
+    def get_discipline(cls, entity_type: str) -> str:
+        """Get discipline for an entity type."""
+        if entity_type in cls.SPATIAL.values():
+            return "Spatial"
+        elif entity_type in cls.ARCHITECTURAL.values():
+            return "Architectural"
+        elif entity_type in cls.STRUCTURAL.values():
+            return "Structural"
+        elif entity_type in cls.MEP.values():
+            return "MEP"
+        elif entity_type in cls.RELATIONSHIPS.values():
+            return "Relationship"
+        else:
+            return "Unknown"
+
+
+# Maintain backward compatibility
 class IFCEntityType(Enum):
-    """Common IFC entity types for building components."""
+    """Common IFC entity types - maintained for backward compatibility."""
     
     # Spatial Structure
     SITE = "IfcSite"
@@ -29,7 +135,7 @@ class IFCEntityType(Enum):
     BUILDING_STOREY = "IfcBuildingStorey"
     SPACE = "IfcSpace"
     
-    # Building Elements
+    # Building Elements  
     WALL = "IfcWall"
     DOOR = "IfcDoor"
     WINDOW = "IfcWindow"
@@ -44,20 +150,18 @@ class IFCEntityType(Enum):
     DUCT = "IfcDuct"
     EQUIPMENT = "IfcFlowTerminal"
     
-    # Relationships
-    REL_CONTAINED_IN_SPATIAL = "IfcRelContainedInSpatialStructure"
-    REL_AGGREGATES = "IfcRelAggregates"
-    REL_ASSIGNS_TO_GROUP = "IfcRelAssignsToGroup"
-    REL_DEFINES_BY_PROPERTIES = "IfcRelDefinesByProperties"
-    
     # Other
     UNKNOWN = "Unknown"
 
     @classmethod
     def from_string(cls, type_str: str) -> "IFCEntityType":
         """Convert string to IFCEntityType enum."""
+        # Use registry for comprehensive lookup
+        entity_value = IFCEntityRegistry.from_string(type_str)
+        
+        # Map to enum values
         for entity_type in cls:
-            if entity_type.value.lower() == type_str.lower():
+            if entity_type.value == entity_value:
                 return entity_type
         return cls.UNKNOWN
 
