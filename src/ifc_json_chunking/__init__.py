@@ -14,7 +14,7 @@ __email__ = "team@ifcjsonchunking.com"
 from .core import ChunkingEngine
 from .config import Config
 from .exceptions import IFCChunkingError, ChunkingError, ValidationError, ConfigurationError
-from .models import Chunk, ChunkType, ChunkingStrategy
+from .models import Chunk, ChunkType
 
 # LLM Integration
 from .llm import GeminiClient, ChunkProcessor, RateLimiter
@@ -43,7 +43,6 @@ __all__ = [
     "ConfigurationError",
     "Chunk",
     "ChunkType",
-    "ChunkingStrategy",
     
     # LLM Integration
     "GeminiClient",
