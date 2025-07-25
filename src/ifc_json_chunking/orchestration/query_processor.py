@@ -404,51 +404,51 @@ class QueryProcessor:
         request: QueryRequest
     ) -> List[ChunkResult]:
         """Process chunks with specialized prompts."""
-        chunk_results = []
-        
-        # Create progress callback for chunk processing
+        progress_callback = self._create_chunk_progress_callback(request)
+        processing_result = await self._execute_chunk_processing(chunks, prompts, request, progress_callback)
+        return self._convert_processing_responses(context, chunks, processing_result)
+    
+    def _create_chunk_progress_callback(self, request: QueryRequest) -> Callable:
+        """Create progress callback for chunk processing."""
         def chunk_progress_callback(completed: int, total: int, percentage: float):
-            asyncio.create_task(self._emit_progress(
-                request,
-                ProgressEventType.CHUNK_COMPLETED,
-                completed, total,
-                f"Processed {completed}/{total} chunks ({percentage:.1f}%)"
-            ))
-        
-        # Process chunks using the chunk processor
-        processing_result = await self.chunk_processor.process_chunks(
-            chunks=chunks,
-            prompt=prompts[chunks[0].chunk_id],  # Use first prompt as base
-            progress_callback=chunk_progress_callback,
-            batch_size=request.max_concurrent
-        )
-        
-        # Convert processing responses to chunk results
+            asyncio.create_task(self._emit_chunk_progress(request, completed, total, percentage))
+        return chunk_progress_callback
+    
+    async def _emit_chunk_progress(self, request: QueryRequest, completed: int, total: int, percentage: float) -> None:
+        """Emit chunk processing progress event."""
+        message = f"Processed {completed}/{total} chunks ({percentage:.1f}%)"
+        await self._emit_progress(request, ProgressEventType.CHUNK_COMPLETED, completed, total, message)
+    
+    async def _execute_chunk_processing(self, chunks: List[Chunk], prompts: Dict[str, str], request: QueryRequest, progress_callback: Callable) -> Any:
+        """Execute chunk processing with LLM."""
+        return await self.chunk_processor.process_chunks(
+            chunks=chunks, prompt=prompts[chunks[0].chunk_id],
+            progress_callback=progress_callback, batch_size=request.max_concurrent)
+    
+    def _convert_processing_responses(self, context: QueryContext, chunks: List[Chunk], processing_result: Any) -> List[ChunkResult]:
+        """Convert processing responses to chunk results."""
+        chunk_results = []
         for i, response in enumerate(processing_result.responses):
-            chunk = chunks[i] if i < len(chunks) else None
-            
-            chunk_result = ChunkResult(
-                chunk_id=chunk.chunk_id if chunk else f"unknown_{i}",
-                content=response.content,
-                status=response.status.value,
-                tokens_used=response.tokens_used,
-                processing_time=response.processing_time,
-                confidence_score=0.8 if response.status.value == "completed" else 0.0,
-                extraction_quality="high" if response.status.value == "completed" else "low",
-                model_used=response.model,
-                error_message=response.error
-            )
-            
-            # Update context with chunk result
-            context.update_context(chunk_result.chunk_id, {
-                "content": chunk_result.content,
-                "status": chunk_result.status,
-                "tokens": chunk_result.tokens_used
-            })
-            
+            chunk_result = self._create_chunk_result(chunks, i, response)
+            self._update_context_with_result(context, chunk_result)
             chunk_results.append(chunk_result)
-        
         return chunk_results
+    
+    def _create_chunk_result(self, chunks: List[Chunk], index: int, response: Any) -> ChunkResult:
+        """Create chunk result from processing response."""
+        chunk = chunks[index] if index < len(chunks) else None
+        return ChunkResult(
+            chunk_id=chunk.chunk_id if chunk else f"unknown_{index}",
+            content=response.content, status=response.status.value,
+            tokens_used=response.tokens_used, processing_time=response.processing_time,
+            confidence_score=0.8 if response.status.value == "completed" else 0.0,
+            extraction_quality="high" if response.status.value == "completed" else "low",
+            model_used=response.model, error_message=response.error)
+    
+    def _update_context_with_result(self, context: QueryContext, chunk_result: ChunkResult) -> None:
+        """Update context with chunk processing result."""
+        context.update_context(chunk_result.chunk_id, {
+            "content": chunk_result.content, "status": chunk_result.status, "tokens": chunk_result.tokens_used})
     
     async def _aggregate_results(
         self,
