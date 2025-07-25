@@ -68,9 +68,9 @@ async def startup_event():
     
     # Initialize performance monitoring
     try:
-        await redis_cache.initialize()
-        await metrics_collector.start()
-        await memory_profiler.start()
+        await redis_cache.connect()
+        metrics_collector.start_collection()
+        memory_profiler.start_monitoring()
         logger.info("Performance monitoring initialized successfully")
     except Exception as e:
         logger.warning("Failed to initialize performance monitoring", error=str(e))
@@ -82,9 +82,9 @@ async def shutdown_event():
     
     # Cleanup performance monitoring
     try:
-        await memory_profiler.stop()
-        await metrics_collector.stop()
-        await redis_cache.cleanup()
+        memory_profiler.stop_monitoring()
+        metrics_collector.stop_collection()
+        await redis_cache.disconnect()
         logger.info("Performance monitoring cleanup complete")
     except Exception as e:
         logger.warning("Error during monitoring cleanup", error=str(e))
