@@ -1,9 +1,9 @@
 """
 Advanced Result Aggregation & Synthesis Engine.
 
-This module provides sophisticated result aggregation techniques to combine 
-LLM responses from multiple chunks into coherent, accurate final answers
-with conflict resolution, consistency checking, and quality assurance.
+This module provides comprehensive aggregation capabilities including
+data extraction, normalization, conflict detection and resolution,
+and intelligent result synthesis.
 """
 
 from .core.aggregator import AdvancedAggregator

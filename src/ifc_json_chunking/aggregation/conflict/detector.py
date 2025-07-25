@@ -72,7 +72,6 @@ class ConflictDetector:
         if len(extracted_data_list) < 2:
             logger.debug("Insufficient data for conflict detection")
             return []
-        
         conflicts = []
         
         try:
