@@ -1,38 +1,27 @@
 /**
- * Error boundary component for catching and handling React errors gracefully.
+ * Error boundary component for catching and displaying React errors.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ReactNode } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
+  Container,
   Typography,
   Button,
+  Card,
+  CardContent,
   Alert,
-  AlertTitle,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Divider,
 } from '@mui/material';
-import {
-  Error as ErrorIcon,
-  Refresh as RefreshIcon,
-  ExpandMore as ExpandIcon,
-  BugReport as BugIcon,
-} from '@mui/icons-material';
+import { Error as ErrorIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
-  errorId: string;
+  errorInfo: any;
 }
 
 class ErrorBoundary extends Component<Props, State> {
@@ -42,130 +31,95 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: '',
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
-    const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  static getDerivedStateFromError(error: Error): State {
     return {
       hasError: true,
       error,
-      errorId,
+      errorInfo: null,
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Error caught by boundary:', error, errorInfo);
+    
     this.setState({
       error,
       errorInfo,
     });
 
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // In production, you might want to log this to an error reporting service
+    if (import.meta.env.PROD) {
+      // Example: Sentry.captureException(error, { contexts: { react: errorInfo } });
     }
-
-    // In production, you might want to send this to an error reporting service
-    // reportError(error, errorInfo, this.state.errorId);
   }
+
+  handleReload = () => {
+    window.location.reload();
+  };
 
   handleReset = () => {
     this.setState({
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: '',
     });
-  };
-
-  handleReload = () => {
-    window.location.reload();
   };
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
       return (
-        <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
-          <Card>
+        <Container maxWidth="md" sx={{ py: 8 }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <ErrorIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
+            <Typography variant="h4" component="h1" gutterBottom>
+              Oops! Etwas ist schiefgelaufen
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.
+            </Typography>
+          </Box>
+
+          <Card sx={{ mb: 4 }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <ErrorIcon sx={{ fontSize: 48, color: 'error.main', mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="h1" color="error">
-                    Ups! Etwas ist schiefgelaufen
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Alert severity="error" sx={{ mb: 3 }}>
-                <AlertTitle>Fehler-Details</AlertTitle>
-                <Typography variant="body2" sx={{ fontFamily: 'monospace', mt: 1 }}>
-                  ID: {this.state.errorId}
-                </Typography>
-                {this.state.error && (
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                    {this.state.error.message}
-                  </Typography>
-                )}
-              </Alert>
-
-              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                 <Button
                   variant="contained"
                   startIcon={<RefreshIcon />}
-                  onClick={this.handleReset}
-                >
-                  Erneut versuchen
-                </Button>
-                <Button
-                  variant="outlined"
                   onClick={this.handleReload}
                 >
                   Seite neu laden
                 </Button>
+                <Button
+                  variant="outlined"
+                  onClick={this.handleReset}
+                >
+                  Erneut versuchen
+                </Button>
               </Box>
-
-              {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandIcon />}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <BugIcon sx={{ mr: 1 }} />
-                        <Typography variant="h6">
-                          Entwickler-Informationen
-                        </Typography>
-                      </Box>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Typography variant="body2" component="pre" sx={{ 
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        fontSize: '0.75rem',
-                        backgroundColor: 'grey.100',
-                        p: 2,
-                        borderRadius: 1,
-                        overflow: 'auto',
-                      }}>
-                        {this.state.error && this.state.error.stack}
-                        {'\n\n--- Component Stack ---\n'}
-                        {this.state.errorInfo.componentStack}
-                      </Typography>
-                    </AccordionDetails>
-                  </Accordion>
-                </>
-              )}
             </CardContent>
           </Card>
-        </Box>
+
+          {/* Show error details in development */}
+          {import.meta.env.DEV && this.state.error && (
+            <Alert severity="error" sx={{ textAlign: 'left' }}>
+              <Typography variant="h6" gutterBottom>
+                Fehlerdetails (nur in Entwicklung sichtbar):
+              </Typography>
+              <Typography variant="body2" component="pre" sx={{ 
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+              }}>
+                {this.state.error.toString()}
+                {this.state.errorInfo?.componentStack}
+              </Typography>
+            </Alert>
+          )}
+        </Container>
       );
     }
 

@@ -1,13 +1,12 @@
-"""Conflict detection and resolution components."""
+"""
+Conflict detection system for advanced aggregation.
+
+This module provides comprehensive conflict detection capabilities
+for identifying and categorizing conflicts between chunk results.
+"""
 
 from .detector import ConflictDetector
-from .resolver import ConflictResolver
-from .consistency import ConsistencyChecker
-from .evidence import EvidenceEvaluator
 
 __all__ = [
     "ConflictDetector",
-    "ConflictResolver", 
-    "ConsistencyChecker",
-    "EvidenceEvaluator",
 ]

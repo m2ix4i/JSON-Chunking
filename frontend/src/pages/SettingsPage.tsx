@@ -1,6 +1,6 @@
 /**
- * Results page - display query results.
- * Placeholder for structured results display.
+ * Settings page - application settings and preferences.
+ * Placeholder for user settings and configuration.
  */
 
 import React from 'react';
@@ -10,24 +10,24 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { Assessment as ResultsIcon } from '@mui/icons-material';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 
-const ResultsPage: React.FC = () => {
+const SettingsPage: React.FC = () => {
   return (
     <Box>
       <Typography variant="h4" component="h1" gutterBottom>
-        Ergebnisse
+        Einstellungen
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Hier werden die Ergebnisse Ihrer Abfragen strukturiert angezeigt.
+        Konfigurieren Sie Ihre Präferenzen und Anwendungseinstellungen.
       </Typography>
 
       <Card sx={{ maxWidth: 600, mx: 'auto' }}>
         <CardContent sx={{ textAlign: 'center', py: 6 }}>
-          <ResultsIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+          <SettingsIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
           
           <Typography variant="h6" gutterBottom>
-            Strukturierte Ergebnisanzeige
+            Benutzereinstellungen
           </Typography>
           
           <Typography variant="body2" color="text.secondary">
@@ -39,4 +39,4 @@ const ResultsPage: React.FC = () => {
   );
 };
 
-export default ResultsPage;
+export default SettingsPage;

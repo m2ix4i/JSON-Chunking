@@ -1,11 +1,20 @@
 """
-Advanced Result Aggregation & Synthesis Engine - Statistical Aggregation Strategies.
+Advanced Result Aggregation & Synthesis Engine.
 
-This module provides specialized aggregation strategies for different types
-of IFC data with statistical methods and domain knowledge.
+This module provides comprehensive aggregation capabilities including
+data extraction, normalization, conflict detection and resolution,
+statistical aggregation strategies, and intelligent result synthesis.
 """
 
-# Import aggregation strategies for this PR
+# Core components
+from .core.aggregator import AdvancedAggregator
+from .core.data_extractor import DataExtractor
+from .core.normalizer import DataNormalizer
+
+# Conflict detection
+from .conflict.detector import ConflictDetector
+
+# Statistical aggregation strategies
 from .strategies.quantity_strategy import QuantityAggregationStrategy
 from .strategies.component_strategy import ComponentAggregationStrategy
 from .strategies.material_strategy import MaterialAggregationStrategy
@@ -13,6 +22,14 @@ from .strategies.spatial_strategy import SpatialAggregationStrategy
 from .strategies.cost_strategy import CostAggregationStrategy
 
 __all__ = [
+    # Core components
+    "AdvancedAggregator",
+    "DataExtractor", 
+    "DataNormalizer",
+    
+    # Conflict handling
+    "ConflictDetector",
+    
     # Statistical aggregation strategies
     "QuantityAggregationStrategy",
     "ComponentAggregationStrategy",
