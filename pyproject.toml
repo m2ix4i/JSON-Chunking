@@ -46,6 +46,10 @@ psutil = "^5.9.0"
 python-dotenv = "^1.0.0"
 # Async support
 asyncio-mqtt = {version = "^0.16.0", optional = true}
+# LLM Integration
+google-generativeai = "^0.3.0"
+tenacity = "^8.2.0"
+redis = {version = "^5.0.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 # Testing
