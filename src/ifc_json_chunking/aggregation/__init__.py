@@ -1,26 +1,27 @@
 """
-Advanced Result Aggregation & Synthesis Engine - Conflict Detection.
+Advanced Result Aggregation & Synthesis Engine.
 
-This module provides conflict detection capabilities for identifying
-contradictions and inconsistencies between chunk results.
+This module provides comprehensive aggregation capabilities including
+data extraction, normalization, conflict detection and resolution,
+and intelligent result synthesis.
 """
 
-# Import only the conflict detection components for this PR
+from .core.aggregator import AdvancedAggregator
+from .core.data_extractor import DataExtractor
+from .core.normalizer import DataNormalizer
+
+from .strategies.quantity_strategy import QuantityAggregationStrategy
 from .conflict.detector import ConflictDetector
-from .conflict.detectors import (
-    QuantitativeConflictDetector,
-    QualitativeConflictDetector,
-    EntityConflictDetector,
-    SpatialConflictDetector,
-    RelationshipConflictDetector
-)
 
 __all__ = [
-    # Conflict detection system
+    # Core components
+    "AdvancedAggregator",
+    "DataExtractor", 
+    "DataNormalizer",
+    
+    # Aggregation strategies
+    "QuantityAggregationStrategy",
+    
+    # Conflict handling
     "ConflictDetector",
-    "QuantitativeConflictDetector",
-    "QualitativeConflictDetector",
-    "EntityConflictDetector", 
-    "SpatialConflictDetector",
-    "RelationshipConflictDetector",
 ]

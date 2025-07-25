@@ -21,6 +21,7 @@ import QueryPage from '@pages/QueryPage';
 import ResultsPage from '@pages/ResultsPage';
 import HistoryPage from '@pages/HistoryPage';
 import SettingsPage from '@pages/SettingsPage';
+import { DocumentationPage } from '@pages/DocumentationPage';
 import NotificationContainer from '@components/notifications/NotificationContainer';
 import ErrorBoundary from '@components/error/ErrorBoundary';
 
@@ -171,6 +172,8 @@ const App: React.FC = () => {
                   <Route path="/results/:queryId" element={<ResultsPage />} />
                   <Route path="/history" element={<HistoryPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/docs" element={<DocumentationPage />} />
+                  <Route path="/documentation" element={<DocumentationPage />} />
                   {/* Catch-all route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
