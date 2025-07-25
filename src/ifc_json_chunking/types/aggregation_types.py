@@ -1,7 +1,7 @@
 """
 Type definitions for the advanced aggregation and synthesis engine.
 
-This module contains all type definitions and data structures used
+This module contains core type definitions and data structures used
 throughout the aggregation pipeline for type safety and clarity.
 """
 
@@ -12,6 +12,26 @@ import time
 from abc import ABC, abstractmethod
 
 from ..query.types import QueryResult, ChunkResult, QueryContext, QueryIntent
+
+
+# Configuration constants for validation and quality calculations
+class QualityWeights:
+    """Configurable weights for quality score calculation."""
+    CONFIDENCE = 0.25
+    COMPLETENESS = 0.20
+    CONSISTENCY = 0.20
+    RELIABILITY = 0.20
+    EXTRACTION = 0.15
+
+
+class ValidationThresholds:
+    """Configurable thresholds for validation."""
+    MIN_CONFIDENCE_SCORE = 0.0
+    MAX_CONFIDENCE_SCORE = 1.0
+    MIN_QUALITY_SCORE = 0.0
+    MAX_QUALITY_SCORE = 1.0
+    MIN_SEVERITY = 0.0
+    MAX_SEVERITY = 1.0
 
 
 class ConflictType(Enum):
@@ -75,6 +95,14 @@ class ExtractedData:
     temporal_context: Dict[str, Any] = field(default_factory=dict)
     semantic_context: Dict[str, Any] = field(default_factory=dict)
     
+    def __post_init__(self):
+        """Validate fields after initialization."""
+        if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.extraction_confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
+            raise ValueError(f"Extraction confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
+        
+        if self.data_quality not in ['high', 'medium', 'low', 'unknown']:
+            raise ValueError("Data quality must be one of: high, medium, low, unknown")
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -102,6 +130,14 @@ class Evidence:
     quality_score: float
     supporting_data: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate fields after initialization."""
+        if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
+            raise ValueError(f"Confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
+        
+        if not ValidationThresholds.MIN_QUALITY_SCORE <= self.quality_score <= ValidationThresholds.MAX_QUALITY_SCORE:
+            raise ValueError(f"Quality score must be between {ValidationThresholds.MIN_QUALITY_SCORE} and {ValidationThresholds.MAX_QUALITY_SCORE}")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -132,6 +168,17 @@ class Conflict:
     context: Dict[str, Any] = field(default_factory=dict)
     detected_at: float = field(default_factory=time.time)
     
+    def __post_init__(self):
+        """Validate fields after initialization."""
+        if not ValidationThresholds.MIN_SEVERITY <= self.severity <= ValidationThresholds.MAX_SEVERITY:
+            raise ValueError(f"Severity must be between {ValidationThresholds.MIN_SEVERITY} and {ValidationThresholds.MAX_SEVERITY}")
+        
+        if len(self.conflicting_chunks) < 2:
+            raise ValueError("Conflict must involve at least 2 conflicting chunks")
+        
+        if len(self.conflicting_values) < 2:
+            raise ValueError("Conflict must involve at least 2 conflicting values")
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -160,6 +207,14 @@ class ConflictResolution:
     evidence_used: List[Evidence] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     resolved_at: float = field(default_factory=time.time)
+    
+    def __post_init__(self):
+        """Validate fields after initialization."""
+        if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
+            raise ValueError(f"Confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
+        
+        if not self.reasoning.strip():
+            raise ValueError("Reasoning cannot be empty")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -199,23 +254,32 @@ class QualityMetrics:
     calculated_at: float = field(default_factory=time.time)
     calculation_method: str = "standard"
     
+    def __post_init__(self):
+        """Validate quality scores after initialization."""
+        score_fields = [
+            ('confidence_score', self.confidence_score),
+            ('completeness_score', self.completeness_score),
+            ('consistency_score', self.consistency_score),
+            ('reliability_score', self.reliability_score),
+            ('uncertainty_level', self.uncertainty_level),
+            ('data_coverage', self.data_coverage),
+            ('extraction_quality', self.extraction_quality),
+            ('conflict_resolution_rate', self.conflict_resolution_rate)
+        ]
+        
+        for field_name, value in score_fields:
+            if not ValidationThresholds.MIN_QUALITY_SCORE <= value <= ValidationThresholds.MAX_QUALITY_SCORE:
+                raise ValueError(f"{field_name} must be between {ValidationThresholds.MIN_QUALITY_SCORE} and {ValidationThresholds.MAX_QUALITY_SCORE}, got {value}")
+    
     @property
     def overall_quality(self) -> float:
-        """Calculate overall quality score."""
-        weights = {
-            "confidence": 0.25,
-            "completeness": 0.20,
-            "consistency": 0.20,
-            "reliability": 0.20,
-            "extraction": 0.15
-        }
-        
+        """Calculate overall quality score using configurable weights."""
         return (
-            weights["confidence"] * self.confidence_score +
-            weights["completeness"] * self.completeness_score +
-            weights["consistency"] * self.consistency_score +
-            weights["reliability"] * self.reliability_score +
-            weights["extraction"] * self.extraction_quality
+            QualityWeights.CONFIDENCE * self.confidence_score +
+            QualityWeights.COMPLETENESS * self.completeness_score +
+            QualityWeights.CONSISTENCY * self.consistency_score +
+            QualityWeights.RELIABILITY * self.reliability_score +
+            QualityWeights.EXTRACTION * self.extraction_quality
         )
     
     def to_dict(self) -> Dict[str, Any]:

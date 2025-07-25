@@ -85,98 +85,112 @@ class DataExtractor:
         query_intent: QueryIntent,
         context: Optional[Dict[str, Any]] = None
     ) -> ExtractedData:
-        """
-        Extract structured data from a chunk result.
-        
-        Args:
-            chunk_result: Result from processing a single chunk
-            query_intent: Intent of the original query
-            context: Optional context information
-            
-        Returns:
-            ExtractedData with structured information
-        """
-        logger.debug(
-            "Starting data extraction",
-            chunk_id=chunk_result.chunk_id,
-            intent=query_intent.value,
-            content_length=len(chunk_result.content)
-        )
+        """Extract structured data from a chunk result."""
+        logger.debug("Starting data extraction", chunk_id=chunk_result.chunk_id, intent=query_intent.value)
         
         try:
-            extracted_data = ExtractedData(
-                chunk_id=chunk_result.chunk_id,
-                extraction_confidence=chunk_result.confidence_score,
-                data_quality=chunk_result.extraction_quality
-            )
+            if not self._is_valid_content(chunk_result.content):
+                return self._create_empty_extracted_data(chunk_result)
             
-            content = chunk_result.content.strip()
-            if not content:
-                logger.warning("Empty chunk content", chunk_id=chunk_result.chunk_id)
-                return extracted_data
-            
-            # Extract different types of data based on query intent
-            if query_intent == QueryIntent.QUANTITY:
-                extracted_data.quantities = await self._extract_quantities(content)
-                extracted_data.entities = await self._extract_entities(content)
-                
-            elif query_intent == QueryIntent.COMPONENT:
-                extracted_data.entities = await self._extract_entities(content)
-                extracted_data.properties = await self._extract_properties(content)
-                extracted_data.relationships = await self._extract_relationships(content)
-                
-            elif query_intent == QueryIntent.MATERIAL:
-                extracted_data.properties = await self._extract_properties(content)
-                extracted_data.entities = await self._extract_entities(content)
-                
-            elif query_intent == QueryIntent.SPATIAL:
-                extracted_data.entities = await self._extract_entities(content)
-                extracted_data.relationships = await self._extract_relationships(content)
-                extracted_data.spatial_context = await self._extract_spatial_context(content)
-                
-            elif query_intent == QueryIntent.COST:
-                extracted_data.quantities = await self._extract_quantities(content)
-                extracted_data.properties = await self._extract_properties(content)
-                
-            else:
-                # Generic extraction for unknown intents
-                extracted_data.entities = await self._extract_entities(content)
-                extracted_data.quantities = await self._extract_quantities(content)
-                extracted_data.properties = await self._extract_properties(content)
-                extracted_data.relationships = await self._extract_relationships(content)
-            
-            # Always try to extract semantic context
-            extracted_data.semantic_context = await self._extract_semantic_context(content, query_intent)
-            
-            # Calculate extraction quality based on data richness
+            extracted_data = self._initialize_extracted_data(chunk_result)
+            await self._extract_by_intent(extracted_data, chunk_result.content.strip(), query_intent)
+            extracted_data.semantic_context = await self._extract_semantic_context(chunk_result.content, query_intent)
             extracted_data.extraction_confidence = self._calculate_extraction_confidence(extracted_data)
             
-            logger.debug(
-                "Data extraction completed",
-                chunk_id=chunk_result.chunk_id,
-                entities_count=len(extracted_data.entities),
-                quantities_count=len(extracted_data.quantities),
-                properties_count=len(extracted_data.properties),
-                relationships_count=len(extracted_data.relationships),
-                confidence=extracted_data.extraction_confidence
-            )
-            
+            self._log_extraction_results(extracted_data)
             return extracted_data
             
         except Exception as e:
-            logger.error(
-                "Data extraction failed",
-                chunk_id=chunk_result.chunk_id,
-                error=str(e)
-            )
-            
-            # Return minimal data with error information
-            return ExtractedData(
-                chunk_id=chunk_result.chunk_id,
-                extraction_confidence=0.0,
-                data_quality="low",
-                processing_errors=[f"Extraction failed: {str(e)}"]
-            )
+            return self._handle_extraction_error(chunk_result, e)
+    
+    def _is_valid_content(self, content: str) -> bool:
+        """Check if content is valid for extraction."""
+        return bool(content and content.strip())
+    
+    def _create_empty_extracted_data(self, chunk_result: ChunkResult) -> ExtractedData:
+        """Create empty extracted data for invalid content."""
+        logger.warning("Empty chunk content", chunk_id=chunk_result.chunk_id)
+        return ExtractedData(chunk_id=chunk_result.chunk_id, extraction_confidence=chunk_result.confidence_score)
+    
+    def _initialize_extracted_data(self, chunk_result: ChunkResult) -> ExtractedData:
+        """Initialize extracted data with chunk metadata."""
+        return ExtractedData(
+            chunk_id=chunk_result.chunk_id,
+            extraction_confidence=chunk_result.confidence_score,
+            data_quality=chunk_result.extraction_quality
+        )
+    
+    async def _extract_by_intent(self, data: ExtractedData, content: str, intent: QueryIntent) -> None:
+        """Extract data based on query intent using pluggable handlers."""
+        handler = self._get_intent_handler(intent)
+        await handler(data, content)
+    
+    def _get_intent_handler(self, intent: QueryIntent):
+        """Get intent-specific extraction handler."""
+        handlers = {
+            QueryIntent.QUANTITY: self._handle_quantity_intent,
+            QueryIntent.COMPONENT: self._handle_component_intent,
+            QueryIntent.MATERIAL: self._handle_material_intent,
+            QueryIntent.SPATIAL: self._handle_spatial_intent,
+            QueryIntent.COST: self._handle_cost_intent,
+        }
+        return handlers.get(intent, self._handle_generic_intent)
+    
+    async def _handle_quantity_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle quantity-focused extraction."""
+        data.quantities = await self._extract_quantities(content)
+        data.entities = await self._extract_entities(content)
+    
+    async def _handle_component_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle component-focused extraction."""
+        data.entities = await self._extract_entities(content)
+        data.properties = await self._extract_properties(content)
+        data.relationships = await self._extract_relationships(content)
+    
+    async def _handle_material_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle material-focused extraction."""
+        data.properties = await self._extract_properties(content)
+        data.entities = await self._extract_entities(content)
+    
+    async def _handle_spatial_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle spatial-focused extraction."""
+        data.entities = await self._extract_entities(content)
+        data.relationships = await self._extract_relationships(content)
+        data.spatial_context = await self._extract_spatial_context(content)
+    
+    async def _handle_cost_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle cost-focused extraction."""
+        data.quantities = await self._extract_quantities(content)
+        data.properties = await self._extract_properties(content)
+    
+    async def _handle_generic_intent(self, data: ExtractedData, content: str) -> None:
+        """Handle generic extraction for unknown intents."""
+        data.entities = await self._extract_entities(content)
+        data.quantities = await self._extract_quantities(content)
+        data.properties = await self._extract_properties(content)
+        data.relationships = await self._extract_relationships(content)
+    
+    def _log_extraction_results(self, data: ExtractedData) -> None:
+        """Log extraction results for monitoring."""
+        logger.debug(
+            "Data extraction completed",
+            chunk_id=data.chunk_id,
+            entities_count=len(data.entities),
+            quantities_count=len(data.quantities),
+            properties_count=len(data.properties),
+            relationships_count=len(data.relationships),
+            confidence=data.extraction_confidence
+        )
+    
+    def _handle_extraction_error(self, chunk_result: ChunkResult, error: Exception) -> ExtractedData:
+        """Handle extraction errors gracefully."""
+        logger.error("Data extraction failed", chunk_id=chunk_result.chunk_id, error=str(error))
+        return ExtractedData(
+            chunk_id=chunk_result.chunk_id,
+            extraction_confidence=0.0,
+            data_quality="low",
+            processing_errors=[f"Extraction failed: {str(error)}"]
+        )
     
     async def _extract_quantities(self, content: str) -> Dict[str, Any]:
         """Extract numerical quantities with units."""
@@ -202,44 +216,64 @@ class DataExtractor:
     async def _extract_entities(self, content: str) -> List[Dict[str, Any]]:
         """Extract building entities and components."""
         entities = []
-        
-        # Extract entities by type
+        entities.extend(await self._extract_pattern_entities(content))
+        entities.extend(await self._extract_structured_entities(content))
+        return entities
+    
+    async def _extract_pattern_entities(self, content: str) -> List[Dict[str, Any]]:
+        """Extract entities using regex patterns."""
+        entities = []
         for entity_type, pattern in self.entity_patterns.items():
             matches = pattern.finditer(content)
             for match in matches:
-                # Try to extract entity ID if present
-                entity_id = None
-                id_search = self.id_pattern.search(content, match.start() - 10, match.end() + 10)
-                if id_search:
-                    entity_id = f"#{id_search.group(1)}"
-                
-                entity = {
-                    'type': entity_type,
-                    'entity_id': entity_id,
-                    'text_match': match.group(),
-                    'context_start': max(0, match.start() - 50),
-                    'context_end': min(len(content), match.end() + 50),
-                    'context': content[max(0, match.start() - 50):min(len(content), match.end() + 50)]
-                }
+                entity = self._create_pattern_entity(entity_type, match, content)
                 entities.append(entity)
+        return entities
+    
+    def _create_pattern_entity(self, entity_type: str, match, content: str) -> Dict[str, Any]:
+        """Create entity from pattern match."""
+        entity_id = self._extract_entity_id(content, match)
+        context_start, context_end = self._get_context_bounds(match, content)
         
-        # Try to extract structured entity data (JSON-like)
+        return {
+            'type': entity_type,
+            'entity_id': entity_id,
+            'text_match': match.group(),
+            'context_start': context_start,
+            'context_end': context_end,
+            'context': content[context_start:context_end]
+        }
+    
+    def _extract_entity_id(self, content: str, match) -> Optional[str]:
+        """Extract entity ID near the match."""
+        id_search = self.id_pattern.search(content, match.start() - 10, match.end() + 10)
+        return f"#{id_search.group(1)}" if id_search else None
+    
+    def _get_context_bounds(self, match, content: str) -> Tuple[int, int]:
+        """Get context boundaries around match."""
+        context_start = max(0, match.start() - 50)
+        context_end = min(len(content), match.end() + 50)
+        return context_start, context_end
+    
+    async def _extract_structured_entities(self, content: str) -> List[Dict[str, Any]]:
+        """Extract structured entity data from JSON-like patterns."""
+        entities = []
         json_matches = self.json_pattern.finditer(content)
         for match in json_matches:
-            try:
-                # Attempt to parse as JSON
-                json_data = json.loads(match.group())
-                if isinstance(json_data, dict) and any(key in json_data for key in ['type', 'name', 'id']):
-                    entities.append({
-                        'type': 'structured',
-                        'data': json_data,
-                        'source': 'json_extraction'
-                    })
-            except json.JSONDecodeError:
-                # Not valid JSON, skip
-                pass
-        
+            entity = await self._parse_json_entity(match.group())
+            if entity:
+                entities.append(entity)
         return entities
+    
+    async def _parse_json_entity(self, json_text: str) -> Optional[Dict[str, Any]]:
+        """Parse JSON entity data safely."""
+        try:
+            json_data = json.loads(json_text)
+            if isinstance(json_data, dict) and any(key in json_data for key in ['type', 'name', 'id']):
+                return {'type': 'structured', 'data': json_data, 'source': 'json_extraction'}
+        except json.JSONDecodeError:
+            pass
+        return None
     
     async def _extract_properties(self, content: str) -> Dict[str, Any]:
         """Extract properties and attributes."""
