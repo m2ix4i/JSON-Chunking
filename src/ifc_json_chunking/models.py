@@ -370,3 +370,55 @@ class ChunkingDecision:
     def no(cls, reason: str) -> 'ChunkingDecision':
         """Create a negative chunking decision."""
         return cls(should_chunk=False, reason=reason)
+
+
+@dataclass
+class StreamingProcessingContext:
+    """
+    Context object for streaming file processing.
+    
+    Encapsulates all state needed during file processing to reduce
+    parameter passing and improve method cohesion.
+    """
+    
+    file_path: 'Path'
+    file_size: int
+    chunks: list['Chunk']
+    processed_objects: int = 0
+    validation_errors: int = 0
+    
+    @classmethod
+    def create_for_file(cls, file_path: 'Path') -> 'StreamingProcessingContext':
+        """Create processing context for a file."""
+        from pathlib import Path
+        if isinstance(file_path, str):
+            file_path = Path(file_path)
+            
+        return cls(
+            file_path=file_path,
+            file_size=file_path.stat().st_size,
+            chunks=[],
+            processed_objects=0,
+            validation_errors=0
+        )
+    
+    def add_chunk(self, chunk: 'Chunk') -> None:
+        """Add a chunk to the context."""
+        self.chunks.append(chunk)
+    
+    def increment_objects(self) -> None:
+        """Increment processed objects counter."""
+        self.processed_objects += 1
+    
+    def increment_validation_errors(self) -> None:
+        """Increment validation errors counter."""
+        self.validation_errors += 1
+    
+    def to_processing_result(self, elapsed_seconds: float = 0) -> ProcessingResult:
+        """Convert context to ProcessingResult."""
+        return ProcessingResult(
+            chunks=self.chunks,
+            processed_objects=self.processed_objects,
+            validation_errors=self.validation_errors,
+            elapsed_seconds=elapsed_seconds
+        )
