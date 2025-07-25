@@ -17,6 +17,7 @@ class ChunkType(Enum):
     HEADER = "header"
     GEOMETRY = "geometry" 
     GENERAL = "general"
+    SEMANTIC = "semantic"
 
 
 @dataclass
