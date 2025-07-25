@@ -90,6 +90,12 @@ class Config:
     max_chunks: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_CHUNKS", 1000))
     overlap_percentage: float = field(default_factory=lambda: ConfigurationParser.get_float_env("OVERLAP_PERCENTAGE", 0.1))
     
+    # Semantic chunking settings
+    chunking_strategy: str = field(default_factory=lambda: ConfigurationParser.get_str_env("CHUNKING_STRATEGY", "hierarchical"))
+    target_llm_model: str = field(default_factory=lambda: ConfigurationParser.get_str_env("TARGET_LLM_MODEL", "gemini-2.5-pro"))
+    overlap_strategy: str = field(default_factory=lambda: ConfigurationParser.get_str_env("OVERLAP_STRATEGY", "token_based"))
+    enable_token_optimization: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_TOKEN_OPTIMIZATION", True))
+    
     # Processing settings
     max_workers: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_WORKERS", 4))
     timeout_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("TIMEOUT_SECONDS", 300))
@@ -148,6 +154,10 @@ class Config:
             "chunk_size_mb": self.chunk_size_mb,
             "max_chunks": self.max_chunks,
             "overlap_percentage": self.overlap_percentage,
+            "chunking_strategy": self.chunking_strategy,
+            "target_llm_model": self.target_llm_model,
+            "overlap_strategy": self.overlap_strategy,
+            "enable_token_optimization": self.enable_token_optimization,
             "max_workers": self.max_workers,
             "timeout_seconds": self.timeout_seconds,
             "output_directory": str(self.output_directory),
