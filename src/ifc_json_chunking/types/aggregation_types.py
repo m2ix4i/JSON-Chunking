@@ -438,8 +438,75 @@ ProgressCallback = Callable[[str, float], None]
 QualityCallback = Callable[[QualityMetrics], None]
 ConflictCallback = Callable[[List[Conflict]], None]
 
+# Specific domain types for better type safety
+@dataclass
+class EntityData:
+    """Structured entity data with type safety."""
+    entity_id: str
+    entity_type: str
+    name: Optional[str] = None
+    properties: Dict[str, Union[str, float, int, bool]] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "entity_id": self.entity_id,
+            "entity_type": self.entity_type,
+            "name": self.name,
+            "properties": self.properties
+        }
+
+@dataclass
+class RelationshipData:
+    """Structured relationship data with type safety."""
+    relationship_type: str
+    from_entity: str
+    to_entity: str
+    properties: Dict[str, Union[str, float, int, bool]] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "type": self.relationship_type,
+            "from": self.from_entity,
+            "to": self.to_entity,
+            "properties": self.properties
+        }
+
+@dataclass
+class SpatialContext:
+    """Structured spatial context data."""
+    building_id: Optional[str] = None
+    floor_id: Optional[str] = None
+    room_id: Optional[str] = None
+    zone_id: Optional[str] = None
+    coordinates: Optional[Tuple[float, float, float]] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "building_id": self.building_id,
+            "floor_id": self.floor_id,
+            "room_id": self.room_id,
+            "zone_id": self.zone_id,
+            "coordinates": self.coordinates
+        }
+
+@dataclass
+class TemporalContext:
+    """Structured temporal context data."""
+    created_date: Optional[str] = None
+    modified_date: Optional[str] = None
+    version: Optional[str] = None
+    lifecycle_phase: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "created_date": self.created_date,
+            "modified_date": self.modified_date,
+            "version": self.version,
+            "lifecycle_phase": self.lifecycle_phase
+        }
+
 # Common utility types
-EntityMapping = Dict[str, Dict[str, Any]]
+EntityMapping = Dict[str, EntityData]
 QuantityMapping = Dict[str, Union[float, int, str]]
-PropertyMapping = Dict[str, Dict[str, Any]]
-RelationshipMapping = Dict[str, List[Dict[str, Any]]]
+PropertyMapping = Dict[str, Union[str, float, int, bool]]
+RelationshipMapping = Dict[str, List[RelationshipData]]
