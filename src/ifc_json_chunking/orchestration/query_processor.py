@@ -22,14 +22,14 @@ from ..query.types import (
     QueryContext,
     QueryStatus,
     QueryIntent,
-    QueryParameters,
     ProgressEvent,
     ProgressEventType,
     ChunkResult,
     ProgressCallback
 )
-from ..aggregation.core.aggregator import AdvancedAggregator
 from .intent_classifier import IntentClassifier
+from ..aggregation.core.aggregator import AdvancedAggregator
+from ..types.aggregation_types import EnhancedQueryResult, ValidationLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -53,7 +53,8 @@ class QueryProcessor:
         config: Config,
         llm_config: Optional[LLMConfig] = None,
         rate_limit_config: Optional[RateLimitConfig] = None,
-        chunk_processor: Optional[ChunkProcessor] = None
+        chunk_processor: Optional[ChunkProcessor] = None,
+        enable_advanced_aggregation: bool = True
     ):
         """
         Initialize query processor.
@@ -63,6 +64,7 @@ class QueryProcessor:
             llm_config: LLM configuration (created from config if not provided)
             rate_limit_config: Rate limiting configuration
             chunk_processor: Pre-configured chunk processor
+            enable_advanced_aggregation: Enable advanced aggregation with conflict resolution
         """
         self.config = config
         
@@ -87,14 +89,28 @@ class QueryProcessor:
         # Initialize components
         self.intent_classifier = IntentClassifier()
         
-        # Initialize advanced aggregator
-        self.advanced_aggregator = AdvancedAggregator()
-        
         # Initialize chunk processor
         self.chunk_processor = chunk_processor or ChunkProcessor(
             llm_config=llm_config,
             rate_limit_config=rate_limit_config
         )
+        
+        # Initialize advanced aggregation if enabled
+        self.enable_advanced_aggregation = enable_advanced_aggregation
+        self.advanced_aggregator = None
+        if enable_advanced_aggregation:
+            try:
+                self.advanced_aggregator = AdvancedAggregator(
+                    validation_level=ValidationLevel.STANDARD,
+                    enable_conflict_resolution=True,
+                    quality_threshold=0.5
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to initialize advanced aggregator, falling back to simple aggregation",
+                    error=str(e)
+                )
+                self.enable_advanced_aggregation = False
         
         # Active queries tracking
         self._active_queries: Dict[str, QueryContext] = {}
@@ -102,7 +118,8 @@ class QueryProcessor:
         logger.info(
             "QueryProcessor initialized",
             model=llm_config.model,
-            max_concurrent=rate_limit_config.max_concurrent
+            max_concurrent=rate_limit_config.max_concurrent,
+            advanced_aggregation=self.enable_advanced_aggregation
         )
     
     async def process_query(
@@ -135,130 +152,104 @@ class QueryProcessor:
         return await self.process_request(request)
     
     async def process_request(self, request: QueryRequest) -> QueryResult:
-        """
-        Process a complete query request.
-        
-        Args:
-            request: Query request with all parameters
-            
-        Returns:
-            QueryResult with answer and processing details
-        """
+        """Process a complete query request."""
         start_time = time.time()
-        query_id = request.query_id
-        
-        logger.info(
-            "Starting query processing",
-            query_id=query_id,
-            query=request.query,
-            total_chunks=len(request.chunks)
-        )
-        
         try:
-            # Phase 1: Preprocessing
-            await self._emit_progress(
-                request,
-                ProgressEventType.STARTED,
-                0, 4,
-                "Starting query processing"
-            )
-            
-            context = await self._preprocess_query(request)
-            self._active_queries[query_id] = context
-            
-            await self._emit_progress(
-                request,
-                ProgressEventType.PREPROCESSING_COMPLETE,
-                1, 4,
-                f"Intent classified as '{context.intent.value}' with {context.confidence_score:.2f} confidence"
-            )
-            
-            # Phase 2: Generate prompts for chunks
-            chunk_prompts = await self._generate_chunk_prompts(context, request.chunks)
-            
-            # Phase 3: Process chunks
-            await self._emit_progress(
-                request,
-                ProgressEventType.AGGREGATION_STARTED,
-                2, 4,
-                "Processing chunks with LLM"
-            )
-            
-            chunk_results = await self._process_chunks(
-                context, request.chunks, chunk_prompts, request
-            )
-            
-            # Phase 4: Aggregate results
-            await self._emit_progress(
-                request,
-                ProgressEventType.AGGREGATION_STARTED,
-                3, 4,
-                "Aggregating results and generating final answer"
-            )
-            
-            final_result = await self._aggregate_results(
-                context, request, chunk_results, start_time
-            )
-            
-            await self._emit_progress(
-                request,
-                ProgressEventType.COMPLETED,
-                4, 4,
-                "Query processing completed successfully"
-            )
-            
-            logger.info(
-                "Query processing completed",
-                query_id=query_id,
-                intent=context.intent.value,
-                total_chunks=len(request.chunks),
-                successful_chunks=final_result.successful_chunks,
-                processing_time=final_result.processing_time,
-                confidence=final_result.confidence_score
-            )
-            
-            return final_result
-            
+            return await self._execute_query_phases(request, start_time)
         except Exception as e:
-            logger.error(
-                "Query processing failed",
-                query_id=query_id,
-                error=str(e),
-                processing_time=time.time() - start_time
-            )
-            
-            await self._emit_progress(
-                request,
-                ProgressEventType.FAILED,
-                0, 4,
-                f"Processing failed: {str(e)}"
-            )
-            
-            # Create error result
-            return QueryResult(
-                query_id=query_id,
-                original_query=request.query,
-                intent=QueryIntent.UNKNOWN,
-                status=QueryStatus.FAILED,
-                answer=f"Processing failed: {str(e)}",
-                chunk_results=[],
-                aggregated_data={},
-                total_chunks=len(request.chunks),
-                successful_chunks=0,
-                failed_chunks=len(request.chunks),
-                total_tokens=0,
-                total_cost=0.0,
-                processing_time=time.time() - start_time,
-                confidence_score=0.0,
-                completeness_score=0.0,
-                relevance_score=0.0,
-                model_used=self.llm_config.model,
-                prompt_strategy="error"
-            )
-        
+            return await self._handle_query_error(request, e, start_time)
         finally:
-            # Clean up active query tracking
-            self._active_queries.pop(query_id, None)
+            self._active_queries.pop(request.query_id, None)
+    
+    async def _execute_query_phases(self, request: QueryRequest, start_time: float) -> QueryResult:
+        """Execute all query processing phases."""
+        await self._emit_phase_start(request)
+        context = await self._execute_preprocessing_phase(request)
+        chunk_prompts = await self._execute_prompt_generation_phase(context, request)
+        chunk_results = await self._execute_chunk_processing_phase(context, request, chunk_prompts)
+        return await self._execute_aggregation_phase(context, request, chunk_results, start_time)
+    
+    async def _emit_phase_start(self, request: QueryRequest) -> None:
+        """Emit initial progress event."""
+        await self._emit_progress(request, ProgressEventType.STARTED, 0, 4, "Starting query processing")
+        self._log_query_start(request)
+    
+    def _log_query_start(self, request: QueryRequest) -> None:
+        """Log query processing start."""
+        logger.info("Starting query processing", query_id=request.query_id, 
+                   query=request.query, total_chunks=len(request.chunks))
+    
+    async def _execute_preprocessing_phase(self, request: QueryRequest) -> QueryContext:
+        """Execute preprocessing phase and return context."""
+        context = await self._preprocess_query(request)
+        self._active_queries[request.query_id] = context
+        await self._emit_preprocessing_complete(request, context)
+        return context
+    
+    async def _emit_preprocessing_complete(self, request: QueryRequest, context: QueryContext) -> None:
+        """Emit preprocessing completion event."""
+        message = f"Intent classified as '{context.intent.value}' with {context.confidence_score:.2f} confidence"
+        await self._emit_progress(request, ProgressEventType.PREPROCESSING_COMPLETE, 1, 4, message)
+    
+    async def _execute_prompt_generation_phase(self, context: QueryContext, request: QueryRequest) -> Dict[str, str]:
+        """Execute prompt generation phase."""
+        return await self._generate_chunk_prompts(context, request.chunks)
+    
+    async def _execute_chunk_processing_phase(self, context: QueryContext, request: QueryRequest, chunk_prompts: Dict[str, str]) -> List[ChunkResult]:
+        """Execute chunk processing phase."""
+        await self._emit_chunk_processing_start(request)
+        return await self._process_chunks(context, request.chunks, chunk_prompts, request)
+    
+    async def _emit_chunk_processing_start(self, request: QueryRequest) -> None:
+        """Emit chunk processing start event."""
+        await self._emit_progress(request, ProgressEventType.AGGREGATION_STARTED, 2, 4, "Processing chunks with LLM")
+    
+    async def _execute_aggregation_phase(self, context: QueryContext, request: QueryRequest, chunk_results: List[ChunkResult], start_time: float) -> QueryResult:
+        """Execute aggregation phase and return final result."""
+        await self._emit_aggregation_start(request)
+        final_result = await self._aggregate_results(context, request, chunk_results, start_time)
+        await self._emit_completion_success(request, context, final_result)
+        return final_result
+    
+    async def _emit_aggregation_start(self, request: QueryRequest) -> None:
+        """Emit aggregation start event."""
+        await self._emit_progress(request, ProgressEventType.AGGREGATION_STARTED, 3, 4, "Aggregating results and generating final answer")
+    
+    async def _emit_completion_success(self, request: QueryRequest, context: QueryContext, result: QueryResult) -> None:
+        """Emit successful completion events."""
+        await self._emit_progress(request, ProgressEventType.COMPLETED, 4, 4, "Query processing completed successfully")
+        self._log_completion_success(request, context, result)
+    
+    def _log_completion_success(self, request: QueryRequest, context: QueryContext, result: QueryResult) -> None:
+        """Log successful completion."""
+        logger.info("Query processing completed", query_id=request.query_id, intent=context.intent.value,
+                   total_chunks=len(request.chunks), successful_chunks=result.successful_chunks,
+                   processing_time=result.processing_time, confidence=result.confidence_score)
+    
+    async def _handle_query_error(self, request: QueryRequest, error: Exception, start_time: float) -> QueryResult:
+        """Handle query processing error and return error result."""
+        self._log_query_error(request, error, start_time)
+        await self._emit_error_progress(request, error)
+        return self._create_error_result(request, error, start_time)
+    
+    def _log_query_error(self, request: QueryRequest, error: Exception, start_time: float) -> None:
+        """Log query processing error."""
+        logger.error("Query processing failed", query_id=request.query_id, 
+                    error=str(error), processing_time=time.time() - start_time)
+    
+    async def _emit_error_progress(self, request: QueryRequest, error: Exception) -> None:
+        """Emit error progress event."""
+        await self._emit_progress(request, ProgressEventType.FAILED, 0, 4, f"Processing failed: {str(error)}")
+    
+    def _create_error_result(self, request: QueryRequest, error: Exception, start_time: float) -> QueryResult:
+        """Create error result for failed query."""
+        return QueryResult(
+            query_id=request.query_id, original_query=request.query, intent=QueryIntent.UNKNOWN,
+            status=QueryStatus.FAILED, answer=f"Processing failed: {str(error)}", chunk_results=[],
+            aggregated_data={}, total_chunks=len(request.chunks), successful_chunks=0,
+            failed_chunks=len(request.chunks), total_tokens=0, total_cost=0.0,
+            processing_time=time.time() - start_time, confidence_score=0.0,
+            completeness_score=0.0, relevance_score=0.0, model_used=self.llm_config.model, prompt_strategy="error")
     
     async def _preprocess_query(self, request: QueryRequest) -> QueryContext:
         """Preprocess query and create context."""
@@ -314,80 +305,96 @@ class QueryProcessor:
     
     def _create_base_prompt(self, context: QueryContext) -> str:
         """Create base prompt based on query intent and parameters."""
-        intent = context.intent
-        query = context.original_query
-        params = context.parameters
-        
-        # Base instruction
-        base_instruction = (
-            "You are an expert in analyzing IFC (Industry Foundation Classes) building data. "
-            "Analyze the provided IFC JSON chunk data carefully and extract relevant information."
-        )
-        
-        # Intent-specific instructions
-        if intent == QueryIntent.QUANTITY:
-            specific_instruction = (
-                "Focus on quantitative analysis. Extract numerical values, measurements, "
-                "volumes, areas, counts, and quantities. Provide precise calculations where possible."
-            )
-        elif intent == QueryIntent.COMPONENT:
-            specific_instruction = (
-                "Focus on component identification. List all building components, elements, "
-                "and systems found in the data. Include component types, names, and identifiers."
-            )
-        elif intent == QueryIntent.MATERIAL:
-            specific_instruction = (
-                "Focus on material analysis. Identify all materials, material properties, "
-                "compositions, and material specifications mentioned in the data."
-            )
-        elif intent == QueryIntent.SPATIAL:
-            specific_instruction = (
-                "Focus on spatial analysis. Identify locations, rooms, floors, zones, "
-                "and spatial relationships between elements."
-            )
-        elif intent == QueryIntent.COST:
-            specific_instruction = (
-                "Focus on cost-related information. Extract any pricing, cost estimates, "
-                "budget information, or economic data related to materials and components."
-            )
-        else:
-            specific_instruction = (
-                "Extract all relevant information that might help answer the user's query."
-            )
-        
-        # Add query context
-        query_context = f"\\n\\nUser Query: {query}"
-        
-        # Add parameter constraints
-        constraint_parts = []
+        base_instruction = self._get_base_instruction()
+        specific_instruction = self._get_intent_specific_instruction(context.intent)
+        query_context = self._format_query_context(context.original_query)
+        constraints = self._build_parameter_constraints(context.parameters)
+        output_format = self._get_output_format_instruction()
+        return self._combine_prompt_parts(base_instruction, specific_instruction, query_context, constraints, output_format)
+    
+    def _get_base_instruction(self) -> str:
+        """Get base IFC analysis instruction."""
+        return ("You are an expert in analyzing IFC (Industry Foundation Classes) building data. "
+               "Analyze the provided IFC JSON chunk data carefully and extract relevant information.")
+    
+    def _get_intent_specific_instruction(self, intent: QueryIntent) -> str:
+        """Get intent-specific analysis instruction."""
+        intent_instructions = {
+            QueryIntent.QUANTITY: self._get_quantity_instruction(),
+            QueryIntent.COMPONENT: self._get_component_instruction(),
+            QueryIntent.MATERIAL: self._get_material_instruction(),
+            QueryIntent.SPATIAL: self._get_spatial_instruction(),
+            QueryIntent.COST: self._get_cost_instruction()
+        }
+        return intent_instructions.get(intent, self._get_default_instruction())
+    
+    def _get_quantity_instruction(self) -> str:
+        """Get quantity analysis instruction."""
+        return ("Focus on quantitative analysis. Extract numerical values, measurements, "
+               "volumes, areas, counts, and quantities. Provide precise calculations where possible.")
+    
+    def _get_component_instruction(self) -> str:
+        """Get component analysis instruction."""
+        return ("Focus on component identification. List all building components, elements, "
+               "and systems found in the data. Include component types, names, and identifiers.")
+    
+    def _get_material_instruction(self) -> str:
+        """Get material analysis instruction."""
+        return ("Focus on material analysis. Identify all materials, material properties, "
+               "compositions, and material specifications mentioned in the data.")
+    
+    def _get_spatial_instruction(self) -> str:
+        """Get spatial analysis instruction."""
+        return ("Focus on spatial analysis. Identify locations, rooms, floors, zones, "
+               "and spatial relationships between elements.")
+    
+    def _get_cost_instruction(self) -> str:
+        """Get cost analysis instruction."""
+        return ("Focus on cost-related information. Extract any pricing, cost estimates, "
+               "budget information, or economic data related to materials and components.")
+    
+    def _get_default_instruction(self) -> str:
+        """Get default analysis instruction."""
+        return "Extract all relevant information that might help answer the user's query."
+    
+    def _format_query_context(self, query: str) -> str:
+        """Format user query context."""
+        return f"\\n\\nUser Query: {query}"
+    
+    def _build_parameter_constraints(self, params: QueryParameters) -> str:
+        """Build parameter constraints section."""
+        constraint_parts = self._collect_constraint_parts(params)
+        return self._format_constraints(constraint_parts)
+    
+    def _collect_constraint_parts(self, params: QueryParameters) -> List[str]:
+        """Collect individual constraint parts."""
+        parts = []
         if params.entity_types:
-            constraint_parts.append(f"Focus on these entity types: {', '.join(params.entity_types)}")
+            parts.append(f"Focus on these entity types: {', '.join(params.entity_types)}")
         if params.spatial_constraints:
-            constraint_parts.append(f"Apply spatial constraints: {params.spatial_constraints}")
+            parts.append(f"Apply spatial constraints: {params.spatial_constraints}")
         if params.material_filters:
-            constraint_parts.append(f"Filter for materials: {', '.join(params.material_filters)}")
-        
-        constraints = ""
-        if constraint_parts:
-            constraints = "\\n\\nConstraints:\\n" + "\\n".join(f"- {part}" for part in constraint_parts)
-        
-        # Output format instruction
-        output_format = (
-            "\\n\\nProvide your response in a structured format:\\n"
-            "1. Direct answer to the query (if possible)\\n"
-            "2. Relevant entities and their properties\\n"
-            "3. Quantitative data (numbers, measurements)\\n"
-            "4. Supporting details and context\\n\\n"
-            "Be precise, factual, and cite specific data from the IFC chunk."
-        )
-        
-        return (
-            base_instruction + "\\n\\n" +
-            specific_instruction +
-            query_context +
-            constraints +
-            output_format
-        )
+            parts.append(f"Filter for materials: {', '.join(params.material_filters)}")
+        return parts
+    
+    def _format_constraints(self, constraint_parts: List[str]) -> str:
+        """Format constraints into prompt section."""
+        if not constraint_parts:
+            return ""
+        return "\\n\\nConstraints:\\n" + "\\n".join(f"- {part}" for part in constraint_parts)
+    
+    def _get_output_format_instruction(self) -> str:
+        """Get output format instruction."""
+        return ("\\n\\nProvide your response in a structured format:\\n"
+               "1. Direct answer to the query (if possible)\\n"
+               "2. Relevant entities and their properties\\n"
+               "3. Quantitative data (numbers, measurements)\\n"
+               "4. Supporting details and context\\n\\n"
+               "Be precise, factual, and cite specific data from the IFC chunk.")
+    
+    def _combine_prompt_parts(self, base: str, specific: str, query: str, constraints: str, format_instr: str) -> str:
+        """Combine all prompt parts into final prompt."""
+        return base + "\\n\\n" + specific + query + constraints + format_instr
     
     async def _process_chunks(
         self,
@@ -397,51 +404,51 @@ class QueryProcessor:
         request: QueryRequest
     ) -> List[ChunkResult]:
         """Process chunks with specialized prompts."""
-        chunk_results = []
-        
-        # Create progress callback for chunk processing
+        progress_callback = self._create_chunk_progress_callback(request)
+        processing_result = await self._execute_chunk_processing(chunks, prompts, request, progress_callback)
+        return self._convert_processing_responses(context, chunks, processing_result)
+    
+    def _create_chunk_progress_callback(self, request: QueryRequest) -> Callable:
+        """Create progress callback for chunk processing."""
         def chunk_progress_callback(completed: int, total: int, percentage: float):
-            asyncio.create_task(self._emit_progress(
-                request,
-                ProgressEventType.CHUNK_COMPLETED,
-                completed, total,
-                f"Processed {completed}/{total} chunks ({percentage:.1f}%)"
-            ))
-        
-        # Process chunks using the chunk processor
-        processing_result = await self.chunk_processor.process_chunks(
-            chunks=chunks,
-            prompt=prompts[chunks[0].chunk_id],  # Use first prompt as base
-            progress_callback=chunk_progress_callback,
-            batch_size=request.max_concurrent
-        )
-        
-        # Convert processing responses to chunk results
+            asyncio.create_task(self._emit_chunk_progress(request, completed, total, percentage))
+        return chunk_progress_callback
+    
+    async def _emit_chunk_progress(self, request: QueryRequest, completed: int, total: int, percentage: float) -> None:
+        """Emit chunk processing progress event."""
+        message = f"Processed {completed}/{total} chunks ({percentage:.1f}%)"
+        await self._emit_progress(request, ProgressEventType.CHUNK_COMPLETED, completed, total, message)
+    
+    async def _execute_chunk_processing(self, chunks: List[Chunk], prompts: Dict[str, str], request: QueryRequest, progress_callback: Callable) -> Any:
+        """Execute chunk processing with LLM."""
+        return await self.chunk_processor.process_chunks(
+            chunks=chunks, prompt=prompts[chunks[0].chunk_id],
+            progress_callback=progress_callback, batch_size=request.max_concurrent)
+    
+    def _convert_processing_responses(self, context: QueryContext, chunks: List[Chunk], processing_result: Any) -> List[ChunkResult]:
+        """Convert processing responses to chunk results."""
+        chunk_results = []
         for i, response in enumerate(processing_result.responses):
-            chunk = chunks[i] if i < len(chunks) else None
-            
-            chunk_result = ChunkResult(
-                chunk_id=chunk.chunk_id if chunk else f"unknown_{i}",
-                content=response.content,
-                status=response.status.value,
-                tokens_used=response.tokens_used,
-                processing_time=response.processing_time,
-                confidence_score=0.8 if response.status.value == "completed" else 0.0,
-                extraction_quality="high" if response.status.value == "completed" else "low",
-                model_used=response.model,
-                error_message=response.error
-            )
-            
-            # Update context with chunk result
-            context.update_context(chunk_result.chunk_id, {
-                "content": chunk_result.content,
-                "status": chunk_result.status,
-                "tokens": chunk_result.tokens_used
-            })
-            
+            chunk_result = self._create_chunk_result(chunks, i, response)
+            self._update_context_with_result(context, chunk_result)
             chunk_results.append(chunk_result)
-        
         return chunk_results
+    
+    def _create_chunk_result(self, chunks: List[Chunk], index: int, response: Any) -> ChunkResult:
+        """Create chunk result from processing response."""
+        chunk = chunks[index] if index < len(chunks) else None
+        return ChunkResult(
+            chunk_id=chunk.chunk_id if chunk else f"unknown_{index}",
+            content=response.content, status=response.status.value,
+            tokens_used=response.tokens_used, processing_time=response.processing_time,
+            confidence_score=0.8 if response.status.value == "completed" else 0.0,
+            extraction_quality="high" if response.status.value == "completed" else "low",
+            model_used=response.model, error_message=response.error)
+    
+    def _update_context_with_result(self, context: QueryContext, chunk_result: ChunkResult) -> None:
+        """Update context with chunk processing result."""
+        context.update_context(chunk_result.chunk_id, {
+            "content": chunk_result.content, "status": chunk_result.status, "tokens": chunk_result.tokens_used})
     
     async def _aggregate_results(
         self,
@@ -450,50 +457,49 @@ class QueryProcessor:
         chunk_results: List[ChunkResult],
         start_time: float
     ) -> QueryResult:
-        """Aggregate chunk results using advanced aggregation system."""
-        # Check if advanced aggregation is enabled
-        if not context.parameters.aggregate_results:
-            # Fall back to simple aggregation
-            return await self._simple_aggregate_results(context, request, chunk_results, start_time)
+        """Aggregate chunk results into final answer."""
         
-        try:
-            # Use advanced aggregation system
-            logger.info(
-                "Starting advanced result aggregation",
-                query_id=context.query_id,
-                intent=context.intent.value,
-                chunk_count=len(chunk_results)
-            )
-            
-            # Create a simple QueryResult for legacy compatibility
-            basic_result = await self._simple_aggregate_results(context, request, chunk_results, start_time)
-            
-            # Apply advanced aggregation
-            enhanced_result = await self.advanced_aggregator.aggregate_results(
-                context=context,
-                chunk_results=chunk_results,
-                original_query_result=basic_result
-            )
-            
-            logger.info(
-                "Advanced aggregation completed",
-                query_id=context.query_id,
-                conflicts_detected=len(enhanced_result.conflicts_detected),
-                conflicts_resolved=len(enhanced_result.conflicts_resolved),
-                overall_quality=enhanced_result.quality_metrics.overall_quality if enhanced_result.quality_metrics else 0
-            )
-            
-            # Convert EnhancedQueryResult back to QueryResult for compatibility
-            return self._convert_enhanced_to_basic_result(enhanced_result)
-            
-        except Exception as e:
-            logger.error(
-                "Advanced aggregation failed, falling back to simple aggregation",
-                query_id=context.query_id,
-                error=str(e)
-            )
-            # Fall back to simple aggregation on error
-            return await self._simple_aggregate_results(context, request, chunk_results, start_time)
+        # Try advanced aggregation first if enabled
+        if self.enable_advanced_aggregation and self.advanced_aggregator:
+            try:
+                logger.debug("Using advanced aggregation system")
+                enhanced_result = await self.advanced_aggregator.aggregate_results(
+                    context, chunk_results
+                )
+                
+                # Convert EnhancedQueryResult to QueryResult for backward compatibility
+                # The enhanced result contains all the original fields plus additional ones
+                return QueryResult(
+                    query_id=enhanced_result.query_id,
+                    original_query=enhanced_result.original_query,
+                    intent=enhanced_result.intent,
+                    status=enhanced_result.status,
+                    answer=enhanced_result.answer,
+                    chunk_results=enhanced_result.chunk_results,
+                    aggregated_data=enhanced_result.structured_output,
+                    total_chunks=enhanced_result.total_chunks,
+                    successful_chunks=enhanced_result.successful_chunks,
+                    failed_chunks=enhanced_result.failed_chunks,
+                    total_tokens=enhanced_result.total_tokens,
+                    total_cost=enhanced_result.total_cost,
+                    processing_time=enhanced_result.processing_time,
+                    confidence_score=enhanced_result.confidence_score,
+                    completeness_score=enhanced_result.completeness_score,
+                    relevance_score=enhanced_result.relevance_score,
+                    model_used=enhanced_result.model_used,
+                    prompt_strategy=enhanced_result.prompt_strategy
+                )
+                
+            except Exception as e:
+                logger.warning(
+                    "Advanced aggregation failed, falling back to simple aggregation",
+                    error=str(e)
+                )
+                # Fall through to simple aggregation
+        
+        # Simple aggregation fallback
+        logger.debug("Using simple aggregation system")
+        return await self._simple_aggregate_results(context, request, chunk_results, start_time)
     
     async def _simple_aggregate_results(
         self,
@@ -558,46 +564,6 @@ class QueryProcessor:
             model_used=self.llm_config.model,
             prompt_strategy=context.intent.value
         )
-    
-    def _convert_enhanced_to_basic_result(self, enhanced_result) -> QueryResult:
-        """Convert EnhancedQueryResult to basic QueryResult for compatibility."""
-        # Extract basic QueryResult fields from the enhanced result
-        base_result = QueryResult(
-            query_id=enhanced_result.query_id,
-            original_query=enhanced_result.original_query,
-            intent=enhanced_result.intent,
-            status=enhanced_result.status,
-            answer=enhanced_result.answer,
-            chunk_results=enhanced_result.chunk_results,
-            aggregated_data=enhanced_result.aggregated_data,
-            total_chunks=enhanced_result.total_chunks,
-            successful_chunks=enhanced_result.successful_chunks,
-            failed_chunks=enhanced_result.failed_chunks,
-            total_tokens=enhanced_result.total_tokens,
-            total_cost=enhanced_result.total_cost,
-            processing_time=enhanced_result.processing_time,
-            confidence_score=enhanced_result.confidence_score,
-            completeness_score=enhanced_result.completeness_score,
-            relevance_score=enhanced_result.relevance_score,
-            model_used=enhanced_result.model_used,
-            prompt_strategy=enhanced_result.prompt_strategy
-        )
-        
-        # Add enhanced information to aggregated_data
-        enhanced_data = base_result.aggregated_data.copy()
-        enhanced_data.update({
-            "aggregation_method": "advanced",
-            "conflicts_detected": len(enhanced_result.conflicts_detected),
-            "conflicts_resolved": len(enhanced_result.conflicts_resolved),
-            "quality_metrics": enhanced_result.quality_metrics.to_dict() if enhanced_result.quality_metrics else None,
-            "structured_output": enhanced_result.structured_output,
-            "data_insights": enhanced_result.data_insights,
-            "recommendations": enhanced_result.recommendations,
-            "uncertainty_factors": enhanced_result.uncertainty_factors
-        })
-        
-        base_result.aggregated_data = enhanced_data
-        return base_result
     
     def _generate_final_answer(
         self,

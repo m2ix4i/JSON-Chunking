@@ -1,303 +1,305 @@
 /**
- * Query suggestions component with German examples organized by intent.
+ * Query suggestions component with categorized German examples.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
+  Card,
+  CardContent,
   Typography,
+  Chip,
+  Tabs,
+  Tab,
   List,
   ListItem,
-  ListItemButton,
-  ListItemIcon,
   ListItemText,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Chip,
+  ListItemButton,
+  IconButton,
+  Tooltip,
+  Collapse,
+  Badge,
 } from '@mui/material';
 import {
-  ExpandMore as ExpandIcon,
   Calculate as QuantityIcon,
   Build as ComponentIcon,
   Palette as MaterialIcon,
   Place as SpatialIcon,
   AttachMoney as CostIcon,
-  Search as GeneralIcon,
+  Help as GeneralIcon,
+  ContentCopy as CopyIcon,
+  ExpandMore as ExpandIcon,
+  ExpandLess as CollapseIcon,
 } from '@mui/icons-material';
 
-export interface GermanQuerySuggestion {
-  id: string;
-  intent: 'quantity' | 'component' | 'material' | 'spatial' | 'cost' | 'general';
-  query: string;
-  description: string;
-  difficulty: 'einfach' | 'mittel' | 'fortgeschritten';
+// Store hooks
+import { useGermanSuggestions } from '@stores/queryStore';
+import { showSuccessNotification } from '@stores/appStore';
+
+// Types
+import type { QueryIntentHint, GermanQuerySuggestion } from '@types/app';
+
+interface QuerySuggestionsProps {
+  onSuggestionSelect?: (suggestion: GermanQuerySuggestion) => void;
+  compact?: boolean;
 }
 
-export interface QuerySuggestionsProps {
-  onSuggestionSelect?: (suggestion: GermanQuerySuggestion) => void;
-  disabled?: boolean;
+interface CategoryInfo {
+  category: QueryIntentHint;
+  label: string;
+  icon: React.ReactElement;
+  description: string;
+  color: 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error';
 }
+
+const categories: CategoryInfo[] = [
+  {
+    category: 'quantity',
+    label: 'Mengen',
+    icon: <QuantityIcon />,
+    description: 'Quantitative Analysen, Volumen, Flächen, Anzahlen',
+    color: 'primary',
+  },
+  {
+    category: 'component',
+    label: 'Bauteile',
+    icon: <ComponentIcon />,
+    description: 'Gebäudekomponenten, Elemente, Systeme',
+    color: 'secondary',
+  },
+  {
+    category: 'material',
+    label: 'Materialien',
+    icon: <MaterialIcon />,
+    description: 'Materialien, Eigenschaften, Spezifikationen',
+    color: 'success',
+  },
+  {
+    category: 'spatial',
+    label: 'Räumlich',
+    icon: <SpatialIcon />,
+    description: 'Räume, Stockwerke, räumliche Beziehungen',
+    color: 'warning',
+  },
+  {
+    category: 'cost',
+    label: 'Kosten',
+    icon: <CostIcon />,
+    description: 'Kostenschätzungen, Budget, Wirtschaftlichkeit',
+    color: 'error',
+  },
+  {
+    category: 'general',
+    label: 'Allgemein',
+    icon: <GeneralIcon />,
+    description: 'Allgemeine Informationen und Übersichten',
+    color: 'info',
+  },
+];
 
 const QuerySuggestions: React.FC<QuerySuggestionsProps> = ({
   onSuggestionSelect,
-  disabled = false,
+  compact = false,
 }) => {
-  const suggestions: GermanQuerySuggestion[] = [
-    // Quantity Analysis
-    {
-      id: 'q1',
-      intent: 'quantity',
-      query: 'Wie viele Fenster gibt es im Gebäude?',
-      description: 'Zählt alle Fensterelemente',
-      difficulty: 'einfach',
-    },
-    {
-      id: 'q2',
-      intent: 'quantity',
-      query: 'Wie viele Türen befinden sich im ersten Obergeschoss?',
-      description: 'Türen in einem bestimmten Geschoss',
-      difficulty: 'mittel',
-    },
-    {
-      id: 'q3',
-      intent: 'quantity',
-      query: 'Welche Gesamtfläche haben alle Wände im Erdgeschoss?',
-      description: 'Flächenberechnung nach Geschoss',
-      difficulty: 'mittel',
-    },
+  const suggestions = useGermanSuggestions();
+  const [selectedCategory, setSelectedCategory] = useState<QueryIntentHint>('quantity');
+  const [expandedCategories, setExpandedCategories] = useState<Set<QueryIntentHint>>(
+    new Set(['quantity'])
+  );
 
-    // Component Analysis
-    {
-      id: 'c1',
-      intent: 'component',
-      query: 'Zeige mir alle Eigenschaften der Außenwände',
-      description: 'Detaillierte Bauteilinformationen',
-      difficulty: 'einfach',
-    },
-    {
-      id: 'c2',
-      intent: 'component',
-      query: 'Welche Wände haben eine Dicke von mehr als 30 cm?',
-      description: 'Filterung nach Abmessungen',
-      difficulty: 'mittel',
-    },
-    {
-      id: 'c3',
-      intent: 'component',
-      query: 'Liste alle tragenden Stützen mit ihren Dimensionen auf',
-      description: 'Strukturelle Bauteile analysieren',
-      difficulty: 'mittel',
-    },
-
-    // Material Analysis
-    {
-      id: 'm1',
-      intent: 'material',
-      query: 'Welche Materialien werden für die Außenwände verwendet?',
-      description: 'Materialzusammensetzung',
-      difficulty: 'einfach',
-    },
-    {
-      id: 'm2',
-      intent: 'material',
-      query: 'Wie viel Beton wird insgesamt im Projekt benötigt?',
-      description: 'Materialmengen berechnen',
-      difficulty: 'mittel',
-    },
-    {
-      id: 'm3',
-      intent: 'material',
-      query: 'Welche Wärmeleitfähigkeit haben die verwendeten Dämmstoffe?',
-      description: 'Materialeigenschaften analysieren',
-      difficulty: 'fortgeschritten',
-    },
-
-    // Spatial Analysis
-    {
-      id: 's1',
-      intent: 'spatial',
-      query: 'Welche Räume befinden sich im zweiten Stock?',
-      description: 'Räumliche Zuordnung',
-      difficulty: 'einfach',
-    },
-    {
-      id: 's2',
-      intent: 'spatial',
-      query: 'Wie ist die Raumaufteilung im Erdgeschoss?',
-      description: 'Raumlayout verstehen',
-      difficulty: 'mittel',
-    },
-    {
-      id: 's3',
-      intent: 'spatial',
-      query: 'Welche Bauteile grenzen an den Haupteingang?',
-      description: 'Räumliche Beziehungen',
-      difficulty: 'fortgeschritten',
-    },
-
-    // Cost Analysis
-    {
-      id: 'cost1',
-      intent: 'cost',
-      query: 'Schätze die Kosten für alle Fenster im Projekt',
-      description: 'Kostenberechnung für Bauteile',
-      difficulty: 'mittel',
-    },
-    {
-      id: 'cost2',
-      intent: 'cost',
-      query: 'Welche Bauteile haben die höchsten Materialkosten?',
-      description: 'Kostenanalyse nach Priorität',
-      difficulty: 'fortgeschritten',
-    },
-
-    // General Queries
-    {
-      id: 'g1',
-      intent: 'general',
-      query: 'Gib mir eine Übersicht über das gesamte Projekt',
-      description: 'Allgemeine Projektinformationen',
-      difficulty: 'einfach',
-    },
-    {
-      id: 'g2',
-      intent: 'general',
-      query: 'Welche Probleme oder Inkonsistenzen findest du in den Daten?',
-      description: 'Qualitätsprüfung der Daten',
-      difficulty: 'fortgeschritten',
-    },
-  ];
-
-  const groupedSuggestions = suggestions.reduce((groups, suggestion) => {
-    const intent = suggestion.intent;
-    if (!groups[intent]) {
-      groups[intent] = [];
-    }
-    groups[intent].push(suggestion);
-    return groups;
-  }, {} as Record<string, GermanQuerySuggestion[]>);
-
-  const getIntentIcon = (intent: string) => {
-    switch (intent) {
-      case 'quantity':
-        return <QuantityIcon color="primary" />;
-      case 'component':
-        return <ComponentIcon color="secondary" />;
-      case 'material':
-        return <MaterialIcon color="success" />;
-      case 'spatial':
-        return <SpatialIcon color="warning" />;
-      case 'cost':
-        return <CostIcon color="error" />;
-      default:
-        return <GeneralIcon color="info" />;
-    }
+  const handleCategoryChange = (_: React.SyntheticEvent, newValue: QueryIntentHint) => {
+    setSelectedCategory(newValue);
   };
 
-  const getIntentLabel = (intent: string) => {
-    const labels: Record<string, string> = {
-      quantity: 'Mengenanalyse',
-      component: 'Bauteilanalyse',
-      material: 'Materialanalyse',
-      spatial: 'Räumliche Analyse',
-      cost: 'Kostenanalyse',
-      general: 'Allgemeine Abfragen',
-    };
-    return labels[intent] || intent;
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'einfach':
-        return 'success';
-      case 'mittel':
-        return 'warning';
-      case 'fortgeschritten':
-        return 'error';
-      default:
-        return 'default';
+  const toggleCategoryExpansion = (category: QueryIntentHint) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(category)) {
+      newExpanded.delete(category);
+    } else {
+      newExpanded.add(category);
     }
+    setExpandedCategories(newExpanded);
   };
 
   const handleSuggestionClick = (suggestion: GermanQuerySuggestion) => {
-    if (onSuggestionSelect && !disabled) {
+    if (onSuggestionSelect) {
       onSuggestionSelect(suggestion);
     }
   };
 
-  return (
-    <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Wählen Sie eine Beispiel-Abfrage aus oder lassen Sie sich inspirieren:
-      </Typography>
+  const handleCopyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccessNotification('Abfrage in die Zwischenablage kopiert');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
+  };
 
-      {Object.entries(groupedSuggestions).map(([intent, intentSuggestions]) => (
-        <Accordion key={intent} defaultExpanded={intent === 'quantity'}>
-          <AccordionSummary expandIcon={<ExpandIcon />}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {getIntentIcon(intent)}
-              <Typography variant="subtitle1">
-                {getIntentLabel(intent)}
-              </Typography>
-              <Chip
-                label={intentSuggestions.length}
+  const getSuggestionsByCategory = (category: QueryIntentHint) => {
+    return suggestions.filter(suggestion => suggestion.category === category);
+  };
+
+  const getCategoryInfo = (category: QueryIntentHint) => {
+    return categories.find(cat => cat.category === category);
+  };
+
+  const renderSuggestionList = (categorySuggestions: GermanQuerySuggestion[]) => (
+    <List dense={compact}>
+      {categorySuggestions.map((suggestion, index) => (
+        <ListItem key={index} disablePadding>
+          <ListItemButton
+            onClick={() => handleSuggestionClick(suggestion)}
+            sx={{
+              borderRadius: 1,
+              mb: 0.5,
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <ListItemText
+              primary={suggestion.text}
+              secondary={compact ? undefined : suggestion.description}
+              primaryTypographyProps={{
+                variant: compact ? 'body2' : 'body1',
+                fontWeight: 500,
+              }}
+              secondaryTypographyProps={{
+                variant: 'body2',
+                color: 'text.secondary',
+              }}
+            />
+            <Tooltip title="In Zwischenablage kopieren">
+              <IconButton
                 size="small"
-                variant="outlined"
-              />
-            </Box>
-          </AccordionSummary>
-          
-          <AccordionDetails sx={{ pt: 0 }}>
-            <List dense>
-              {intentSuggestions.map((suggestion) => (
-                <ListItem key={suggestion.id} disablePadding>
-                  <ListItemButton
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    disabled={disabled}
-                    sx={{
-                      borderRadius: 1,
-                      mb: 0.5,
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      },
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      {getIntentIcon(suggestion.intent)}
-                    </ListItemIcon>
-                    
-                    <ListItemText
-                      primary={suggestion.query}
-                      secondary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {suggestion.description}
-                          </Typography>
-                          <Chip
-                            label={suggestion.difficulty}
-                            size="small"
-                            color={getDifficultyColor(suggestion.difficulty) as any}
-                            variant="outlined"
-                          />
-                        </Box>
-                      }
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
-          </AccordionDetails>
-        </Accordion>
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyToClipboard(suggestion.text);
+                }}
+                sx={{ ml: 1 }}
+              >
+                <CopyIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </ListItemButton>
+        </ListItem>
       ))}
+    </List>
+  );
 
-      <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          <strong>Tipp:</strong> Sie können die Beispiel-Abfragen als Ausgangspunkt verwenden und anpassen.
-          Die Schwierigkeitsgrade helfen bei der Einschätzung der Komplexität.
+  if (compact) {
+    // Compact view - show as expandable categories
+    return (
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Beispielabfragen
+          </Typography>
+          
+          {categories.map((categoryInfo) => {
+            const categorySuggestions = getSuggestionsByCategory(categoryInfo.category);
+            const isExpanded = expandedCategories.has(categoryInfo.category);
+            
+            return (
+              <Box key={categoryInfo.category} sx={{ mb: 1 }}>
+                <ListItemButton
+                  onClick={() => toggleCategoryExpansion(categoryInfo.category)}
+                  sx={{
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    mb: 1,
+                  }}
+                >
+                  <Badge badgeContent={categorySuggestions.length} color={categoryInfo.color}>
+                    {categoryInfo.icon}
+                  </Badge>
+                  <ListItemText
+                    primary={categoryInfo.label}
+                    secondary={categoryInfo.description}
+                    sx={{ ml: 2 }}
+                  />
+                  {isExpanded ? <CollapseIcon /> : <ExpandIcon />}
+                </ListItemButton>
+                
+                <Collapse in={isExpanded}>
+                  <Box sx={{ ml: 2, mr: 1 }}>
+                    {renderSuggestionList(categorySuggestions)}
+                  </Box>
+                </Collapse>
+              </Box>
+            );
+          })}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Full view - show with tabs
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Beispielabfragen nach Kategorie
         </Typography>
-      </Box>
-    </Box>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Wählen Sie eine Kategorie aus und klicken Sie auf eine Beispielabfrage, um sie zu verwenden.
+        </Typography>
+
+        <Tabs
+          value={selectedCategory}
+          onChange={handleCategoryChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 3 }}
+        >
+          {categories.map((categoryInfo) => {
+            const count = getSuggestionsByCategory(categoryInfo.category).length;
+            return (
+              <Tab
+                key={categoryInfo.category}
+                value={categoryInfo.category}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {categoryInfo.icon}
+                    <Typography sx={{ ml: 1, mr: 1 }}>
+                      {categoryInfo.label}
+                    </Typography>
+                    <Chip
+                      label={count}
+                      size="small"
+                      color={categoryInfo.color}
+                      variant="outlined"
+                    />
+                  </Box>
+                }
+              />
+            );
+          })}
+        </Tabs>
+
+        {/* Category Description */}
+        {(() => {
+          const categoryInfo = getCategoryInfo(selectedCategory);
+          return categoryInfo ? (
+            <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+              <Typography variant="subtitle2" sx={{ display: 'flex', alignItems: 'center' }}>
+                {categoryInfo.icon}
+                <Box sx={{ ml: 1 }}>{categoryInfo.label}</Box>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {categoryInfo.description}
+              </Typography>
+            </Box>
+          ) : null;
+        })()}
+
+        {/* Suggestions for selected category */}
+        {renderSuggestionList(getSuggestionsByCategory(selectedCategory))}
+      </CardContent>
+    </Card>
   );
 };
 

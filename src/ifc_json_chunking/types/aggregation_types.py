@@ -1,7 +1,7 @@
 """
 Type definitions for the advanced aggregation and synthesis engine.
 
-This module contains all type definitions and data structures used
+This module contains core type definitions and data structures used
 throughout the aggregation pipeline for type safety and clarity.
 """
 

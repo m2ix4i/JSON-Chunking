@@ -1,213 +1,235 @@
 /**
- * Global application state management with error handling and notifications.
+ * Main application store using Zustand.
+ * Manages global app state, navigation, and UI preferences.
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
-import { normalizeError, createDebouncedErrorHandler, type AppError } from '@utils/errorUtils';
+import { devtools, persist } from 'zustand/middleware';
+import type { AppState, AppPage, AppNotification, AppError } from '@types/app';
 
-export interface Notification {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title?: string;
-  message: string;
-  duration?: number;
-  persistent?: boolean;
-  actions?: {
-    label: string;
-    action: () => void;
-  }[];
-  timestamp: number;
-}
-
-interface AppState {
-  // UI State
-  isLoading: boolean;
-  loadingMessage?: string;
+interface AppStoreState extends AppState {
+  // Actions
+  setCurrentPage: (page: AppPage) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  toggleDarkMode: () => void;
+  toggleSidebar: () => void;
   
   // Notifications
-  notifications: Notification[];
-  
-  // Error State
-  lastError: AppError | null;
-  errorHistory: AppError[];
-  retryAttempts: Record<string, number>;
-  
-  // Actions
-  setLoading: (loading: boolean, message?: string) => void;
-  
-  // Notification Actions
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
+  notifications: AppNotification[];
+  addNotification: (notification: Omit<AppNotification, 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
   
-  // Error Actions
-  handleError: (error: unknown, context?: string) => void;
-  clearError: () => void;
-  incrementRetryAttempt: (context: string) => number;
-  resetRetryAttempts: (context: string) => void;
+  // Error tracking
+  errors: AppError[];
+  addError: (error: Omit<AppError, 'id' | 'timestamp'>) => void;
+  clearErrors: () => void;
   
-  // Convenience Methods
-  showSuccess: (message: string, title?: string) => void;
-  showError: (message: string, title?: string) => void;
-  showWarning: (message: string, title?: string) => void;
-  showInfo: (message: string, title?: string) => void;
+  // App lifecycle
+  initialize: () => void;
+  reset: () => void;
 }
 
-const useAppStore = create<AppState>()(
-  subscribeWithSelector((set, get) => {
-    // Create debounced error handler to prevent spam
-    const debouncedErrorHandler = createDebouncedErrorHandler((error: AppError) => {
-      set(state => ({
-        lastError: error,
-        errorHistory: [error, ...state.errorHistory.slice(0, 49)], // Keep last 50 errors
-      }));
-      
-      // Auto-show error notification
-      get().addNotification({
-        type: 'error',
-        title: 'Fehler',
-        message: error.message,
-        duration: error.type === 'network' ? 10000 : 6000,
-        persistent: error.type === 'server' && (error.status === 500 || error.status === 503),
-      });
-    });
+const initialState: AppState = {
+  currentPage: 'dashboard',
+  isLoading: false,
+  error: null,
+  darkMode: false,
+  sidebarOpen: true,
+};
 
-    return {
-      // Initial State
-      isLoading: false,
-      loadingMessage: undefined,
-      notifications: [],
-      lastError: null,
-      errorHistory: [],
-      retryAttempts: {},
+export const useAppStore = create<AppStoreState>()(
+  devtools(
+    persist(
+      (set, get) => ({
+        ...initialState,
+        notifications: [],
+        errors: [],
 
-      // Loading Actions
-      setLoading: (loading: boolean, message?: string) => 
-        set({ isLoading: loading, loadingMessage: loading ? message : undefined }),
+        // Page navigation
+        setCurrentPage: (page) => {
+          set((state) => ({ ...state, currentPage: page }), false, 'setCurrentPage');
+        },
 
-      // Notification Actions
-      addNotification: (notification) => {
-        const id = `notification_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const newNotification: Notification = {
-          ...notification,
-          id,
-          timestamp: Date.now(),
-          duration: notification.duration ?? (notification.type === 'error' ? 6000 : 4000),
-        };
+        // Loading state
+        setLoading: (loading) => {
+          set((state) => ({ ...state, isLoading: loading }), false, 'setLoading');
+        },
 
-        set(state => ({
-          notifications: [newNotification, ...state.notifications.slice(0, 4)], // Keep max 5 notifications
-        }));
+        // Error handling
+        setError: (error) => {
+          set((state) => ({ ...state, error }), false, 'setError');
+        },
 
-        // Auto-remove notification after duration
-        if (!newNotification.persistent && newNotification.duration > 0) {
-          setTimeout(() => {
-            get().removeNotification(id);
-          }, newNotification.duration);
-        }
+        // Theme
+        toggleDarkMode: () => {
+          set(
+            (state) => ({ ...state, darkMode: !state.darkMode }),
+            false,
+            'toggleDarkMode'
+          );
+        },
 
-        return id;
-      },
+        // UI
+        toggleSidebar: () => {
+          set(
+            (state) => ({ ...state, sidebarOpen: !state.sidebarOpen }),
+            false,
+            'toggleSidebar'
+          );
+        },
 
-      removeNotification: (id: string) =>
-        set(state => ({
-          notifications: state.notifications.filter(n => n.id !== id),
-        })),
+        // Notifications
+        addNotification: (notification) => {
+          const newNotification: AppNotification = {
+            ...notification,
+            id: Math.random().toString(36).substring(2, 15),
+            timestamp: new Date(),
+          };
 
-      clearNotifications: () =>
-        set({ notifications: [] }),
+          set(
+            (state) => ({
+              ...state,
+              notifications: [...state.notifications, newNotification],
+            }),
+            false,
+            'addNotification'
+          );
 
-      // Error Actions
-      handleError: (error: unknown, context?: string) => {
-        const normalizedError = normalizeError(error);
-        
-        // Add context to error if provided
-        if (context) {
-          normalizedError.details = `Context: ${context}\n${normalizedError.details || ''}`.trim();
-        }
+          // Auto-remove notification if specified
+          if (notification.autoHide !== false) {
+            const duration = notification.duration || 5000;
+            setTimeout(() => {
+              get().removeNotification(newNotification.id);
+            }, duration);
+          }
+        },
 
-        debouncedErrorHandler(normalizedError);
-      },
+        removeNotification: (id) => {
+          set(
+            (state) => ({
+              ...state,
+              notifications: state.notifications.filter((n) => n.id !== id),
+            }),
+            false,
+            'removeNotification'
+          );
+        },
 
-      clearError: () =>
-        set({ lastError: null }),
+        clearNotifications: () => {
+          set((state) => ({ ...state, notifications: [] }), false, 'clearNotifications');
+        },
 
-      incrementRetryAttempt: (context: string): number => {
-        const currentAttempts = get().retryAttempts[context] || 0;
-        const newAttempts = currentAttempts + 1;
-        
-        set(state => ({
-          retryAttempts: {
-            ...state.retryAttempts,
-            [context]: newAttempts,
-          },
-        }));
-        
-        return newAttempts;
-      },
+        // Error tracking
+        addError: (error) => {
+          const newError: AppError = {
+            ...error,
+            id: Math.random().toString(36).substring(2, 15),
+            timestamp: new Date(),
+          };
 
-      resetRetryAttempts: (context: string) =>
-        set(state => ({
-          retryAttempts: {
-            ...state.retryAttempts,
-            [context]: 0,
-          },
-        })),
+          set(
+            (state) => ({
+              ...state,
+              errors: [...state.errors, newError],
+            }),
+            false,
+            'addError'
+          );
 
-      // Convenience Methods
-      showSuccess: (message: string, title?: string) =>
-        get().addNotification({ type: 'success', message, title }),
+          // Also show as notification for user-facing errors
+          if (error.type !== 'network') {
+            get().addNotification({
+              type: 'error',
+              title: 'Fehler',
+              message: error.message,
+              autoHide: true,
+              duration: 8000,
+            });
+          }
+        },
 
-      showError: (message: string, title?: string) =>
-        get().addNotification({ type: 'error', message, title }),
+        clearErrors: () => {
+          set((state) => ({ ...state, errors: [] }), false, 'clearErrors');
+        },
 
-      showWarning: (message: string, title?: string) =>
-        get().addNotification({ type: 'warning', message, title }),
+        // App lifecycle
+        initialize: () => {
+          // Initialize app state, check for saved preferences, etc.
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'dark') {
+            set((state) => ({ ...state, darkMode: true }), false, 'initialize-theme');
+          }
 
-      showInfo: (message: string, title?: string) =>
-        get().addNotification({ type: 'info', message, title }),
-    };
-  })
+          // Check system preference if no saved theme
+          if (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            set((state) => ({ ...state, darkMode: true }), false, 'initialize-system-theme');
+          }
+        },
+
+        reset: () => {
+          set(
+            {
+              ...initialState,
+              notifications: [],
+              errors: [],
+            },
+            false,
+            'reset'
+          );
+        },
+      }),
+      {
+        name: 'ifc-app-store',
+        partialize: (state) => ({
+          darkMode: state.darkMode,
+          sidebarOpen: state.sidebarOpen,
+          currentPage: state.currentPage,
+        }),
+      }
+    ),
+    {
+      name: 'app-store',
+    }
+  )
 );
 
-// Export hooks and convenience functions
-export const useAppState = () => useAppStore(state => ({
-  isLoading: state.isLoading,
-  loadingMessage: state.loadingMessage,
-  lastError: state.lastError,
-}));
+// Selectors for better performance
+export const useCurrentPage = () => useAppStore((state) => state.currentPage);
+export const useIsLoading = () => useAppStore((state) => state.isLoading);
+export const useError = () => useAppStore((state) => state.error);
+export const useDarkMode = () => useAppStore((state) => state.darkMode);
+export const useSidebarOpen = () => useAppStore((state) => state.sidebarOpen);
+export const useNotifications = () => useAppStore((state) => state.notifications);
 
-export const useNotifications = () => useAppStore(state => state.notifications);
+// Utility functions
+export const showSuccessNotification = (message: string, title = 'Erfolg') => {
+  useAppStore.getState().addNotification({
+    type: 'success',
+    title,
+    message,
+    autoHide: true,
+    duration: 4000,
+  });
+};
 
-export const useLoadingState = () => useAppStore(state => ({
-  isLoading: state.isLoading,
-  loadingMessage: state.loadingMessage,
-  setLoading: state.setLoading,
-}));
+export const showErrorNotification = (message: string, title = 'Fehler') => {
+  useAppStore.getState().addNotification({
+    type: 'error',
+    title,
+    message,
+    autoHide: true,
+    duration: 8000,
+  });
+};
 
-export const useErrorState = () => useAppStore(state => ({
-  lastError: state.lastError,
-  errorHistory: state.errorHistory,
-  handleError: state.handleError,
-  clearError: state.clearError,
-}));
-
-// Convenience functions for notifications
-export const showSuccessNotification = (message: string, title?: string) =>
-  useAppStore.getState().showSuccess(message, title);
-
-export const showErrorNotification = (message: string, title?: string) =>
-  useAppStore.getState().showError(message, title);
-
-export const showWarningNotification = (message: string, title?: string) =>
-  useAppStore.getState().showWarning(message, title);
-
-export const showInfoNotification = (message: string, title?: string) =>
-  useAppStore.getState().showInfo(message, title);
-
-// Error handling function
-export const handleGlobalError = (error: unknown, context?: string) =>
-  useAppStore.getState().handleError(error, context);
-
-export default useAppStore;
+export const showInfoNotification = (message: string, title = 'Information') => {
+  useAppStore.getState().addNotification({
+    type: 'info',
+    title,
+    message,
+    autoHide: true,
+    duration: 6000,
+  });
+};

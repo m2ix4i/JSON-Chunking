@@ -1,5 +1,5 @@
 /**
- * File upload page with comprehensive error handling and user feedback.
+ * Upload page - drag-and-drop file upload interface.
  */
 
 import React from 'react';
@@ -9,244 +9,157 @@ import {
   Grid,
   Card,
   CardContent,
-  Alert,
-  AlertTitle,
-  Button,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
+  Alert,
 } from '@mui/material';
 import {
-  CloudUpload as UploadIcon,
   CheckCircle as CheckIcon,
-  Error as ErrorIcon,
-  Info as InfoIcon,
-  ArrowForward as NextIcon,
+  Description as FileIcon,
+  Security as SecurityIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Components
 import FileDropzone from '@components/upload/FileDropzone';
-import ErrorAlert from '@components/error/ErrorAlert';
 
 // Store hooks
-import { useFiles, useSelectedFile, useUploadState } from '@stores/fileStore';
-import { useErrorHandler } from '@hooks/useErrorHandler';
+import { useFiles } from '@stores/fileStore';
+import { showSuccessNotification } from '@stores/appStore';
+
+// Types
+import type { UploadedFile } from '@types/app';
 
 const UploadPage: React.FC = () => {
   const navigate = useNavigate();
   const files = useFiles();
-  const selectedFile = useSelectedFile();
-  const { isUploading } = useUploadState();
-  
-  const {
-    error,
-    isRetrying,
-    retryCount,
-    handleError,
-    retry,
-    clearError,
-    canRetry,
-  } = useErrorHandler();
 
-  const filesList = Object.values(files);
-  const readyFiles = filesList.filter(f => f.status === 'ready');
-  const processingFiles = filesList.filter(f => f.status === 'processing');
-  const errorFiles = filesList.filter(f => f.status === 'error');
-
-  const canProceedToQuery = readyFiles.length > 0;
-
-  const handleProceedToQuery = () => {
-    if (canProceedToQuery) {
-      navigate('/query');
-    }
+  const handleFileUploaded = (file: UploadedFile) => {
+    showSuccessNotification(
+      `Datei "${file.filename}" erfolgreich hochgeladen. Sie können jetzt Abfragen erstellen.`
+    );
   };
+
+  const features = [
+    {
+      icon: <FileIcon color="primary" />,
+      title: 'IFC JSON-Unterstützung',
+      description: 'Vollständige Unterstützung für IFC JSON-Dateien aus gängigen Konvertierungstools',
+    },
+    {
+      icon: <SecurityIcon color="success" />,
+      title: 'Sichere Verarbeitung',
+      description: 'Dateien werden sicher verarbeitet und validiert, bevor sie zur Analyse verwendet werden',
+    },
+    {
+      icon: <SpeedIcon color="warning" />,
+      title: 'Schnelle Analyse',
+      description: 'Optimierte Chunking-Algorithmen für effiziente Verarbeitung großer IFC-Datensätze',
+    },
+  ];
 
   return (
     <Box>
-      {/* Page Header */}
+      {/* Page header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          IFC-Dateien hochladen
+          Datei hochladen
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Laden Sie IFC-JSON Dateien hoch, um sie für Abfragen zu analysieren.
+          Laden Sie Ihre IFC JSON-Dateien hoch, um mit der intelligenten Gebäudedatenanalyse zu beginnen.
+          Das System unterstützt Dateien bis 100 MB und kann mehrere Dateien gleichzeitig verarbeiten.
         </Typography>
       </Box>
 
-      {/* Error Display */}
-      {error && (
-        <ErrorAlert
-          title="Upload-Fehler"
-          message={error.message}
-          details={error.details}
-          onClose={clearError}
-          onRetry={canRetry ? retry : undefined}
-          retryLabel={isRetrying ? 'Wird wiederholt...' : 'Erneut versuchen'}
-          collapsible
-          sx={{ mb: 3 }}
-        />
-      )}
-
       <Grid container spacing={3}>
-        {/* Upload Section */}
+        {/* Upload area */}
         <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Datei hochladen
-              </Typography>
-              
-              <FileDropzone
-                onError={handleError}
-                maxFiles={5}
-                maxSizeMB={100}
-                acceptedTypes={['.json']}
-              />
-
-              {/* Upload Status */}
-              {isUploading && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <AlertTitle>Upload läuft...</AlertTitle>
-                  Ihre Dateien werden hochgeladen und verarbeitet.
-                </Alert>
-              )}
-
-              {/* Processing Status */}
-              {processingFiles.length > 0 && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <AlertTitle>Verarbeitung läuft...</AlertTitle>
-                  {processingFiles.length} {processingFiles.length === 1 ? 'Datei wird' : 'Dateien werden'} verarbeitet.
-                </Alert>
-              )}
-
-              {/* Error Files */}
-              {errorFiles.length > 0 && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  <AlertTitle>Fehler beim Upload</AlertTitle>
-                  {errorFiles.length} {errorFiles.length === 1 ? 'Datei konnte' : 'Dateien konnten'} nicht verarbeitet werden.
-                </Alert>
-              )}
-
-              {/* Success Status */}
-              {readyFiles.length > 0 && (
-                <Alert severity="success" sx={{ mt: 2 }}>
-                  <AlertTitle>Upload erfolgreich</AlertTitle>
-                  {readyFiles.length} {readyFiles.length === 1 ? 'Datei ist' : 'Dateien sind'} bereit für Abfragen.
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+          <FileDropzone
+            onFileUploaded={handleFileUploaded}
+            maxFiles={10}
+            maxSizeMB={100}
+          />
         </Grid>
 
-        {/* Sidebar */}
+        {/* Information sidebar */}
         <Grid item xs={12} lg={4}>
-          {/* Instructions */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Anweisungen
-              </Typography>
-              
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Unterstützte Formate"
-                    secondary="Nur JSON-Dateien im IFC-Format"
-                  />
-                </ListItem>
-                
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Maximale Größe"
-                    secondary="100 MB pro Datei"
-                  />
-                </ListItem>
-                
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Verarbeitung"
-                    secondary="Automatische Validierung und Indexierung"
-                  />
-                </ListItem>
-              </List>
-            </CardContent>
-          </Card>
-
-          {/* File Status */}
-          {filesList.length > 0 && (
-            <Card sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Features */}
+            <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Datei-Status
+                  Unterstützte Features
                 </Typography>
                 
                 <List dense>
-                  {filesList.map((file) => (
-                    <ListItem key={file.file_id}>
-                      <ListItemIcon>
-                        {file.status === 'ready' && <CheckIcon color="success" />}
-                        {file.status === 'error' && <ErrorIcon color="error" />}
-                        {['uploading', 'processing'].includes(file.status) && <UploadIcon color="primary" />}
+                  {features.map((feature, index) => (
+                    <ListItem key={index} sx={{ px: 0 }}>
+                      <ListItemIcon sx={{ minWidth: 40 }}>
+                        {feature.icon}
                       </ListItemIcon>
                       <ListItemText
-                        primary={file.filename}
-                        secondary={
-                          file.status === 'ready' ? 'Bereit' :
-                          file.status === 'error' ? 'Fehler' :
-                          file.status === 'processing' ? 'Wird verarbeitet...' :
-                          'Wird hochgeladen...'
-                        }
+                        primary={feature.title}
+                        secondary={feature.description}
+                        primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                        secondaryTypographyProps={{ variant: 'body2' }}
                       />
                     </ListItem>
                   ))}
                 </List>
               </CardContent>
             </Card>
-          )}
 
-          {/* Next Steps */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Nächste Schritte
-              </Typography>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {canProceedToQuery 
-                  ? 'Ihre Dateien sind bereit. Sie können jetzt Abfragen erstellen.'
-                  : 'Laden Sie mindestens eine Datei hoch, um fortzufahren.'
-                }
-              </Typography>
+            {/* Next steps */}
+            {files.length > 0 && (
+              <Alert severity="success">
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Dateien erfolgreich hochgeladen!
+                </Typography>
+                <Typography variant="body2">
+                  Sie können jetzt zur{' '}
+                  <Typography
+                    component="span"
+                    sx={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 500 }}
+                    onClick={() => navigate('/query')}
+                  >
+                    Abfrage-Seite
+                  </Typography>
+                  {' '}wechseln, um intelligente Analysen zu erstellen.
+                </Typography>
+              </Alert>
+            )}
 
-              <Button
-                variant="contained"
-                endIcon={<NextIcon />}
-                onClick={handleProceedToQuery}
-                disabled={!canProceedToQuery}
-                fullWidth
-              >
-                Zu den Abfragen
-              </Button>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="body2" color="text.secondary">
-                <strong>Tipp:</strong> Sie können mehrere Dateien gleichzeitig hochladen und zwischen ihnen wechseln.
-              </Typography>
-            </CardContent>
-          </Card>
+            {/* File format info */}
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Unterstützte Dateiformate
+                </Typography>
+                
+                <List dense>
+                  <ListItem sx={{ px: 0 }}>
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      <CheckIcon color="success" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="IFC JSON (.json)"
+                      secondary="Aus IFC-zu-JSON Konvertierungstools"
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                      secondaryTypographyProps={{ variant: 'body2' }}
+                    />
+                  </ListItem>
+                </List>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  Die Dateien sollten gültige IFC-Datenstrukturen enthalten und aus
+                  vertrauenswürdigen Konvertierungstools stammen, um optimale Analyseergebnisse zu erzielen.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
         </Grid>
       </Grid>
     </Box>
