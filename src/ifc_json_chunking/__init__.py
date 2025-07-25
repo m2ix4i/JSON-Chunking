@@ -44,6 +44,7 @@ __all__ = [
     "ConfigurationError",
     "Chunk",
     "ChunkType",
+    "ChunkingStrategy",
     
     # LLM Integration
     "GeminiClient",

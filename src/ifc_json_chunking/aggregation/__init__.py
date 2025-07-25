@@ -1,5 +1,5 @@
 """
-Advanced Result Aggregation & Synthesis Engine.
+Advanced Result Aggregation & Synthesis Engine - Complete Integration.
 
 This module provides comprehensive aggregation capabilities including
 data extraction, normalization, conflict detection and resolution,
@@ -22,7 +22,7 @@ from .strategies.spatial_strategy import SpatialAggregationStrategy
 from .strategies.cost_strategy import CostAggregationStrategy
 
 __all__ = [
-    # Core components
+    # Main aggregator for QueryProcessor integration
     "AdvancedAggregator",
     "DataExtractor", 
     "DataNormalizer",
