@@ -93,6 +93,7 @@ class IntentClassifier:
         if best_score < 0.3:
             best_intent = QueryIntent.UNKNOWN
             best_score = 0.0
+            matched_patterns[best_intent] = []  # Add empty patterns for UNKNOWN
         
         # Extract parameters based on intent
         parameters = self._extract_parameters(query_lower, best_intent)
