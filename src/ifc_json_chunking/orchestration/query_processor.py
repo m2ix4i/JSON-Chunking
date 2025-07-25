@@ -101,11 +101,8 @@ class QueryProcessor:
         self.advanced_aggregator = None
         if enable_advanced_aggregation:
             try:
-                self.advanced_aggregator = AdvancedAggregator(
-                    validation_level=ValidationLevel.STANDARD,
-                    enable_conflict_resolution=True,
-                    quality_threshold=0.5
-                )
+                self.advanced_aggregator = AdvancedAggregator()
+                logger.info("Advanced aggregator initialized successfully")
             except Exception as e:
                 logger.warning(
                     "Failed to initialize advanced aggregator, falling back to simple aggregation",
