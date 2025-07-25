@@ -16,7 +16,7 @@ import type {
   PaginationParams,
   APIError,
   FileUploadProgress
-} from '@types/api';
+} from '@/types/api';
 
 class APIService {
   private client: AxiosInstance;

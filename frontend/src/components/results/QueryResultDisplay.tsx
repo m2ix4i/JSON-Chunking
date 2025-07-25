@@ -55,7 +55,7 @@ import {
 import { showSuccessNotification, showErrorNotification } from '@stores/appStore';
 
 // Types
-import type { QueryResultResponse } from '@types/api';
+import type { QueryResultResponse } from '@/types/api';
 
 interface QueryResultDisplayProps {
   result: QueryResultResponse;

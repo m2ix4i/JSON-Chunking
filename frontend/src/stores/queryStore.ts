@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { QueryResponse, QueryStatus, QueryResultResponse } from '@types/api';
+import { QueryResponse, QueryStatus, QueryResultResponse } from '@/types/api';
 
 export interface CurrentQuery {
   text: string;
@@ -86,11 +86,26 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   // WebSocket cleanup
   disconnectWebSocket: () => {
     // Import here to avoid circular dependency
-    import('@services/websocketService').then(({ webSocketService }) => {
-      webSocketService.disconnect();
+    import('@/services/websocket').then(({ websocketService }) => {
+      websocketService.disconnectAll();
     });
     set({ isConnected: false });
   },
+}));
+
+// Selectors for better performance
+export const useActiveQueries = () => useQueryStore((state) => ({ 
+  [state.activeQuery?.query_id || '']: state.activeQuery 
+}));
+export const useQueryHistory = () => useQueryStore((state) => state.queryResult ? [state.queryResult] : []);
+export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery);
+export const useGermanSuggestions = () => []; // Placeholder - implement as needed
+export const useWebSocketConnected = () => useQueryStore((state) => state.isConnected);
+export const useQuerySubmission = () => useQueryStore((state) => state.isSubmitting);
+export const useQueryMonitoring = () => useQueryStore((state) => ({
+  activeQuery: state.activeQuery,
+  status: state.queryStatus,
+  result: state.queryResult
 }));
 
 // Export store for direct access

@@ -51,6 +51,14 @@ export type QueryIntentHint =
   | 'cost' 
   | 'general';
 
+export type QueryStatus = 
+  | 'started' 
+  | 'preprocessing' 
+  | 'processing' 
+  | 'completed' 
+  | 'failed' 
+  | 'cancelled';
+
 export interface QueryRequest {
   query: string;
   file_id: string;

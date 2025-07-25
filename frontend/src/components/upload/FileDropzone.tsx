@@ -34,7 +34,7 @@ import { useFileUpload, useFiles } from '@stores/fileStore';
 import { showErrorNotification, showSuccessNotification } from '@stores/appStore';
 
 // Types
-import type { UploadedFile } from '@types/app';
+import type { UploadedFile } from '@/types/app';
 
 interface FileDropzoneProps {
   onFileUploaded?: (file: UploadedFile) => void;

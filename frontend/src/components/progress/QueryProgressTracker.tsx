@@ -26,7 +26,7 @@ import {
 } from '@mui/material';
 import {
   PlayArrow as StartIcon,
-  Processing as ProcessingIcon,
+  Autorenew as ProcessingIcon,
   Assessment as AnalysisIcon,
   CheckCircle as CompleteIcon,
   Error as ErrorIcon,
@@ -40,8 +40,8 @@ import { useActiveQueries, useQueryMonitoring } from '@stores/queryStore';
 import { showErrorNotification, showSuccessNotification } from '@stores/appStore';
 
 // Types
-import type { ActiveQuery } from '@types/app';
-import type { ProgressMessage, WebSocketMessage } from '@types/api';
+import type { ActiveQuery } from '@/types/app';
+import type { ProgressMessage, WebSocketMessage } from '@/types/api';
 
 interface QueryProgressTrackerProps {
   queryId?: string;

@@ -20,7 +20,7 @@ import { useSelectedFile } from '@stores/fileStore';
 import { useQuerySubmission } from '@stores/queryStore';
 
 // Types
-import type { GermanQuerySuggestion } from '@types/app';
+import type { GermanQuerySuggestion } from '@/types/app';
 
 const QueryPage: React.FC = () => {
   const navigate = useNavigate();

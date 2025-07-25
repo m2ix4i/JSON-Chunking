@@ -31,7 +31,7 @@ import { useFiles } from '@stores/fileStore';
 import { showSuccessNotification } from '@stores/appStore';
 
 // Types
-import type { UploadedFile } from '@types/app';
+import type { UploadedFile } from '@/types/app';
 
 const UploadPage: React.FC = () => {
   const navigate = useNavigate();

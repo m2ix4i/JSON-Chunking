@@ -5,10 +5,10 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { apiService } from '@services/api';
+import { apiService } from '@/services/api';
 import { showSuccessNotification, showErrorNotification } from './appStore';
-import type { FileState, UploadedFile } from '@types/app';
-import type { FileUploadProgress } from '@types/api';
+import type { FileState, UploadedFile } from '@/types/app';
+import type { FileUploadProgress } from '@/types/api';
 
 interface FileStoreState extends FileState {
   // Actions
