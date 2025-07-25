@@ -22,6 +22,7 @@ from ..query.types import (
     QueryContext,
     QueryStatus,
     QueryIntent,
+    QueryParameters,
     ProgressEvent,
     ProgressEventType,
     ChunkResult,
