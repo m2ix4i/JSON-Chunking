@@ -28,6 +28,8 @@ from ..query.types import (
     ProgressCallback
 )
 from .intent_classifier import IntentClassifier
+from ..aggregation.core.aggregator import AdvancedAggregator
+from ..types.aggregation_types import EnhancedQueryResult, ValidationLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -51,7 +53,8 @@ class QueryProcessor:
         config: Config,
         llm_config: Optional[LLMConfig] = None,
         rate_limit_config: Optional[RateLimitConfig] = None,
-        chunk_processor: Optional[ChunkProcessor] = None
+        chunk_processor: Optional[ChunkProcessor] = None,
+        enable_advanced_aggregation: bool = True
     ):
         """
         Initialize query processor.
@@ -61,6 +64,7 @@ class QueryProcessor:
             llm_config: LLM configuration (created from config if not provided)
             rate_limit_config: Rate limiting configuration
             chunk_processor: Pre-configured chunk processor
+            enable_advanced_aggregation: Enable advanced aggregation with conflict resolution
         """
         self.config = config
         
@@ -91,13 +95,31 @@ class QueryProcessor:
             rate_limit_config=rate_limit_config
         )
         
+        # Initialize advanced aggregation if enabled
+        self.enable_advanced_aggregation = enable_advanced_aggregation
+        self.advanced_aggregator = None
+        if enable_advanced_aggregation:
+            try:
+                self.advanced_aggregator = AdvancedAggregator(
+                    validation_level=ValidationLevel.STANDARD,
+                    enable_conflict_resolution=True,
+                    quality_threshold=0.5
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to initialize advanced aggregator, falling back to simple aggregation",
+                    error=str(e)
+                )
+                self.enable_advanced_aggregation = False
+        
         # Active queries tracking
         self._active_queries: Dict[str, QueryContext] = {}
         
         logger.info(
             "QueryProcessor initialized",
             model=llm_config.model,
-            max_concurrent=rate_limit_config.max_concurrent
+            max_concurrent=rate_limit_config.max_concurrent,
+            advanced_aggregation=self.enable_advanced_aggregation
         )
     
     async def process_query(
@@ -446,6 +468,57 @@ class QueryProcessor:
         start_time: float
     ) -> QueryResult:
         """Aggregate chunk results into final answer."""
+        
+        # Try advanced aggregation first if enabled
+        if self.enable_advanced_aggregation and self.advanced_aggregator:
+            try:
+                logger.debug("Using advanced aggregation system")
+                enhanced_result = await self.advanced_aggregator.aggregate_results(
+                    context, chunk_results
+                )
+                
+                # Convert EnhancedQueryResult to QueryResult for backward compatibility
+                # The enhanced result contains all the original fields plus additional ones
+                return QueryResult(
+                    query_id=enhanced_result.query_id,
+                    original_query=enhanced_result.original_query,
+                    intent=enhanced_result.intent,
+                    status=enhanced_result.status,
+                    answer=enhanced_result.answer,
+                    chunk_results=enhanced_result.chunk_results,
+                    aggregated_data=enhanced_result.structured_output,
+                    total_chunks=enhanced_result.total_chunks,
+                    successful_chunks=enhanced_result.successful_chunks,
+                    failed_chunks=enhanced_result.failed_chunks,
+                    total_tokens=enhanced_result.total_tokens,
+                    total_cost=enhanced_result.total_cost,
+                    processing_time=enhanced_result.processing_time,
+                    confidence_score=enhanced_result.confidence_score,
+                    completeness_score=enhanced_result.completeness_score,
+                    relevance_score=enhanced_result.relevance_score,
+                    model_used=enhanced_result.model_used,
+                    prompt_strategy=enhanced_result.prompt_strategy
+                )
+                
+            except Exception as e:
+                logger.warning(
+                    "Advanced aggregation failed, falling back to simple aggregation",
+                    error=str(e)
+                )
+                # Fall through to simple aggregation
+        
+        # Simple aggregation fallback
+        logger.debug("Using simple aggregation system")
+        return await self._simple_aggregate_results(context, request, chunk_results, start_time)
+    
+    async def _simple_aggregate_results(
+        self,
+        context: QueryContext,
+        request: QueryRequest,
+        chunk_results: List[ChunkResult],
+        start_time: float
+    ) -> QueryResult:
+        """Simple aggregation fallback method."""
         successful_results = [r for r in chunk_results if r.status == "completed"]
         failed_results = [r for r in chunk_results if r.status != "completed"]
         
@@ -477,7 +550,8 @@ class QueryProcessor:
             "parameters": context.parameters.to_dict(),
             "successful_chunks": len(successful_results),
             "failed_chunks": len(failed_results),
-            "avg_confidence": confidence_score
+            "avg_confidence": confidence_score,
+            "aggregation_method": "simple"
         }
         
         return QueryResult(
