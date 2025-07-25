@@ -40,6 +40,10 @@ class Chunk:
     object_id: Optional[str] = None
     geometry_id: Optional[str] = None
     
+    # Token optimization fields
+    token_count: Optional[int] = None
+    target_model: Optional[str] = None
+    
     @classmethod
     def create_from_element(
         cls, 
@@ -182,6 +186,10 @@ class Chunk:
             result["object_id"] = self.object_id
         if self.geometry_id:
             result["geometry_id"] = self.geometry_id
+        if self.token_count is not None:
+            result["token_count"] = self.token_count
+        if self.target_model:
+            result["target_model"] = self.target_model
             
         return result
     
@@ -205,12 +213,52 @@ class Chunk:
             size_bytes=data["size_bytes"],
             created_timestamp=data["created_timestamp"],
             object_id=data.get("object_id"),
-            geometry_id=data.get("geometry_id")
+            geometry_id=data.get("geometry_id"),
+            token_count=data.get("token_count"),
+            target_model=data.get("target_model")
         )
+    
+    def calculate_token_count(self, model_name: str = "gemini-2.5-pro") -> int:
+        """
+        Calculate and set token count for this chunk.
+        
+        Args:
+            model_name: Target LLM model for token counting
+            
+        Returns:
+            Token count for the chunk
+        """
+        # Import here to avoid circular dependencies
+        from .token_counter import create_token_counter
+        
+        counter = create_token_counter(model_name)
+        self.token_count = counter.count_tokens(self.data)
+        self.target_model = model_name
+        
+        return self.token_count
+    
+    def is_token_optimized(self, model_name: str = "gemini-2.5-pro") -> bool:
+        """
+        Check if chunk is optimally sized for target model.
+        
+        Args:
+            model_name: Target LLM model
+            
+        Returns:
+            True if chunk is within optimal token limits
+        """
+        from .token_counter import create_token_counter
+        
+        counter = create_token_counter(model_name)
+        if self.token_count is None:
+            self.calculate_token_count(model_name)
+        
+        return self.token_count <= counter.get_optimal_chunk_size()
     
     def __str__(self) -> str:
         """String representation of chunk."""
-        return f"Chunk(id={self.chunk_id}, type={self.chunk_type.value}, size={self.size_bytes})"
+        token_info = f", tokens={self.token_count}" if self.token_count else ""
+        return f"Chunk(id={self.chunk_id}, type={self.chunk_type.value}, size={self.size_bytes}{token_info})"
 
 
 @dataclass

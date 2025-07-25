@@ -5,7 +5,7 @@ This module contains strategies for determining when and how to
 create chunks from IFC JSON data, following the Strategy pattern.
 """
 
-from typing import Any, List
+from typing import Any, List, Dict, Set
 from abc import ABC, abstractmethod
 
 from .config import Config
@@ -210,6 +210,247 @@ class AggressiveChunkingStrategy(ChunkingStrategy):
         return ChunkingDecision.no("Aggressive criteria not met")
 
 
+class HierarchicalChunkingStrategy(ChunkingStrategy):
+    """
+    Hierarchical chunking strategy for IFC building data.
+    
+    Creates chunks based on building hierarchy: Building → Floor → Room → Components
+    Preserves spatial containment relationships and maintains context.
+    """
+    
+    def __init__(self, config: Config):
+        """Initialize with configuration."""
+        self.config = config
+        self.size_limit_bytes = config.chunk_size_mb * 1024 * 1024
+        self.hierarchy_levels = {
+            'IfcSite': 1,
+            'IfcBuilding': 2, 
+            'IfcBuildingStorey': 3,
+            'IfcSpace': 4,
+            'IfcRoom': 4,
+            'IfcZone': 4
+        }
+        self.current_hierarchy = {}  # Track current position in hierarchy
+    
+    def should_create_chunk(
+        self, 
+        json_path: str, 
+        value: Any, 
+        existing_chunks: List[Chunk]
+    ) -> ChunkingDecision:
+        """Create chunks based on building hierarchy boundaries."""
+        
+        # Extract IFC type from value if it's an entity
+        ifc_type = self._extract_ifc_type(value)
+        
+        if ifc_type in self.hierarchy_levels:
+            hierarchy_level = self.hierarchy_levels[ifc_type]
+            
+            # Check if this represents a hierarchy boundary
+            if self._is_hierarchy_boundary(ifc_type, hierarchy_level, existing_chunks):
+                return ChunkingDecision.yes(
+                    f"Hierarchy boundary: {ifc_type} at level {hierarchy_level}",
+                    ChunkType.IFC_OBJECT
+                )
+        
+        # Group building elements by spatial container
+        if self._is_building_element(ifc_type):
+            return self._evaluate_spatial_grouping(json_path, value, existing_chunks)
+        
+        # Default size-based fallback
+        if self._exceeds_size_limit(existing_chunks):
+            return ChunkingDecision.yes(
+                f"Size limit exceeded ({self.config.chunk_size_mb}MB)",
+                ChunkType.GENERAL
+            )
+        
+        return ChunkingDecision.no(f"No hierarchical criteria met for {ifc_type}")
+    
+    def _extract_ifc_type(self, value: Any) -> str:
+        """Extract IFC type from entity value."""
+        if isinstance(value, dict):
+            return value.get('type', value.get('IfcType', ''))
+        return ''
+    
+    def _is_hierarchy_boundary(self, ifc_type: str, level: int, existing_chunks: List[Chunk]) -> bool:
+        """Check if this entity represents a significant hierarchy boundary."""
+        # Always create chunk for site and building level
+        if level <= 2:
+            return True
+        
+        # For floors and spaces, check if we're crossing containers
+        if level >= 3:
+            # Check if current chunks are from different spatial container
+            recent_chunks = existing_chunks[-5:] if existing_chunks else []
+            for chunk in recent_chunks:
+                if hasattr(chunk, 'data') and isinstance(chunk.data, dict):
+                    chunk_type = self._extract_ifc_type(chunk.data)
+                    if chunk_type in self.hierarchy_levels:
+                        chunk_level = self.hierarchy_levels[chunk_type]
+                        if chunk_level != level:
+                            return True
+        
+        return False
+    
+    def _is_building_element(self, ifc_type: str) -> bool:
+        """Check if entity is a building element that should be grouped."""
+        building_elements = {
+            'IfcWall', 'IfcDoor', 'IfcWindow', 'IfcSlab', 'IfcBeam', 
+            'IfcColumn', 'IfcRoof', 'IfcStair', 'IfcRamp', 'IfcCurtainWall'
+        }
+        return ifc_type in building_elements
+    
+    def _evaluate_spatial_grouping(self, json_path: str, value: Any, existing_chunks: List[Chunk]) -> ChunkingDecision:
+        """Evaluate whether to group building elements by spatial container."""
+        # Extract spatial container reference from element
+        spatial_container = self._extract_spatial_container(value)
+        
+        if spatial_container:
+            # Check if recent chunks are from same spatial container
+            recent_chunks = existing_chunks[-10:] if existing_chunks else []
+            same_container_chunks = [
+                chunk for chunk in recent_chunks 
+                if self._get_chunk_spatial_container(chunk) == spatial_container
+            ]
+            
+            # If we have elements from same container, group them
+            if len(same_container_chunks) > 0:
+                return ChunkingDecision.no(f"Grouping with same spatial container: {spatial_container}")
+            else:
+                return ChunkingDecision.yes(
+                    f"New spatial container: {spatial_container}",
+                    ChunkType.IFC_OBJECT
+                )
+        
+        return ChunkingDecision.no("No spatial container information")
+    
+    def _extract_spatial_container(self, value: Any) -> str:
+        """Extract spatial container ID from building element."""
+        if isinstance(value, dict):
+            # Look for common spatial relationship patterns
+            relationships = value.get('relationships', {})
+            contained_in = relationships.get('IfcRelContainedInSpatialStructure', [])
+            if contained_in:
+                return contained_in[0] if isinstance(contained_in, list) else str(contained_in)
+        return ''
+    
+    def _get_chunk_spatial_container(self, chunk: Chunk) -> str:
+        """Get spatial container from existing chunk."""
+        if hasattr(chunk, 'data') and isinstance(chunk.data, dict):
+            return self._extract_spatial_container(chunk.data)
+        return ''
+    
+    def _exceeds_size_limit(self, existing_chunks: List[Chunk]) -> bool:
+        """Check if recent chunks exceed size limit."""
+        if not existing_chunks:
+            return False
+        
+        recent_chunks = existing_chunks[-5:]
+        total_size = sum(chunk.size_bytes for chunk in recent_chunks)
+        return total_size > self.size_limit_bytes
+
+
+class DisciplineBasedChunkingStrategy(ChunkingStrategy):
+    """
+    Discipline-based chunking strategy for IFC data.
+    
+    Groups elements by building discipline: Architectural, Structural, MEP.
+    Maintains disciplinary coherence for specialized LLM processing.
+    """
+    
+    def __init__(self, config: Config):
+        """Initialize with configuration."""
+        self.config = config
+        self.size_limit_bytes = config.chunk_size_mb * 1024 * 1024
+        
+        # Define discipline mappings
+        self.disciplines = {
+            'architectural': {
+                'IfcWall', 'IfcDoor', 'IfcWindow', 'IfcSlab', 'IfcRoof', 
+                'IfcStair', 'IfcRamp', 'IfcCurtainWall', 'IfcSpace', 'IfcRoom'
+            },
+            'structural': {
+                'IfcBeam', 'IfcColumn', 'IfcFooting', 'IfcPile', 'IfcPlate',
+                'IfcMember', 'IfcBuildingElementProxy', 'IfcReinforcingBar'
+            },
+            'mep': {
+                'IfcPipe', 'IfcDuct', 'IfcCableCarrierFitting', 'IfcFlowTerminal',
+                'IfcDistributionElement', 'IfcFlowController', 'IfcFlowMovingDevice',
+                'IfcEnergyConversionDevice', 'IfcFlowStorageDevice'
+            }
+        }
+        
+        self.current_discipline = None
+    
+    def should_create_chunk(
+        self, 
+        json_path: str, 
+        value: Any, 
+        existing_chunks: List[Chunk]
+    ) -> ChunkingDecision:
+        """Create chunks based on discipline boundaries."""
+        
+        ifc_type = self._extract_ifc_type(value)
+        element_discipline = self._get_element_discipline(ifc_type)
+        
+        if element_discipline:
+            # Check for discipline boundary crossing
+            if self._is_discipline_boundary(element_discipline, existing_chunks):
+                self.current_discipline = element_discipline
+                return ChunkingDecision.yes(
+                    f"Discipline boundary: switching to {element_discipline}",
+                    ChunkType.IFC_OBJECT
+                )
+        
+        # Size-based fallback
+        if self._exceeds_size_limit(existing_chunks):
+            return ChunkingDecision.yes(
+                f"Size limit exceeded ({self.config.chunk_size_mb}MB)",
+                ChunkType.GENERAL
+            )
+        
+        return ChunkingDecision.no(f"No discipline boundary for {ifc_type}")
+    
+    def _extract_ifc_type(self, value: Any) -> str:
+        """Extract IFC type from entity value."""
+        if isinstance(value, dict):
+            return value.get('type', value.get('IfcType', ''))
+        return ''
+    
+    def _get_element_discipline(self, ifc_type: str) -> str:
+        """Determine discipline for IFC element type."""
+        for discipline, types in self.disciplines.items():
+            if ifc_type in types:
+                return discipline
+        return ''
+    
+    def _is_discipline_boundary(self, element_discipline: str, existing_chunks: List[Chunk]) -> bool:
+        """Check if we're crossing discipline boundaries."""
+        if not existing_chunks:
+            return True  # First element always creates chunk
+        
+        # Check recent chunks for discipline consistency
+        recent_chunks = existing_chunks[-5:]
+        for chunk in recent_chunks:
+            if hasattr(chunk, 'data') and isinstance(chunk.data, dict):
+                chunk_ifc_type = self._extract_ifc_type(chunk.data)
+                chunk_discipline = self._get_element_discipline(chunk_ifc_type)
+                
+                if chunk_discipline and chunk_discipline != element_discipline:
+                    return True  # Crossing discipline boundary
+        
+        return False
+    
+    def _exceeds_size_limit(self, existing_chunks: List[Chunk]) -> bool:
+        """Check if recent chunks exceed size limit."""
+        if not existing_chunks:
+            return False
+        
+        recent_chunks = existing_chunks[-3:]
+        total_size = sum(chunk.size_bytes for chunk in recent_chunks)
+        return total_size > self.size_limit_bytes
+
+
 def create_chunking_strategy(strategy_name: str, config: Config) -> ChunkingStrategy:
     """
     Factory function to create chunking strategies.
@@ -227,7 +468,9 @@ def create_chunking_strategy(strategy_name: str, config: Config) -> ChunkingStra
     strategies = {
         'ifc': IFCChunkingStrategy,
         'size': SizeBasedChunkingStrategy,
-        'aggressive': AggressiveChunkingStrategy
+        'aggressive': AggressiveChunkingStrategy,
+        'hierarchical': HierarchicalChunkingStrategy,
+        'discipline': DisciplineBasedChunkingStrategy
     }
     
     if strategy_name not in strategies:
