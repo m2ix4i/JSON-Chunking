@@ -22,11 +22,13 @@ from ..query.types import (
     QueryContext,
     QueryStatus,
     QueryIntent,
+    QueryParameters,
     ProgressEvent,
     ProgressEventType,
     ChunkResult,
     ProgressCallback
 )
+from ..aggregation.core.aggregator import AdvancedAggregator
 from .intent_classifier import IntentClassifier
 
 logger = structlog.get_logger(__name__)
@@ -84,6 +86,9 @@ class QueryProcessor:
         
         # Initialize components
         self.intent_classifier = IntentClassifier()
+        
+        # Initialize advanced aggregator
+        self.advanced_aggregator = AdvancedAggregator()
         
         # Initialize chunk processor
         self.chunk_processor = chunk_processor or ChunkProcessor(
@@ -445,7 +450,59 @@ class QueryProcessor:
         chunk_results: List[ChunkResult],
         start_time: float
     ) -> QueryResult:
-        """Aggregate chunk results into final answer."""
+        """Aggregate chunk results using advanced aggregation system."""
+        # Check if advanced aggregation is enabled
+        if not context.parameters.aggregate_results:
+            # Fall back to simple aggregation
+            return await self._simple_aggregate_results(context, request, chunk_results, start_time)
+        
+        try:
+            # Use advanced aggregation system
+            logger.info(
+                "Starting advanced result aggregation",
+                query_id=context.query_id,
+                intent=context.intent.value,
+                chunk_count=len(chunk_results)
+            )
+            
+            # Create a simple QueryResult for legacy compatibility
+            basic_result = await self._simple_aggregate_results(context, request, chunk_results, start_time)
+            
+            # Apply advanced aggregation
+            enhanced_result = await self.advanced_aggregator.aggregate_results(
+                context=context,
+                chunk_results=chunk_results,
+                original_query_result=basic_result
+            )
+            
+            logger.info(
+                "Advanced aggregation completed",
+                query_id=context.query_id,
+                conflicts_detected=len(enhanced_result.conflicts_detected),
+                conflicts_resolved=len(enhanced_result.conflicts_resolved),
+                overall_quality=enhanced_result.quality_metrics.overall_quality if enhanced_result.quality_metrics else 0
+            )
+            
+            # Convert EnhancedQueryResult back to QueryResult for compatibility
+            return self._convert_enhanced_to_basic_result(enhanced_result)
+            
+        except Exception as e:
+            logger.error(
+                "Advanced aggregation failed, falling back to simple aggregation",
+                query_id=context.query_id,
+                error=str(e)
+            )
+            # Fall back to simple aggregation on error
+            return await self._simple_aggregate_results(context, request, chunk_results, start_time)
+    
+    async def _simple_aggregate_results(
+        self,
+        context: QueryContext,
+        request: QueryRequest,
+        chunk_results: List[ChunkResult],
+        start_time: float
+    ) -> QueryResult:
+        """Simple aggregation fallback method."""
         successful_results = [r for r in chunk_results if r.status == "completed"]
         failed_results = [r for r in chunk_results if r.status != "completed"]
         
@@ -477,7 +534,8 @@ class QueryProcessor:
             "parameters": context.parameters.to_dict(),
             "successful_chunks": len(successful_results),
             "failed_chunks": len(failed_results),
-            "avg_confidence": confidence_score
+            "avg_confidence": confidence_score,
+            "aggregation_method": "simple"
         }
         
         return QueryResult(
@@ -500,6 +558,46 @@ class QueryProcessor:
             model_used=self.llm_config.model,
             prompt_strategy=context.intent.value
         )
+    
+    def _convert_enhanced_to_basic_result(self, enhanced_result) -> QueryResult:
+        """Convert EnhancedQueryResult to basic QueryResult for compatibility."""
+        # Extract basic QueryResult fields from the enhanced result
+        base_result = QueryResult(
+            query_id=enhanced_result.query_id,
+            original_query=enhanced_result.original_query,
+            intent=enhanced_result.intent,
+            status=enhanced_result.status,
+            answer=enhanced_result.answer,
+            chunk_results=enhanced_result.chunk_results,
+            aggregated_data=enhanced_result.aggregated_data,
+            total_chunks=enhanced_result.total_chunks,
+            successful_chunks=enhanced_result.successful_chunks,
+            failed_chunks=enhanced_result.failed_chunks,
+            total_tokens=enhanced_result.total_tokens,
+            total_cost=enhanced_result.total_cost,
+            processing_time=enhanced_result.processing_time,
+            confidence_score=enhanced_result.confidence_score,
+            completeness_score=enhanced_result.completeness_score,
+            relevance_score=enhanced_result.relevance_score,
+            model_used=enhanced_result.model_used,
+            prompt_strategy=enhanced_result.prompt_strategy
+        )
+        
+        # Add enhanced information to aggregated_data
+        enhanced_data = base_result.aggregated_data.copy()
+        enhanced_data.update({
+            "aggregation_method": "advanced",
+            "conflicts_detected": len(enhanced_result.conflicts_detected),
+            "conflicts_resolved": len(enhanced_result.conflicts_resolved),
+            "quality_metrics": enhanced_result.quality_metrics.to_dict() if enhanced_result.quality_metrics else None,
+            "structured_output": enhanced_result.structured_output,
+            "data_insights": enhanced_result.data_insights,
+            "recommendations": enhanced_result.recommendations,
+            "uncertainty_factors": enhanced_result.uncertainty_factors
+        })
+        
+        base_result.aggregated_data = enhanced_data
+        return base_result
     
     def _generate_final_answer(
         self,
