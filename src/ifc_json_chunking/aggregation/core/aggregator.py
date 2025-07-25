@@ -20,6 +20,9 @@ from .data_extractor import DataExtractor
 from .normalizer import DataNormalizer
 from ..conflict.detector import ConflictDetector
 from ..strategies.quantity_strategy import QuantityAggregationStrategy
+from ..quality.confidence import ConfidenceCalculator
+from ..quality.scorer import QualityScorer
+from ..quality.uncertainty import UncertaintyHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -54,6 +57,11 @@ class AdvancedAggregator:
         self.data_extractor = DataExtractor()
         self.data_normalizer = DataNormalizer()
         self.conflict_detector = ConflictDetector()
+        
+        # Initialize quality assessment components
+        self.confidence_calculator = ConfidenceCalculator()
+        self.quality_scorer = QualityScorer()
+        self.uncertainty_handler = UncertaintyHandler()
         
         # Initialize aggregation strategies
         self.strategies = {
