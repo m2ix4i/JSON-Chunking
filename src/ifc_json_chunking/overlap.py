@@ -1,18 +1,25 @@
 """
-Chunk overlap management for context preservation.
+Overlap management system for semantic chunk boundaries.
 
-This module provides intelligent overlap mechanisms to preserve context
-across chunk boundaries, ensuring semantic continuity for LLM processing.
+This module provides intelligent overlap mechanisms to preserve semantic context
+and entity relationships across chunk boundaries, ensuring no information loss
+during chunking operations.
 """
 
-from typing import Any, Dict, List, Optional, Set, Tuple
-from dataclasses import dataclass
+import asyncio
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Dict, List, Set, Any, Optional, Tuple, Union
+from collections import defaultdict
 
 import structlog
 
-from .models import Chunk, ChunkType
-from .token_counter import TokenCounter, create_token_counter
+from .exceptions import IFCChunkingError, ValidationError
+from .ifc_schema import IFCEntity, IFCEntityType, IFCHierarchy, Discipline
+from .relationships import RelationshipGraph, RelationshipType, EntityRelationship
+from .chunking_strategies import SemanticChunk, ChunkingContext
+from .config import Config
 
 logger = structlog.get_logger(__name__)
 
@@ -20,433 +27,591 @@ logger = structlog.get_logger(__name__)
 class OverlapStrategy(Enum):
     """Different strategies for creating chunk overlaps."""
     
-    TOKEN_BASED = "token_based"  # Fixed token count overlap
-    PERCENTAGE_BASED = "percentage_based"  # Percentage of chunk size
-    ENTITY_BOUNDARY = "entity_boundary"  # Semantic entity boundaries
-    RELATIONSHIP_AWARE = "relationship_aware"  # IFC relationship preservation
+    ENTITY_BASED = "entity_based"           # Overlap based on entity relationships
+    HIERARCHY_BASED = "hierarchy_based"     # Overlap based on spatial hierarchy
+    SEMANTIC_BASED = "semantic_based"       # Overlap based on semantic similarity
+    FIXED_PERCENTAGE = "fixed_percentage"   # Fixed percentage of chunk content
+    ADAPTIVE = "adaptive"                   # Adaptive based on content analysis
 
 
 @dataclass
-class OverlapConfig:
-    """Configuration for chunk overlap behavior."""
-    
-    strategy: OverlapStrategy
-    size_tokens: int = 400  # Token-based overlap size
-    percentage: float = 0.1  # Percentage-based overlap (10%)
-    preserve_entities: bool = True  # Preserve complete entities
-    preserve_relationships: bool = True  # Preserve IFC relationships
-    max_overlap_ratio: float = 0.3  # Maximum overlap as ratio of chunk size
-
-
-class ChunkOverlapManager:
+class ChunkBoundary:
     """
-    Manages chunk overlaps for context preservation.
+    Represents and analyzes the boundary between two chunks.
     
-    Provides intelligent overlap creation that preserves semantic
-    boundaries and IFC relationships across chunk boundaries.
+    Provides detailed analysis of what entities and relationships
+    exist at chunk boundaries to enable intelligent overlap creation.
     """
     
-    def __init__(
+    source_chunk: SemanticChunk
+    target_chunk: SemanticChunk
+    boundary_entities: Set[str] = field(default_factory=set)
+    cross_boundary_relationships: List[EntityRelationship] = field(default_factory=list)
+    semantic_gap_score: float = 0.0
+    overlap_priority: float = 0.0
+    
+    def __post_init__(self):
+        """Analyze boundary characteristics after creation."""
+        self._analyze_boundary()
+    
+    def _analyze_boundary(self) -> None:
+        """Analyze the characteristics of this chunk boundary."""
+        # Find entities that have relationships across the boundary
+        source_entity_ids = self.source_chunk.entity_ids
+        target_entity_ids = self.target_chunk.entity_ids
+        
+        # Check relationships from source chunk
+        for relationship in self.source_chunk.relationships:
+            if (relationship.source_entity_id in source_entity_ids and 
+                relationship.target_entity_id in target_entity_ids):
+                self.cross_boundary_relationships.append(relationship)
+                self.boundary_entities.add(relationship.source_entity_id)
+                self.boundary_entities.add(relationship.target_entity_id)
+        
+        # Check relationships from target chunk
+        for relationship in self.target_chunk.relationships:
+            if (relationship.source_entity_id in source_entity_ids and 
+                relationship.target_entity_id in target_entity_ids):
+                if relationship not in self.cross_boundary_relationships:
+                    self.cross_boundary_relationships.append(relationship)
+                    self.boundary_entities.add(relationship.source_entity_id)
+                    self.boundary_entities.add(relationship.target_entity_id)
+        
+        # Calculate semantic gap score (higher = more semantic discontinuity)
+        self.semantic_gap_score = self._calculate_semantic_gap()
+        
+        # Calculate overlap priority (higher = more important to overlap)
+        self.overlap_priority = self._calculate_overlap_priority()
+    
+    def _calculate_semantic_gap(self) -> float:
+        """Calculate semantic discontinuity at the boundary."""
+        if not self.cross_boundary_relationships:
+            return 1.0  # Maximum gap if no relationships
+        
+        # Lower gap score for more relationships
+        relationship_density = len(self.cross_boundary_relationships) / max(
+            len(self.source_chunk.entity_ids) + len(self.target_chunk.entity_ids), 1
+        )
+        
+        # Consider relationship types - spatial relationships reduce gap more
+        spatial_relationships = sum(
+            1 for rel in self.cross_boundary_relationships 
+            if rel.relationship_type == RelationshipType.SPATIAL_CONTAINMENT
+        )
+        
+        spatial_factor = min(spatial_relationships / len(self.cross_boundary_relationships), 1.0) if self.cross_boundary_relationships else 0.0
+        
+        # Gap score: 0.0 = no gap, 1.0 = maximum gap
+        gap_score = max(0.0, 1.0 - (relationship_density * 2.0) - (spatial_factor * 0.5))
+        return min(gap_score, 1.0)
+    
+    def _calculate_overlap_priority(self) -> float:
+        """Calculate priority for creating overlap at this boundary."""
+        # Higher priority for boundaries with more important relationships
+        priority_score = 0.0
+        
+        # Cross-boundary relationships increase priority
+        priority_score += len(self.cross_boundary_relationships) * 0.3
+        
+        # High semantic gap increases priority (need overlap to bridge gap)
+        priority_score += self.semantic_gap_score * 0.4
+        
+        # Spatial relationships are high priority
+        spatial_count = sum(
+            1 for rel in self.cross_boundary_relationships
+            if rel.relationship_type == RelationshipType.SPATIAL_CONTAINMENT
+        )
+        priority_score += spatial_count * 0.5
+        
+        # Critical entities increase priority
+        critical_entities = sum(
+            1 for entity_id in self.boundary_entities
+            if self._is_critical_entity(entity_id)
+        )
+        priority_score += critical_entities * 0.3
+        
+        return min(priority_score, 1.0)
+    
+    def _is_critical_entity(self, entity_id: str) -> bool:
+        """Check if an entity is critical for overlap."""
+        # This is a simplified check - in practice, you'd want more sophisticated logic
+        # For now, consider spatial elements as critical
+        for entity in self.source_chunk.entities + self.target_chunk.entities:
+            if entity.entity_id == entity_id:
+                return entity.is_spatial_element()
+        return False
+    
+    def get_overlap_entities(self, max_entities: int = 10) -> List[IFCEntity]:
+        """
+        Get the most important entities for overlap at this boundary.
+        
+        Args:
+            max_entities: Maximum number of entities to include in overlap
+            
+        Returns:
+            List of entities to include in overlap
+        """
+        overlap_entities = []
+        entity_scores = {}
+        
+        # Score entities based on their importance for overlap
+        for entity_id in self.boundary_entities:
+            score = 0.0
+            
+            # Entities involved in cross-boundary relationships get high scores
+            for rel in self.cross_boundary_relationships:
+                if rel.involves_entity(entity_id):
+                    score += rel.weight * 0.5
+            
+            # Spatial elements get bonus scores
+            entity = self._find_entity(entity_id)
+            if entity and entity.is_spatial_element():
+                score += 0.3
+            
+            entity_scores[entity_id] = score
+        
+        # Sort by score and return top entities
+        sorted_entities = sorted(entity_scores.items(), key=lambda x: x[1], reverse=True)
+        
+        for entity_id, score in sorted_entities[:max_entities]:
+            entity = self._find_entity(entity_id)
+            if entity:
+                overlap_entities.append(entity)
+        
+        return overlap_entities
+    
+    def _find_entity(self, entity_id: str) -> Optional[IFCEntity]:
+        """Find entity by ID in either chunk."""
+        for entity in self.source_chunk.entities:
+            if entity.entity_id == entity_id:
+                return entity
+        for entity in self.target_chunk.entities:
+            if entity.entity_id == entity_id:
+                return entity
+        return None
+
+
+@dataclass
+class OverlapConfiguration:
+    """Configuration for overlap creation."""
+    
+    strategy: OverlapStrategy = OverlapStrategy.ADAPTIVE
+    overlap_percentage: float = 0.15  # 15% overlap by default
+    min_overlap_entities: int = 2
+    max_overlap_entities: int = 20
+    preserve_spatial_hierarchy: bool = True
+    preserve_critical_relationships: bool = True
+    adaptive_threshold: float = 0.7  # Threshold for adaptive decisions
+
+
+class ContextPreserver:
+    """
+    Preserves semantic context at chunk boundaries.
+    
+    Analyzes chunk boundaries and determines what context information
+    needs to be preserved to maintain semantic coherence.
+    """
+    
+    def __init__(self, config: Optional[Config] = None):
+        """
+        Initialize context preserver.
+        
+        Args:
+            config: Configuration object
+        """
+        self.config = config or Config()
+        logger.info("ContextPreserver initialized")
+    
+    def analyze_context_requirements(
         self, 
-        config: OverlapConfig,
-        token_counter: Optional[TokenCounter] = None
-    ):
+        chunks: List[SemanticChunk], 
+        relationship_graph: RelationshipGraph
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        Analyze context requirements for each chunk boundary.
+        
+        Args:
+            chunks: List of semantic chunks to analyze
+            relationship_graph: Relationship graph for the entities
+            
+        Returns:
+            Dictionary mapping chunk indices to context requirements
+        """
+        context_requirements = {}
+        
+        for i in range(len(chunks) - 1):
+            boundary = ChunkBoundary(chunks[i], chunks[i + 1])
+            
+            requirements = {
+                "boundary_analysis": {
+                    "cross_boundary_relationships": len(boundary.cross_boundary_relationships),
+                    "boundary_entities": len(boundary.boundary_entities),
+                    "semantic_gap_score": boundary.semantic_gap_score,
+                    "overlap_priority": boundary.overlap_priority
+                },
+                "context_entities": boundary.get_overlap_entities(),
+                "required_relationships": boundary.cross_boundary_relationships,
+                "preservation_strategy": self._determine_preservation_strategy(boundary)
+            }
+            
+            context_requirements[i] = requirements
+        
+        return context_requirements
+    
+    def _determine_preservation_strategy(self, boundary: ChunkBoundary) -> str:
+        """Determine the best strategy for preserving context at this boundary."""
+        if boundary.overlap_priority > 0.8:
+            return "comprehensive"  # Preserve extensive context
+        elif boundary.semantic_gap_score > 0.6:
+            return "bridging"      # Focus on bridging semantic gap
+        elif len(boundary.cross_boundary_relationships) > 5:
+            return "relationship_focused"  # Focus on preserving relationships
+        else:
+            return "minimal"       # Minimal overlap sufficient
+    
+    def create_context_chunk(
+        self, 
+        boundary: ChunkBoundary, 
+        strategy: str = "adaptive"
+    ) -> Optional[SemanticChunk]:
+        """
+        Create a context chunk to bridge the boundary.
+        
+        Args:
+            boundary: Boundary analysis
+            strategy: Context preservation strategy
+            
+        Returns:
+            Context chunk if needed, None otherwise
+        """
+        if boundary.overlap_priority < 0.3:
+            return None  # No context chunk needed
+        
+        overlap_entities = boundary.get_overlap_entities()
+        if not overlap_entities:
+            return None
+        
+        # Create context chunk
+        context_chunk = SemanticChunk(
+            chunk_id=f"context_{boundary.source_chunk.chunk_id}_{boundary.target_chunk.chunk_id}",
+            strategy_used="ContextPreserver",
+            entities=overlap_entities,
+            relationships=boundary.cross_boundary_relationships,
+            metadata={
+                "is_context_chunk": True,
+                "source_chunk_id": boundary.source_chunk.chunk_id,
+                "target_chunk_id": boundary.target_chunk.chunk_id,
+                "preservation_strategy": strategy,
+                "semantic_gap_score": boundary.semantic_gap_score,
+                "overlap_priority": boundary.overlap_priority
+            }
+        )
+        
+        return context_chunk
+
+
+class OverlapManager:
+    """
+    Coordinates overlap creation and management across chunks.
+    
+    Provides high-level coordination of overlap strategies and ensures
+    consistent overlap policies across the entire chunking operation.
+    """
+    
+    def __init__(self, config: OverlapConfiguration):
         """
         Initialize overlap manager.
         
         Args:
             config: Overlap configuration
-            token_counter: Token counter for size calculations
         """
         self.config = config
-        self.token_counter = token_counter or create_token_counter()
+        self.context_preserver = ContextPreserver()
+        self.overlap_statistics = defaultdict(int)
         
         logger.info(
-            "ChunkOverlapManager initialized",
-            strategy=config.strategy.value,
-            size_tokens=config.size_tokens,
-            percentage=config.percentage
+            f"OverlapManager initialized with {config.strategy.value} strategy",
+            overlap_percentage=config.overlap_percentage
         )
     
-    def create_overlap(
+    async def create_overlaps(
         self, 
-        previous_chunk: Chunk, 
-        current_chunk: Chunk
-    ) -> Optional[Dict[str, Any]]:
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
         """
-        Create overlap content between two consecutive chunks.
+        Create overlaps between chunks using the configured strategy.
         
         Args:
-            previous_chunk: Previous chunk for overlap source
-            current_chunk: Current chunk for overlap context
+            chunks: List of semantic chunks
+            context: Chunking context with entities and relationships
             
         Returns:
-            Overlap content dictionary or None if no overlap needed
+            List of chunks with overlaps applied
         """
-        if not self._should_create_overlap(previous_chunk, current_chunk):
-            return None
+        if len(chunks) < 2:
+            return chunks
         
-        if self.config.strategy == OverlapStrategy.TOKEN_BASED:
-            return self._create_token_based_overlap(previous_chunk, current_chunk)
-        elif self.config.strategy == OverlapStrategy.PERCENTAGE_BASED:
-            return self._create_percentage_based_overlap(previous_chunk, current_chunk)
-        elif self.config.strategy == OverlapStrategy.ENTITY_BOUNDARY:
-            return self._create_entity_boundary_overlap(previous_chunk, current_chunk)
-        elif self.config.strategy == OverlapStrategy.RELATIONSHIP_AWARE:
-            return self._create_relationship_aware_overlap(previous_chunk, current_chunk)
+        logger.info(f"Creating overlaps for {len(chunks)} chunks using {self.config.strategy.value}")
         
-        return None
+        # Apply strategy-specific overlap creation
+        if self.config.strategy == OverlapStrategy.ENTITY_BASED:
+            return await self._create_entity_based_overlaps(chunks, context)
+        elif self.config.strategy == OverlapStrategy.HIERARCHY_BASED:
+            return await self._create_hierarchy_based_overlaps(chunks, context)
+        elif self.config.strategy == OverlapStrategy.SEMANTIC_BASED:
+            return await self._create_semantic_based_overlaps(chunks, context)
+        elif self.config.strategy == OverlapStrategy.FIXED_PERCENTAGE:
+            return await self._create_fixed_percentage_overlaps(chunks, context)
+        elif self.config.strategy == OverlapStrategy.ADAPTIVE:
+            return await self._create_adaptive_overlaps(chunks, context)
+        else:
+            logger.warning(f"Unknown overlap strategy: {self.config.strategy}")
+            return chunks
     
-    def _should_create_overlap(self, previous_chunk: Chunk, current_chunk: Chunk) -> bool:
-        """Determine if overlap should be created between chunks."""
-        # Don't create overlap for header chunks
-        if previous_chunk.chunk_type == ChunkType.HEADER:
-            return False
-        
-        # Don't create overlap if chunks are from different spatial containers
-        if self._are_different_spatial_contexts(previous_chunk, current_chunk):
-            return False
-        
-        # Create overlap for related building elements
-        return True
-    
-    def _create_token_based_overlap(
+    async def _create_entity_based_overlaps(
         self, 
-        previous_chunk: Chunk, 
-        current_chunk: Chunk
-    ) -> Dict[str, Any]:
-        """Create overlap based on fixed token count."""
-        overlap_tokens = self.config.size_tokens
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
+        """Create overlaps based on entity relationships."""
+        overlapped_chunks = []
         
-        # Extract ending content from previous chunk
-        overlap_content = self._extract_ending_content(
-            previous_chunk, 
-            overlap_tokens
-        )
+        for i in range(len(chunks)):
+            chunk = chunks[i]
+            overlapped_chunk = self._copy_chunk(chunk)
+            
+            # Add entities from previous chunk if relationships exist
+            if i > 0:
+                prev_chunk = chunks[i - 1]
+                overlap_entities = self._find_related_entities(
+                    chunk, prev_chunk, context.relationship_graph
+                )
+                overlapped_chunk.entities.extend(overlap_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in overlap_entities)
+            
+            # Add entities from next chunk if relationships exist
+            if i < len(chunks) - 1:
+                next_chunk = chunks[i + 1]
+                overlap_entities = self._find_related_entities(
+                    chunk, next_chunk, context.relationship_graph
+                )
+                overlapped_chunk.entities.extend(overlap_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in overlap_entities)
+            
+            overlapped_chunks.append(overlapped_chunk)
+            self.overlap_statistics["entity_based"] += 1
         
-        # Calculate actual token usage
-        actual_tokens = self.token_counter.count_tokens(overlap_content)
-        
-        overlap = {
-            "type": "token_based",
-            "content": overlap_content,
-            "source_chunk_id": previous_chunk.chunk_id,
-            "target_chunk_id": current_chunk.chunk_id,
-            "requested_tokens": overlap_tokens,
-            "actual_tokens": actual_tokens,
-            "created_timestamp": previous_chunk.created_timestamp
-        }
-        
-        logger.debug(
-            "Token-based overlap created",
-            source_chunk=previous_chunk.chunk_id,
-            target_chunk=current_chunk.chunk_id,
-            actual_tokens=actual_tokens
-        )
-        
-        return overlap
+        return overlapped_chunks
     
-    def _create_percentage_based_overlap(
+    async def _create_hierarchy_based_overlaps(
         self, 
-        previous_chunk: Chunk, 
-        current_chunk: Chunk
-    ) -> Dict[str, Any]:
-        """Create overlap based on percentage of chunk size."""
-        # Calculate target overlap size
-        chunk_tokens = previous_chunk.token_count or self.token_counter.count_tokens(previous_chunk.data)
-        overlap_tokens = int(chunk_tokens * self.config.percentage)
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
+        """Create overlaps based on spatial hierarchy."""
+        overlapped_chunks = []
         
-        # Respect maximum overlap ratio
-        max_overlap = int(chunk_tokens * self.config.max_overlap_ratio)
-        overlap_tokens = min(overlap_tokens, max_overlap)
+        for i, chunk in enumerate(chunks):
+            overlapped_chunk = self._copy_chunk(chunk)
+            
+            # Add parent entities for spatial context
+            if self.config.preserve_spatial_hierarchy:
+                parent_entities = self._get_spatial_parents(chunk, context.hierarchy)
+                overlapped_chunk.entities.extend(parent_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in parent_entities)
+            
+            overlapped_chunks.append(overlapped_chunk)
+            self.overlap_statistics["hierarchy_based"] += 1
         
-        overlap_content = self._extract_ending_content(
-            previous_chunk, 
-            overlap_tokens
-        )
-        
-        actual_tokens = self.token_counter.count_tokens(overlap_content)
-        
-        overlap = {
-            "type": "percentage_based",
-            "content": overlap_content,
-            "source_chunk_id": previous_chunk.chunk_id,
-            "target_chunk_id": current_chunk.chunk_id,
-            "percentage": self.config.percentage,
-            "chunk_tokens": chunk_tokens,
-            "overlap_tokens": overlap_tokens,
-            "actual_tokens": actual_tokens,
-            "created_timestamp": previous_chunk.created_timestamp
-        }
-        
-        logger.debug(
-            "Percentage-based overlap created",
-            source_chunk=previous_chunk.chunk_id,
-            target_chunk=current_chunk.chunk_id,
-            percentage=self.config.percentage,
-            actual_tokens=actual_tokens
-        )
-        
-        return overlap
+        return overlapped_chunks
     
-    def _create_entity_boundary_overlap(
+    async def _create_semantic_based_overlaps(
         self, 
-        previous_chunk: Chunk, 
-        current_chunk: Chunk
-    ) -> Dict[str, Any]:
-        """Create overlap that preserves complete IFC entities."""
-        # Find complete entities at the end of previous chunk
-        ending_entities = self._extract_complete_entities_from_end(previous_chunk)
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
+        """Create overlaps based on semantic similarity."""
+        overlapped_chunks = []
         
-        if not ending_entities:
-            # Fallback to token-based overlap
-            return self._create_token_based_overlap(previous_chunk, current_chunk)
+        for i, chunk in enumerate(chunks):
+            overlapped_chunk = self._copy_chunk(chunk)
+            
+            # Find semantically similar entities in adjacent chunks
+            if i > 0:
+                similar_entities = self._find_semantically_similar_entities(
+                    chunk, chunks[i - 1]
+                )
+                overlapped_chunk.entities.extend(similar_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in similar_entities)
+            
+            overlapped_chunks.append(overlapped_chunk)
+            self.overlap_statistics["semantic_based"] += 1
         
-        # Calculate token count for selected entities
-        actual_tokens = self.token_counter.count_tokens(ending_entities)
-        
-        overlap = {
-            "type": "entity_boundary",
-            "content": ending_entities,
-            "source_chunk_id": previous_chunk.chunk_id,
-            "target_chunk_id": current_chunk.chunk_id,
-            "entity_count": len(ending_entities) if isinstance(ending_entities, list) else 1,
-            "actual_tokens": actual_tokens,
-            "created_timestamp": previous_chunk.created_timestamp
-        }
-        
-        logger.debug(
-            "Entity boundary overlap created",
-            source_chunk=previous_chunk.chunk_id,
-            target_chunk=current_chunk.chunk_id,
-            entity_count=overlap["entity_count"],
-            actual_tokens=actual_tokens
-        )
-        
-        return overlap
+        return overlapped_chunks
     
-    def _create_relationship_aware_overlap(
+    async def _create_fixed_percentage_overlaps(
         self, 
-        previous_chunk: Chunk, 
-        current_chunk: Chunk
-    ) -> Dict[str, Any]:
-        """Create overlap that preserves IFC relationships."""
-        # Extract entities with their relationships from previous chunk
-        related_entities = self._extract_related_entities_from_end(previous_chunk, current_chunk)
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
+        """Create fixed percentage overlaps."""
+        overlapped_chunks = []
         
-        if not related_entities:
-            # Fallback to entity boundary overlap
-            return self._create_entity_boundary_overlap(previous_chunk, current_chunk)
+        for i, chunk in enumerate(chunks):
+            overlapped_chunk = self._copy_chunk(chunk)
+            
+            # Add fixed percentage of entities from adjacent chunks
+            overlap_count = max(
+                self.config.min_overlap_entities,
+                int(len(chunk.entities) * self.config.overlap_percentage)
+            )
+            overlap_count = min(overlap_count, self.config.max_overlap_entities)
+            
+            if i > 0 and overlap_count > 0:
+                prev_entities = chunks[i - 1].entities[:overlap_count // 2]
+                overlapped_chunk.entities.extend(prev_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in prev_entities)
+            
+            if i < len(chunks) - 1 and overlap_count > 0:
+                next_entities = chunks[i + 1].entities[:overlap_count // 2]
+                overlapped_chunk.entities.extend(next_entities)
+                overlapped_chunk.entity_ids.update(e.entity_id for e in next_entities)
+            
+            overlapped_chunks.append(overlapped_chunk)
+            self.overlap_statistics["fixed_percentage"] += 1
         
-        actual_tokens = self.token_counter.count_tokens(related_entities)
+        return overlapped_chunks
+    
+    async def _create_adaptive_overlaps(
+        self, 
+        chunks: List[SemanticChunk], 
+        context: ChunkingContext
+    ) -> List[SemanticChunk]:
+        """Create adaptive overlaps based on boundary analysis."""
+        overlapped_chunks = []
         
-        overlap = {
-            "type": "relationship_aware",
-            "content": related_entities,
-            "source_chunk_id": previous_chunk.chunk_id,
-            "target_chunk_id": current_chunk.chunk_id,
-            "relationship_count": self._count_relationships(related_entities),
-            "actual_tokens": actual_tokens,
-            "created_timestamp": previous_chunk.created_timestamp
+        # Analyze all boundaries first
+        boundaries = []
+        for i in range(len(chunks) - 1):
+            boundary = ChunkBoundary(chunks[i], chunks[i + 1])
+            boundaries.append(boundary)
+        
+        # Create overlaps based on boundary analysis
+        for i, chunk in enumerate(chunks):
+            overlapped_chunk = self._copy_chunk(chunk)
+            
+            # Add overlaps from previous boundary
+            if i > 0:
+                boundary = boundaries[i - 1]
+                if boundary.overlap_priority > self.config.adaptive_threshold:
+                    overlap_entities = boundary.get_overlap_entities()
+                    overlapped_chunk.entities.extend(overlap_entities)
+                    overlapped_chunk.entity_ids.update(e.entity_id for e in overlap_entities)
+            
+            # Add overlaps from next boundary
+            if i < len(boundaries):
+                boundary = boundaries[i]
+                if boundary.overlap_priority > self.config.adaptive_threshold:
+                    overlap_entities = boundary.get_overlap_entities()
+                    overlapped_chunk.entities.extend(overlap_entities)
+                    overlapped_chunk.entity_ids.update(e.entity_id for e in overlap_entities)
+            
+            overlapped_chunks.append(overlapped_chunk)
+            self.overlap_statistics["adaptive"] += 1
+        
+        return overlapped_chunks
+    
+    def _copy_chunk(self, chunk: SemanticChunk) -> SemanticChunk:
+        """Create a copy of a chunk for overlap modification."""
+        from copy import deepcopy
+        return deepcopy(chunk)
+    
+    def _find_related_entities(
+        self, 
+        chunk1: SemanticChunk, 
+        chunk2: SemanticChunk, 
+        relationship_graph: RelationshipGraph
+    ) -> List[IFCEntity]:
+        """Find entities in chunk2 that are related to entities in chunk1."""
+        related_entities = []
+        
+        for entity1_id in chunk1.entity_ids:
+            relationships = relationship_graph.get_entity_relationships(entity1_id)
+            for rel in relationships:
+                other_entity_id = rel.get_other_entity(entity1_id)
+                if other_entity_id and other_entity_id in chunk2.entity_ids:
+                    # Find the entity in chunk2
+                    for entity in chunk2.entities:
+                        if entity.entity_id == other_entity_id:
+                            related_entities.append(entity)
+                            break
+        
+        return related_entities
+    
+    def _get_spatial_parents(
+        self, 
+        chunk: SemanticChunk, 
+        hierarchy: IFCHierarchy
+    ) -> List[IFCEntity]:
+        """Get spatial parent entities for context."""
+        parent_entities = []
+        
+        for entity in chunk.entities:
+            if entity.is_spatial_element():
+                parent_id = hierarchy.get_parent(entity.entity_id)
+                if parent_id and parent_id in hierarchy.entities:
+                    parent_entities.append(hierarchy.entities[parent_id])
+        
+        return parent_entities
+    
+    def _find_semantically_similar_entities(
+        self, 
+        chunk1: SemanticChunk, 
+        chunk2: SemanticChunk
+    ) -> List[IFCEntity]:
+        """Find semantically similar entities between chunks."""
+        similar_entities = []
+        
+        # Simple similarity based on entity type and discipline
+        for entity1 in chunk1.entities:
+            for entity2 in chunk2.entities:
+                if (entity1.entity_type == entity2.entity_type and 
+                    entity1.discipline == entity2.discipline):
+                    similar_entities.append(entity2)
+        
+        return similar_entities[:self.config.max_overlap_entities // 2]
+    
+    def get_overlap_statistics(self) -> Dict[str, Any]:
+        """Get statistics about overlap operations."""
+        return {
+            "strategy_usage": dict(self.overlap_statistics),
+            "total_overlaps_created": sum(self.overlap_statistics.values()),
+            "configuration": {
+                "strategy": self.config.strategy.value,
+                "overlap_percentage": self.config.overlap_percentage,
+                "min_overlap_entities": self.config.min_overlap_entities,
+                "max_overlap_entities": self.config.max_overlap_entities
+            }
         }
-        
-        logger.debug(
-            "Relationship-aware overlap created",
-            source_chunk=previous_chunk.chunk_id,
-            target_chunk=current_chunk.chunk_id,
-            relationship_count=overlap["relationship_count"],
-            actual_tokens=actual_tokens
-        )
-        
-        return overlap
-    
-    def _extract_ending_content(self, chunk: Chunk, target_tokens: int) -> Any:
-        """Extract content from the end of a chunk up to target token count."""
-        if not isinstance(chunk.data, (dict, list)):
-            # For simple data, take a substring based on estimated position
-            content_str = str(chunk.data)
-            total_tokens = self.token_counter.count_tokens(content_str)
-            
-            if total_tokens <= target_tokens:
-                return chunk.data
-            
-            # Estimate character position for target tokens
-            chars_per_token = len(content_str) / total_tokens
-            target_chars = int(target_tokens * chars_per_token)
-            
-            return content_str[-target_chars:]
-        
-        if isinstance(chunk.data, list):
-            return self._extract_ending_from_list(chunk.data, target_tokens)
-        elif isinstance(chunk.data, dict):
-            return self._extract_ending_from_dict(chunk.data, target_tokens)
-        
-        return chunk.data
-    
-    def _extract_ending_from_list(self, data: List[Any], target_tokens: int) -> List[Any]:
-        """Extract ending elements from a list up to target token count."""
-        ending_elements = []
-        current_tokens = 0
-        
-        # Process from the end
-        for item in reversed(data):
-            item_tokens = self.token_counter.count_tokens(item)
-            
-            if current_tokens + item_tokens <= target_tokens:
-                ending_elements.insert(0, item)  # Insert at beginning to maintain order
-                current_tokens += item_tokens
-            else:
-                break
-        
-        return ending_elements
-    
-    def _extract_ending_from_dict(self, data: Dict[str, Any], target_tokens: int) -> Dict[str, Any]:
-        """Extract ending key-value pairs from a dict up to target token count."""
-        ending_dict = {}
-        current_tokens = 0
-        
-        # Process from the end (reverse key order)
-        for key in reversed(list(data.keys())):
-            value = data[key]
-            item_tokens = self.token_counter.count_tokens({key: value})
-            
-            if current_tokens + item_tokens <= target_tokens:
-                ending_dict[key] = value
-                current_tokens += item_tokens
-            else:
-                break
-        
-        return ending_dict
-    
-    def _extract_complete_entities_from_end(self, chunk: Chunk) -> Any:
-        """Extract complete IFC entities from the end of a chunk."""
-        if not isinstance(chunk.data, (dict, list)):
-            return None
-        
-        # Look for IFC entities (objects with 'type' field containing 'Ifc')
-        entities = []
-        
-        if isinstance(chunk.data, list):
-            for item in reversed(chunk.data):
-                if isinstance(item, dict) and self._is_ifc_entity(item):
-                    entities.insert(0, item)
-                    
-                    # Stop if we have enough tokens
-                    if self.token_counter.count_tokens(entities) > self.config.size_tokens:
-                        break
-        
-        elif isinstance(chunk.data, dict):
-            # Look for nested entity structures
-            for key, value in reversed(list(chunk.data.items())):
-                if isinstance(value, dict) and self._is_ifc_entity(value):
-                    entities.insert(0, {key: value})
-                    
-                    if self.token_counter.count_tokens(entities) > self.config.size_tokens:
-                        break
-        
-        return entities if entities else None
-    
-    def _extract_related_entities_from_end(self, previous_chunk: Chunk, current_chunk: Chunk) -> Any:
-        """Extract entities with relationships from the end of previous chunk."""
-        # This would require more sophisticated relationship analysis
-        # For now, fallback to complete entities
-        return self._extract_complete_entities_from_end(previous_chunk)
-    
-    def _is_ifc_entity(self, data: Dict[str, Any]) -> bool:
-        """Check if data represents an IFC entity."""
-        entity_type = data.get('type', '')
-        return isinstance(entity_type, str) and entity_type.startswith('Ifc')
-    
-    def _count_relationships(self, data: Any) -> int:
-        """Count IFC relationships in the data."""
-        if not isinstance(data, (dict, list)):
-            return 0
-        
-        relationship_count = 0
-        
-        def count_in_dict(d: dict):
-            nonlocal relationship_count
-            for key, value in d.items():
-                if 'rel' in key.lower() or 'relationship' in key.lower():
-                    relationship_count += 1
-                elif isinstance(value, dict):
-                    count_in_dict(value)
-                elif isinstance(value, list):
-                    count_in_list(value)
-        
-        def count_in_list(l: list):
-            for item in l:
-                if isinstance(item, dict):
-                    count_in_dict(item)
-                elif isinstance(item, list):
-                    count_in_list(item)
-        
-        if isinstance(data, dict):
-            count_in_dict(data)
-        elif isinstance(data, list):
-            count_in_list(data)
-        
-        return relationship_count
-    
-    def _are_different_spatial_contexts(self, chunk1: Chunk, chunk2: Chunk) -> bool:
-        """Check if chunks are from different spatial contexts."""
-        # Extract spatial context from both chunks
-        context1 = self._extract_spatial_context(chunk1)
-        context2 = self._extract_spatial_context(chunk2)
-        
-        # If we can't determine context, assume they're related
-        if not context1 or not context2:
-            return False
-        
-        return context1 != context2
-    
-    def _extract_spatial_context(self, chunk: Chunk) -> Optional[str]:
-        """Extract spatial context identifier from chunk."""
-        if not isinstance(chunk.data, dict):
-            return None
-        
-        # Look for spatial container references
-        relationships = chunk.data.get('relationships', {})
-        if 'IfcRelContainedInSpatialStructure' in relationships:
-            return relationships['IfcRelContainedInSpatialStructure']
-        
-        # Look for spatial element types
-        entity_type = chunk.data.get('type', '')
-        if entity_type in ['IfcSpace', 'IfcRoom', 'IfcBuildingStorey', 'IfcBuilding']:
-            return chunk.data.get('id', chunk.chunk_id)
-        
-        return None
 
 
-def create_overlap_config(
-    strategy: str = "token_based",
-    size_tokens: int = 400,
-    percentage: float = 0.1
-) -> OverlapConfig:
+def create_overlap_manager(
+    strategy: OverlapStrategy = OverlapStrategy.ADAPTIVE,
+    overlap_percentage: float = 0.15
+) -> OverlapManager:
     """
-    Create overlap configuration with specified parameters.
+    Factory function to create overlap manager with configuration.
     
     Args:
-        strategy: Overlap strategy name
-        size_tokens: Token count for token-based overlap
-        percentage: Percentage for percentage-based overlap
+        strategy: Overlap strategy to use
+        overlap_percentage: Percentage of content to overlap
         
     Returns:
-        OverlapConfig instance
+        Configured overlap manager
     """
-    strategy_map = {
-        "token_based": OverlapStrategy.TOKEN_BASED,
-        "percentage_based": OverlapStrategy.PERCENTAGE_BASED,
-        "entity_boundary": OverlapStrategy.ENTITY_BOUNDARY,
-        "relationship_aware": OverlapStrategy.RELATIONSHIP_AWARE
-    }
-    
-    if strategy not in strategy_map:
-        available = list(strategy_map.keys())
-        raise ValueError(f"Unknown overlap strategy: {strategy}. Available: {available}")
-    
-    return OverlapConfig(
-        strategy=strategy_map[strategy],
-        size_tokens=size_tokens,
-        percentage=percentage
+    config = OverlapConfiguration(
+        strategy=strategy,
+        overlap_percentage=overlap_percentage
     )
+    return OverlapManager(config)
