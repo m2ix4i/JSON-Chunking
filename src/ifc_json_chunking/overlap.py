@@ -263,25 +263,33 @@ class ChunkOverlapManager:
     def _extract_ending_content(self, chunk: Chunk, target_tokens: int) -> Any:
         """Extract content from the end of a chunk up to target token count."""
         if not isinstance(chunk.data, (dict, list)):
-            # For simple data, take a substring based on estimated position
-            content_str = str(chunk.data)
-            total_tokens = self.token_counter.count_tokens(content_str)
-            
-            if total_tokens <= target_tokens:
-                return chunk.data
-            
-            # Estimate character position for target tokens
-            chars_per_token = len(content_str) / total_tokens
-            target_chars = int(target_tokens * chars_per_token)
-            
-            return content_str[-target_chars:]
+            return self._extract_ending_from_simple_data(chunk.data, target_tokens)
         
-        if isinstance(chunk.data, list):
-            return self._extract_ending_from_list(chunk.data, target_tokens)
-        elif isinstance(chunk.data, dict):
-            return self._extract_ending_from_dict(chunk.data, target_tokens)
+        return self._extract_ending_from_structured_data(chunk.data, target_tokens)
+    
+    def _extract_ending_from_simple_data(self, data: Any, target_tokens: int) -> Any:
+        """Extract ending content from simple (non-structured) data."""
+        content_str = str(data)
+        total_tokens = self.token_counter.count_tokens(content_str)
         
-        return chunk.data
+        if total_tokens <= target_tokens:
+            return data
+        
+        return self._truncate_string_by_tokens(content_str, total_tokens, target_tokens)
+    
+    def _truncate_string_by_tokens(self, content_str: str, total_tokens: int, target_tokens: int) -> str:
+        """Truncate string content to approximate target token count."""
+        chars_per_token = len(content_str) / total_tokens
+        target_chars = int(target_tokens * chars_per_token)
+        return content_str[-target_chars:]
+    
+    def _extract_ending_from_structured_data(self, data: Any, target_tokens: int) -> Any:
+        """Extract ending content from structured data (dict or list)."""
+        if isinstance(data, list):
+            return self._extract_ending_from_list(data, target_tokens)
+        elif isinstance(data, dict):
+            return self._extract_ending_from_dict(data, target_tokens)
+        return data
     
     def _extract_ending_from_list(self, data: List[Any], target_tokens: int) -> List[Any]:
         """Extract ending elements from a list up to target token count."""
@@ -323,28 +331,39 @@ class ChunkOverlapManager:
         if not isinstance(chunk.data, (dict, list)):
             return None
         
-        # Look for IFC entities (objects with 'type' field containing 'Ifc')
+        entities = self._collect_entities_from_data(chunk.data)
+        return entities if entities else None
+    
+    def _collect_entities_from_data(self, data: Any) -> List[Any]:
+        """Collect IFC entities from data structure up to token limit."""
         entities = []
         
-        if isinstance(chunk.data, list):
-            for item in reversed(chunk.data):
-                if isinstance(item, dict) and self._is_ifc_entity(item):
-                    entities.insert(0, item)
-                    
-                    # Stop if we have enough tokens
-                    if self.token_counter.count_tokens(entities) > self.config.size_tokens:
-                        break
+        if isinstance(data, list):
+            entities = self._collect_entities_from_list(data)
+        elif isinstance(data, dict):
+            entities = self._collect_entities_from_dict(data)
         
-        elif isinstance(chunk.data, dict):
-            # Look for nested entity structures
-            for key, value in reversed(list(chunk.data.items())):
-                if isinstance(value, dict) and self._is_ifc_entity(value):
-                    entities.insert(0, {key: value})
-                    
-                    if self.token_counter.count_tokens(entities) > self.config.size_tokens:
-                        break
-        
-        return entities if entities else None
+        return entities
+    
+    def _collect_entities_from_list(self, data: List[Any]) -> List[Any]:
+        """Collect IFC entities from list data."""
+        entities = []
+        for item in reversed(data):
+            if isinstance(item, dict) and self._is_ifc_entity(item):
+                entities.insert(0, item)
+                if self.token_counter.count_tokens(entities) > self.config.size_tokens:
+                    break
+        return entities
+    
+    def _collect_entities_from_dict(self, data: Dict[str, Any]) -> List[Any]:
+        """Collect IFC entities from dictionary data."""
+        entities = []
+        for key, value in reversed(list(data.items())):
+            if isinstance(value, dict) and self._is_ifc_entity(value):
+                entities.insert(0, {key: value})
+                if self.token_counter.count_tokens(entities) > self.config.size_tokens:
+                    break
+        return entities
     
     def _extract_related_entities_from_end(self, previous_chunk: Chunk, current_chunk: Chunk) -> Any:
         """Extract entities with relationships from the end of previous chunk."""
