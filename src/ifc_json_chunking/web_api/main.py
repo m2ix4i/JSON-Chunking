@@ -2,7 +2,7 @@
 FastAPI main application for IFC JSON Chunking web interface.
 
 This module creates the FastAPI application with all routers, middleware,
-and configuration for the web API.
+and configuration for the web API with performance monitoring.
 """
 
 from fastapi import FastAPI, HTTPException
@@ -13,11 +13,19 @@ import structlog
 from ..config import Config
 from .routers import health, files, queries, websocket
 from .middleware.logging import LoggingMiddleware
+from ..monitoring.metrics_collector import MetricsCollector
+from ..monitoring.memory_profiler import MemoryProfiler
+from ..storage.redis_cache import RedisCache
 
 logger = structlog.get_logger(__name__)
 
 # Initialize configuration
 config = Config()
+
+# Initialize performance monitoring components
+metrics_collector = MetricsCollector(config)
+memory_profiler = MemoryProfiler(config)
+redis_cache = RedisCache(config)
 
 # Create FastAPI application
 app = FastAPI(
@@ -41,6 +49,12 @@ app.add_middleware(
 # Add custom middleware
 app.add_middleware(LoggingMiddleware)
 
+# Add performance monitoring to app state
+app.state.config = config
+app.state.metrics_collector = metrics_collector
+app.state.memory_profiler = memory_profiler
+app.state.redis_cache = redis_cache
+
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(files.router, prefix="/api", tags=["files"])
@@ -51,11 +65,29 @@ app.include_router(websocket.router, prefix="/api", tags=["websocket"])
 async def startup_event():
     """Initialize application on startup."""
     logger.info("Starting IFC JSON Chunking API", version=app.version)
+    
+    # Initialize performance monitoring
+    try:
+        await redis_cache.initialize()
+        await metrics_collector.start()
+        await memory_profiler.start()
+        logger.info("Performance monitoring initialized successfully")
+    except Exception as e:
+        logger.warning("Failed to initialize performance monitoring", error=str(e))
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up application on shutdown."""
     logger.info("Shutting down IFC JSON Chunking API")
+    
+    # Cleanup performance monitoring
+    try:
+        await memory_profiler.stop()
+        await metrics_collector.stop()
+        await redis_cache.cleanup()
+        logger.info("Performance monitoring cleanup complete")
+    except Exception as e:
+        logger.warning("Error during monitoring cleanup", error=str(e))
 
 @app.get("/", include_in_schema=False)
 async def root():
