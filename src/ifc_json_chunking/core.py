@@ -24,21 +24,38 @@ class ChunkingEngine:
     using memory-efficient streaming parsing.
     """
     
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(
+        self, 
+        config: Optional[Config] = None,
+        parser: Optional[Any] = None,
+        validator: Optional[Any] = None,
+        chunking_strategy: Optional[Any] = None
+    ):
         """
-        Initialize the chunking engine.
+        Initialize the chunking engine with dependency injection.
         
         Args:
             config: Configuration object. If None, uses default configuration.
+            parser: StreamingJSONParser instance. If None, creates default.
+            validator: StreamingValidator instance. If None, creates default.
+            chunking_strategy: ChunkingStrategy instance. If None, creates default.
         """
         self.config = config or Config()
         
-        # Initialize streaming components
-        from .streaming import StreamingJSONParser, StreamingValidator
-        from .progress import FileProgressTracker, create_progress_callback
+        # Use dependency injection for better testability
+        if parser is None:
+            from .streaming import StreamingJSONParser
+            parser = StreamingJSONParser(self.config)
+        if validator is None:
+            from .streaming import StreamingValidator
+            validator = StreamingValidator()
+        if chunking_strategy is None:
+            from .strategy import create_chunking_strategy
+            chunking_strategy = create_chunking_strategy('ifc', self.config)
         
-        self.parser = StreamingJSONParser(self.config)
-        self.validator = StreamingValidator()
+        self.parser = parser
+        self.validator = validator
+        self.chunking_strategy = chunking_strategy
         self.chunks_created = 0
         
         logger.info("ChunkingEngine initialized with streaming support", 
@@ -62,99 +79,177 @@ class ChunkingEngine:
         Raises:
             IFCChunkingError: If file processing fails
         """
-        logger.info("Starting streaming file processing", file_path=str(file_path))
-        
-        if not file_path.exists():
-            raise IFCChunkingError(f"File not found: {file_path}")
+        self._validate_file_exists(file_path)
+        progress_tracker = self._create_progress_tracker(file_path, progress_callback)
         
         start_time = time.time()
-        file_size = file_path.stat().st_size
         
-        # Initialize progress tracking
-        progress_tracker = FileProgressTracker(
+        try:
+            processing_result = await self._stream_process_file(file_path, progress_tracker)
+            return self._create_processing_metadata(file_path, processing_result, start_time)
+        except Exception as e:
+            elapsed = time.time() - start_time
+            self._handle_processing_error(e, file_path, elapsed, 0)
+    
+    def _validate_file_exists(self, file_path: Path) -> None:
+        """Validate that the file exists."""
+        if not file_path.exists():
+            raise IFCChunkingError(f"File not found: {file_path}")
+    
+    def _create_progress_tracker(self, file_path: Path, progress_callback: Optional[Callable]):
+        """Create and configure progress tracker."""
+        from .progress import FileProgressTracker, create_progress_callback
+        
+        return FileProgressTracker(
             file_path=file_path,
             description=f"Processing {file_path.name}",
             callback=progress_callback or create_progress_callback()
         )
+    
+    async def _stream_process_file(self, file_path: Path, progress_tracker) -> 'ProcessingResult':
+        """Core streaming processing logic."""
+        from .models import ProcessingResult, Chunk
         
         chunks = []
         processed_objects = 0
         validation_errors = 0
+        file_size = file_path.stat().st_size
         
-        try:
-            # Stream parse the file
-            async for json_path, value in self.parser.parse_file(file_path):
-                # Update progress based on parser tokens processed
-                estimated_position = min(
-                    file_size,
-                    int((self.parser.tokens_processed / 10000) * file_size)
-                )
-                progress_tracker.update_from_position(estimated_position)
-                
-                # Validate the parsed element
-                if not self.validator.validate_ifc_structure(json_path, value):
-                    validation_errors += 1
-                    continue
-                
-                # Create chunk if we have enough data or specific IFC objects
-                if self._should_create_chunk(json_path, value, chunks):
-                    chunk = await self._create_chunk_from_element(
-                        json_path, value, processed_objects
-                    )
-                    chunks.append(chunk)
-                    self.chunks_created += 1
-                
-                processed_objects += 1
-                
-                # Memory management - yield control periodically
-                if processed_objects % 100 == 0:
-                    await asyncio.sleep(0)
-        
-        except Exception as e:
-            elapsed = time.time() - start_time
-            logger.error(
-                "Streaming file processing failed",
-                file_path=str(file_path),
-                error=str(e),
-                elapsed_seconds=elapsed,
-                processed_objects=processed_objects
+        async for json_path, value in self.parser.parse_file(file_path):
+            # Update progress based on parser tokens processed
+            self._update_progress(progress_tracker, file_size)
+            
+            # Process element with validation and chunking
+            processing_outcome = await self._process_element(
+                json_path, value, chunks, processed_objects
             )
-            raise IFCChunkingError(f"Failed to process file {file_path}: {e}") from e
+            
+            if processing_outcome.validation_failed:
+                validation_errors += 1
+                continue
+            
+            if processing_outcome.chunk_created:
+                chunks.append(processing_outcome.chunk)
+                self.chunks_created += 1
+            
+            processed_objects += 1
+            
+            # Memory management - yield control periodically
+            if processed_objects % 100 == 0:
+                await asyncio.sleep(0)
         
         # Finalize progress
         progress_tracker.update(file_size)
         
+        elapsed = time.time() - time.time()  # Will be recalculated in caller
+        return ProcessingResult(
+            chunks=chunks,
+            processed_objects=processed_objects,
+            validation_errors=validation_errors,
+            elapsed_seconds=elapsed
+        )
+    
+    def _update_progress(self, progress_tracker, file_size: int) -> None:
+        """Update progress based on parser state."""
+        estimated_position = min(
+            file_size,
+            int((self.parser.tokens_processed / 10000) * file_size)
+        )
+        progress_tracker.update_from_position(estimated_position)
+    
+    async def _process_element(self, json_path: str, value: Any, chunks: list, sequence_number: int):
+        """Process a single JSON element."""
+        from .models import Chunk
+        
+        # Validate the element
+        validation_result = self.validator.process_element(json_path, value)
+        if validation_result.has_errors():
+            return ElementProcessingOutcome(validation_failed=True)
+        
+        # Determine if chunk should be created
+        chunking_decision = self.chunking_strategy.should_create_chunk(json_path, value, chunks)
+        if not chunking_decision.should_create_chunk():
+            return ElementProcessingOutcome(validation_failed=False, chunk_created=False)
+        
+        # Create the chunk
+        chunk = await self._create_chunk_from_element(json_path, value, sequence_number)
+        return ElementProcessingOutcome(
+            validation_failed=False, 
+            chunk_created=True, 
+            chunk=chunk
+        )
+    
+    async def _create_chunk_from_element(
+        self, 
+        json_path: str, 
+        value: Any, 
+        sequence_number: int
+    ) -> 'Chunk':
+        """Create a chunk from a single parsed element."""
+        from .models import Chunk
+        
+        return Chunk.create_from_element(json_path, value, sequence_number)
+    
+    def _create_processing_metadata(
+        self, 
+        file_path: Path, 
+        result: 'ProcessingResult',
+        start_time: float
+    ) -> Dict[str, Any]:
+        """Create comprehensive processing metadata."""
         elapsed = time.time() - start_time
+        file_size = file_path.stat().st_size
         processing_stats = self.parser.get_stats()
+        
+        # Update result with actual elapsed time
+        result.elapsed_seconds = elapsed
         
         metadata = {
             "file_path": str(file_path),
             "file_size_bytes": file_size,
             "file_size_mb": file_size / (1024 * 1024),
-            "status": "completed",
-            "chunks_created": len(chunks),
-            "processed_objects": processed_objects,
-            "validation_errors": validation_errors,
+            "status": "processed",
+            "chunks_created": result.chunks_created,
+            "processed_objects": result.processed_objects,
+            "validation_errors": result.validation_errors,
             "processing_time_seconds": elapsed,
+            "processing_time_ms": elapsed * 1000,  # Add milliseconds for backward compatibility
             "processing_rate_mb_per_sec": (file_size / (1024 * 1024)) / elapsed if elapsed > 0 else 0,
             "memory_stats": {
                 "tokens_processed": processing_stats["tokens_processed"],
                 "gc_triggers": processing_stats["gc_triggers"],
                 "peak_memory_mb": processing_stats["current_memory_mb"]
             },
-            "chunks": chunks
+            "chunks": [chunk.to_dict() for chunk in result.chunks]
         }
         
         logger.info(
             "Streaming file processing completed",
             file_path=str(file_path),
-            chunks_created=len(chunks),
-            processed_objects=processed_objects,
+            chunks_created=result.chunks_created,
+            processed_objects=result.processed_objects,
             elapsed_seconds=elapsed,
             memory_mb=processing_stats["current_memory_mb"]
         )
         
         return metadata
+    
+    def _handle_processing_error(
+        self, 
+        error: Exception, 
+        file_path: Path, 
+        elapsed: float, 
+        processed_objects: int
+    ) -> None:
+        """Handle processing errors with proper logging."""
+        logger.error(
+            "Streaming file processing failed",
+            file_path=str(file_path),
+            error=str(error),
+            elapsed_seconds=elapsed,
+            processed_objects=processed_objects
+        )
+        raise IFCChunkingError(f"Failed to process file {file_path}: {error}") from error
     
     async def create_chunks(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -193,123 +288,33 @@ class ChunkingEngine:
             logger.error("In-memory chunking failed", error=str(e))
             raise IFCChunkingError(f"Failed to create chunks: {e}") from e
         
-        return chunks
+        return [chunk.to_dict() for chunk in chunks]
     
-    def _should_create_chunk(
-        self, 
-        json_path: str, 
-        value: Any, 
-        existing_chunks: List[Dict[str, Any]]
-    ) -> bool:
-        """
-        Determine if a new chunk should be created for the given element.
+    async def _chunk_ifc_objects(self, objects: Dict[str, Any]) -> List['Chunk']:
+        """Create chunks from IFC objects using domain objects."""
+        from .models import Chunk
         
-        Args:
-            json_path: JSON path of the element
-            value: Element value  
-            existing_chunks: List of existing chunks
-            
-        Returns:
-            True if a new chunk should be created
-        """
-        # Create chunks for major IFC objects
-        if json_path.startswith('objects.') and isinstance(value, dict):
-            return True
-        
-        # Create chunks for geometry data
-        if json_path.startswith('geometry.') and isinstance(value, (dict, list)):
-            return True
-        
-        # Create chunk when we reach size limit
-        current_chunk_size = sum(len(str(chunk)) for chunk in existing_chunks[-5:])
-        size_limit = self.config.chunk_size_mb * 1024 * 1024  # Convert to bytes
-        
-        return current_chunk_size > size_limit
+        return [
+            Chunk.create_ifc_object(obj_id, obj_data)
+            for obj_id, obj_data in objects.items()
+        ]
     
-    async def _create_chunk_from_element(
-        self, 
-        json_path: str, 
-        value: Any, 
-        sequence_number: int
-    ) -> Dict[str, Any]:
-        """
-        Create a chunk from a single parsed element.
+    async def _create_header_chunk(self, header: Dict[str, Any]) -> 'Chunk':
+        """Create chunk from IFC header using domain object."""
+        from .models import Chunk
         
-        Args:
-            json_path: JSON path of the element
-            value: Element value
-            sequence_number: Sequence number for ordering
-            
-        Returns:
-            Chunk dictionary
-        """
-        chunk = {
-            "chunk_id": f"chunk_{sequence_number:06d}",
-            "sequence_number": sequence_number,
-            "json_path": json_path,
-            "chunk_type": self._determine_chunk_type(json_path),
-            "data": value,
-            "size_bytes": len(str(value)),
-            "created_timestamp": time.time()
-        }
-        
-        return chunk
+        return Chunk.create_header(header)
     
-    async def _chunk_ifc_objects(self, objects: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Create chunks from IFC objects."""
+    async def _chunk_geometry_data(self, geometry: Any) -> List['Chunk']:
+        """Create chunks from geometry data using domain objects."""
+        from .models import Chunk
+        
         chunks = []
-        
-        for obj_id, obj_data in objects.items():
-            chunk = {
-                "chunk_id": f"object_{obj_id}",
-                "chunk_type": "ifc_object",
-                "object_id": obj_id,
-                "data": obj_data,
-                "size_bytes": len(str(obj_data)),
-                "created_timestamp": time.time()
-            }
-            chunks.append(chunk)
-        
-        return chunks
-    
-    async def _create_header_chunk(self, header: Dict[str, Any]) -> Dict[str, Any]:
-        """Create chunk from IFC header."""
-        return {
-            "chunk_id": "ifc_header",
-            "chunk_type": "header",
-            "data": header,
-            "size_bytes": len(str(header)),
-            "created_timestamp": time.time()
-        }
-    
-    async def _chunk_geometry_data(self, geometry: Any) -> List[Dict[str, Any]]:
-        """Create chunks from geometry data."""
-        chunks = []
-        
         if isinstance(geometry, dict):
             for geom_id, geom_data in geometry.items():
-                chunk = {
-                    "chunk_id": f"geometry_{geom_id}",
-                    "chunk_type": "geometry",
-                    "geometry_id": geom_id,
-                    "data": geom_data,
-                    "size_bytes": len(str(geom_data)),
-                    "created_timestamp": time.time()
-                }
-                chunks.append(chunk)
+                chunks.append(Chunk.create_geometry(geom_id, geom_data))
         
         return chunks
-    
-    def _determine_chunk_type(self, json_path: str) -> str:
-        """Determine chunk type based on JSON path."""
-        if json_path.startswith('objects.'):
-            return "ifc_object"
-        elif json_path.startswith('header.'):
-            return "header"
-        elif json_path.startswith('geometry.'):
-            return "geometry"
-        else:
-            return "general"
     
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -318,8 +323,8 @@ class ChunkingEngine:
         Returns:
             Dictionary with chunking statistics
         """
-        parser_stats = self.parser.get_stats() if hasattr(self, 'parser') else {}
-        validator_errors = len(self.validator.get_errors()) if hasattr(self, 'validator') else 0
+        parser_stats = self.parser.get_stats() if hasattr(self.parser, 'get_stats') else {}
+        validator_errors = len(self.validator.get_errors()) if hasattr(self.validator, 'get_errors') else 0
         
         return {
             "chunks_created": self.chunks_created,
@@ -327,3 +332,22 @@ class ChunkingEngine:
             "parser_stats": parser_stats,
             "config": self.config.to_dict()
         }
+
+
+class ElementProcessingOutcome:
+    """
+    Represents the outcome of processing a single JSON element.
+    
+    Encapsulates validation and chunking results to improve
+    code organization and eliminate primitive obsession.
+    """
+    
+    def __init__(
+        self, 
+        validation_failed: bool, 
+        chunk_created: bool = False, 
+        chunk: Optional['Chunk'] = None
+    ):
+        self.validation_failed = validation_failed
+        self.chunk_created = chunk_created
+        self.chunk = chunk

@@ -153,16 +153,20 @@ class StreamingJSONParser:
                 
                 current_path = []
                 
-                async for event, value in self._async_parse_events(parser):
+                for prefix_part, event, value in parser:
                     # Update parsing statistics
                     self.tokens_processed += 1
                     
                     # Memory management
                     if self.tokens_processed % 1000 == 0:
-                        await self._check_memory_and_yield()
+                        if self.memory_monitor.should_trigger_gc():
+                            self.memory_monitor.trigger_gc()
+                            self.gc_triggers += 1
+                        # Yield control periodically
+                        await asyncio.sleep(0)
                     
                     # Process the parsing event
-                    json_path = await self._process_parse_event(
+                    json_path = self._process_parse_event_sync(
                         event, value, current_path, prefix
                     )
                     
@@ -190,15 +194,7 @@ class StreamingJSONParser:
             final_memory_mb=self.memory_monitor.get_memory_usage_mb()
         )
     
-    async def _async_parse_events(self, parser):
-        """Convert ijson parser events to async iterator."""
-        for event in parser:
-            # Yield control periodically to allow other coroutines to run
-            if self.tokens_processed % 100 == 0:
-                await asyncio.sleep(0)
-            yield event
-    
-    async def _process_parse_event(
+    def _process_parse_event_sync(
         self, 
         event: str, 
         value: Any, 
@@ -239,22 +235,6 @@ class StreamingJSONParser:
         
         return None
     
-    async def _check_memory_and_yield(self):
-        """Check memory usage and trigger GC if needed."""
-        if self.memory_monitor.should_trigger_gc():
-            self.memory_monitor.trigger_gc()
-            self.gc_triggers += 1
-            
-            # Check if memory is still too high after GC
-            if self.memory_monitor.get_memory_usage_mb() > 450:  # 90% of 500MB limit
-                logger.warning(
-                    "High memory usage after garbage collection",
-                    memory_mb=self.memory_monitor.get_memory_usage_mb(),
-                    tokens_processed=self.tokens_processed
-                )
-        
-        # Always yield control to allow other coroutines to run
-        await asyncio.sleep(0)
     
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -278,6 +258,33 @@ class StreamingValidator:
         """Initialize the streaming validator."""
         self.validation_errors = []
         logger.info("StreamingValidator initialized")
+    
+    def process_element(self, json_path: str, value: Any) -> 'ValidationResult':
+        """
+        Process and validate a single JSON element.
+        
+        Args:
+            json_path: JSON path of the element
+            value: Element value
+            
+        Returns:
+            ValidationResult with validation outcome
+        """
+        from .models import ValidationResult
+        
+        try:
+            # Use existing validation logic
+            is_valid = self.validate_ifc_structure(json_path, value)
+            
+            if is_valid:
+                return ValidationResult.valid()
+            else:
+                return ValidationResult.invalid(f"Validation failed for {json_path}")
+                
+        except Exception as e:
+            error_msg = f"Validation error for {json_path}: {e}"
+            logger.warning("Validation exception", json_path=json_path, error=str(e))
+            return ValidationResult.invalid(error_msg)
     
     def validate_ifc_structure(self, json_path: str, value: Any) -> bool:
         """

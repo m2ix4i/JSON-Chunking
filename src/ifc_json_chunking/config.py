@@ -8,7 +8,72 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 from pathlib import Path
 
+from .exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
+
+
+class ConfigurationParser:
+    """Handles environment variable parsing with proper error handling."""
+    
+    @staticmethod
+    def get_int_env(key: str, default: int) -> int:
+        """Parse integer from environment variable."""
+        try:
+            return int(os.getenv(key, str(default)))
+        except ValueError as e:
+            raise ConfigurationError(f"Invalid integer value for {key}: {os.getenv(key)}") from e
+    
+    @staticmethod
+    def get_float_env(key: str, default: float) -> float:
+        """Parse float from environment variable."""
+        try:
+            return float(os.getenv(key, str(default)))
+        except ValueError as e:
+            raise ConfigurationError(f"Invalid float value for {key}: {os.getenv(key)}") from e
+    
+    @staticmethod
+    def get_bool_env(key: str, default: bool) -> bool:
+        """Parse boolean from environment variable."""
+        value = os.getenv(key, str(default).lower()).lower()
+        if value in ('true', '1', 'yes', 'on'):
+            return True
+        elif value in ('false', '0', 'no', 'off'):
+            return False
+        else:
+            raise ConfigurationError(f"Invalid boolean value for {key}: {value}")
+    
+    @staticmethod
+    def get_str_env(key: str, default: str) -> str:
+        """Get string from environment variable."""
+        return os.getenv(key, default)
+    
+    @staticmethod
+    def get_path_env(key: str, default: str) -> Path:
+        """Parse and validate path from environment variable."""
+        path_str = os.getenv(key, default)
+        path = Path(path_str)
+        
+        # Basic path validation - prevent obvious traversal attacks
+        if '..' in str(path) or str(path).startswith('/'):
+            if not ConfigurationParser._is_safe_absolute_path(path):
+                raise ConfigurationError(f"Potentially unsafe path for {key}: {path}")
+        
+        return path
+    
+    @staticmethod
+    def _is_safe_absolute_path(path: Path) -> bool:
+        """Check if absolute path is safe (not a traversal attack)."""
+        try:
+            # Allow absolute paths that don't try to escape outside reasonable bounds
+            resolved = path.resolve()
+            path_str = str(resolved)
+            
+            # Reject obvious traversal attempts
+            dangerous_patterns = ['..', '/etc/', '/var/', '/sys/', '/proc/']
+            return not any(pattern in path_str for pattern in dangerous_patterns)
+        except (OSError, RuntimeError):
+            return False
 
 
 @dataclass
@@ -21,25 +86,25 @@ class Config:
     """
     
     # Chunking settings
-    chunk_size_mb: int = field(default_factory=lambda: int(os.getenv("CHUNK_SIZE_MB", "10")))
-    max_chunks: int = field(default_factory=lambda: int(os.getenv("MAX_CHUNKS", "1000")))
-    overlap_percentage: float = field(default_factory=lambda: float(os.getenv("OVERLAP_PERCENTAGE", "0.1")))
+    chunk_size_mb: int = field(default_factory=lambda: ConfigurationParser.get_int_env("CHUNK_SIZE_MB", 10))
+    max_chunks: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_CHUNKS", 1000))
+    overlap_percentage: float = field(default_factory=lambda: ConfigurationParser.get_float_env("OVERLAP_PERCENTAGE", 0.1))
     
     # Processing settings
-    max_workers: int = field(default_factory=lambda: int(os.getenv("MAX_WORKERS", "4")))
-    timeout_seconds: int = field(default_factory=lambda: int(os.getenv("TIMEOUT_SECONDS", "300")))
+    max_workers: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_WORKERS", 4))
+    timeout_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("TIMEOUT_SECONDS", 300))
     
     # Storage settings
-    output_directory: Path = field(default_factory=lambda: Path(os.getenv("OUTPUT_DIRECTORY", "./output")))
-    temp_directory: Path = field(default_factory=lambda: Path(os.getenv("TEMP_DIRECTORY", "./temp")))
+    output_directory: Path = field(default_factory=lambda: ConfigurationParser.get_path_env("OUTPUT_DIRECTORY", "./output"))
+    temp_directory: Path = field(default_factory=lambda: ConfigurationParser.get_path_env("TEMP_DIRECTORY", "./temp"))
     
     # Logging settings
-    log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
-    log_format: str = field(default_factory=lambda: os.getenv("LOG_FORMAT", "json"))
+    log_level: str = field(default_factory=lambda: ConfigurationParser.get_str_env("LOG_LEVEL", "INFO"))
+    log_format: str = field(default_factory=lambda: ConfigurationParser.get_str_env("LOG_FORMAT", "json"))
     
     # Environment
-    environment: str = field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
-    debug: bool = field(default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true")
+    environment: str = field(default_factory=lambda: ConfigurationParser.get_str_env("ENVIRONMENT", "development"))
+    debug: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("DEBUG", False))
     
     def __post_init__(self):
         """Validate configuration after initialization."""
