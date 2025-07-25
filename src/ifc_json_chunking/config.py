@@ -137,6 +137,53 @@ class Config:
     environment: str = field(default_factory=lambda: ConfigurationParser.get_str_env("ENVIRONMENT", "development"))
     debug: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("DEBUG", False))
     
+    # Redis Configuration (Enhanced)
+    redis_host: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_HOST", "localhost"))
+    redis_port: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_PORT", 6379))
+    redis_password: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_PASSWORD", ""))
+    redis_db: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_DB", 0))
+    redis_pool_max_connections: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_POOL_MAX_CONNECTIONS", 50))
+    redis_pool_min_connections: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_POOL_MIN_CONNECTIONS", 5))
+    redis_connection_timeout: float = field(default_factory=lambda: ConfigurationParser.get_float_env("REDIS_CONNECTION_TIMEOUT", 5.0))
+    redis_socket_keepalive: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("REDIS_SOCKET_KEEPALIVE", True))
+    redis_compression_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("REDIS_COMPRESSION_ENABLED", True))
+    redis_compression_threshold: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_COMPRESSION_THRESHOLD", 1024))
+    
+    # APM and Monitoring Configuration
+    apm_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("APM_ENABLED", True))
+    apm_service_name: str = field(default_factory=lambda: ConfigurationParser.get_str_env("APM_SERVICE_NAME", "ifc-json-chunking"))
+    apm_environment: str = field(default_factory=lambda: ConfigurationParser.get_str_env("APM_ENVIRONMENT", "development"))
+    apm_sample_rate: float = field(default_factory=lambda: ConfigurationParser.get_float_env("APM_SAMPLE_RATE", 1.0))
+    apm_buffer_size: int = field(default_factory=lambda: ConfigurationParser.get_int_env("APM_BUFFER_SIZE", 1000))
+    apm_flush_interval: float = field(default_factory=lambda: ConfigurationParser.get_float_env("APM_FLUSH_INTERVAL", 10.0))
+    
+    # Performance Monitoring
+    performance_monitoring_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("PERFORMANCE_MONITORING_ENABLED", True))
+    metrics_collection_interval: float = field(default_factory=lambda: ConfigurationParser.get_float_env("METRICS_COLLECTION_INTERVAL", 15.0))
+    metrics_retention_days: int = field(default_factory=lambda: ConfigurationParser.get_int_env("METRICS_RETENTION_DAYS", 30))
+    
+    # Health Check Configuration
+    health_check_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("HEALTH_CHECK_ENABLED", True))
+    health_check_interval: float = field(default_factory=lambda: ConfigurationParser.get_float_env("HEALTH_CHECK_INTERVAL", 30.0))
+    health_check_timeout: float = field(default_factory=lambda: ConfigurationParser.get_float_env("HEALTH_CHECK_TIMEOUT", 5.0))
+    
+    # Alert System Configuration
+    alerting_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ALERTING_ENABLED", True))
+    alert_evaluation_interval: float = field(default_factory=lambda: ConfigurationParser.get_float_env("ALERT_EVALUATION_INTERVAL", 30.0))
+    alert_cooldown_period: float = field(default_factory=lambda: ConfigurationParser.get_float_env("ALERT_COOLDOWN_PERIOD", 600.0))
+    
+    # Memory Management
+    memory_monitoring_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("MEMORY_MONITORING_ENABLED", True))
+    memory_profiling_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("MEMORY_PROFILING_ENABLED", False))
+    memory_profile_interval: float = field(default_factory=lambda: ConfigurationParser.get_float_env("MEMORY_PROFILE_INTERVAL", 60.0))
+    memory_leak_detection_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("MEMORY_LEAK_DETECTION_ENABLED", True))
+    memory_gc_optimization_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("MEMORY_GC_OPTIMIZATION_ENABLED", True))
+    
+    # Security Configuration
+    security_monitoring_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("SECURITY_MONITORING_ENABLED", True))
+    rate_limiting_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("RATE_LIMITING_ENABLED", True))
+    request_validation_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("REQUEST_VALIDATION_ENABLED", True))
+    
     def __post_init__(self):
         """Validate configuration after initialization."""
         self.validate()
