@@ -14,6 +14,9 @@ from ...types.aggregation_types import (
     ExtractedData, EnhancedQueryResult, QualityMetrics, AggregationMetadata,
     AggregationStrategy, ValidationLevel, Conflict, ConflictResolution
 )
+from ..quality.confidence import ConfidenceCalculator
+from ..quality.scorer import QualityScorer
+from ..quality.uncertainty import UncertaintyHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -239,10 +242,20 @@ class DataAggregationPhase:
 
 
 class QualityAssessmentPhase:
-    """Phase 6: Assess overall quality of aggregated results."""
+    """Phase 6: Assess overall quality of aggregated results using sophisticated quality components."""
     
     def __init__(self, quality_threshold: float = 0.5):
         self.quality_threshold = quality_threshold
+        
+        # Initialize sophisticated quality assessment components
+        self.confidence_calculator = ConfidenceCalculator()
+        self.quality_scorer = QualityScorer()
+        self.uncertainty_handler = UncertaintyHandler()
+        
+        logger.debug(
+            "QualityAssessmentPhase initialized with sophisticated components",
+            quality_threshold=quality_threshold
+        )
     
     async def execute(
         self,
@@ -252,51 +265,67 @@ class QualityAssessmentPhase:
         aggregated_data: Dict[str, Any],
         context: QueryContext
     ) -> QualityMetrics:
-        """Execute quality assessment phase."""
-        total_sources = len(normalized_data_list)
-        high_confidence_sources = len([d for d in normalized_data_list if d.extraction_confidence >= 0.7])
+        """Execute sophisticated quality assessment phase."""
         
-        confidence_score = high_confidence_sources / total_sources if total_sources > 0 else 0.0
+        logger.debug(
+            "Starting sophisticated quality assessment",
+            data_sources=len(normalized_data_list),
+            conflicts=len(conflicts),
+            resolutions=len(resolutions)
+        )
         
-        # Completeness based on data richness
-        completeness_score = 0.0
-        if normalized_data_list:
-            avg_entities = sum(len(d.entities) for d in normalized_data_list) / len(normalized_data_list)
-            avg_quantities = sum(len(d.quantities) for d in normalized_data_list) / len(normalized_data_list)
-            avg_properties = sum(len(d.properties) for d in normalized_data_list) / len(normalized_data_list)
-            
-            completeness_score = min((avg_entities + avg_quantities + avg_properties) / 10, 1.0)
+        # Use QualityScorer for comprehensive quality metrics calculation
+        quality_metrics = self.quality_scorer.calculate_quality_metrics(
+            extracted_data_list=normalized_data_list,
+            conflicts=conflicts,
+            resolutions=resolutions,
+            aggregated_data=aggregated_data
+        )
         
-        # Consistency based on conflicts
-        unresolved_conflicts = len(conflicts) - len(resolutions)
-        consistency_score = max(0.0, 1.0 - (unresolved_conflicts * 0.1))
+        # Use ConfidenceCalculator for refined confidence scoring
+        enhanced_confidence = self.confidence_calculator.calculate_confidence(
+            extracted_data_list=normalized_data_list,
+            aggregated_data=aggregated_data,
+            quality_metrics=quality_metrics
+        )
         
-        # Reliability based on extraction quality
-        high_quality_data = len([d for d in normalized_data_list if d.data_quality == 'high'])
-        reliability_score = high_quality_data / total_sources if total_sources > 0 else 0.0
+        # Update confidence score with enhanced calculation
+        quality_metrics.confidence_score = enhanced_confidence
         
-        # Calculate uncertainty
-        uncertainty_level = min(unresolved_conflicts * 0.05, 0.5)
+        # Use UncertaintyHandler for uncertainty estimation
+        uncertainty_estimates = self.uncertainty_handler.estimate_uncertainty(
+            extracted_data_list=normalized_data_list,
+            conflicts=conflicts,
+            resolutions=resolutions,
+            aggregated_data=aggregated_data
+        )
         
-        # Determine if validation passed
+        # Update uncertainty level with sophisticated calculation
+        overall_uncertainty = uncertainty_estimates.get('overall', quality_metrics.uncertainty_level)
+        quality_metrics.uncertainty_level = overall_uncertainty
+        
+        # Re-evaluate validation status with enhanced metrics
         validation_passed = (
-            confidence_score >= self.quality_threshold and
-            consistency_score >= 0.7 and
-            unresolved_conflicts <= 2
+            enhanced_confidence >= self.quality_threshold and
+            quality_metrics.consistency_score >= 0.6 and
+            quality_metrics.reliability_score >= 0.5 and
+            overall_uncertainty <= 0.3 and
+            len(conflicts) - len(resolutions) <= 2
+        )
+        quality_metrics.validation_passed = validation_passed
+        
+        # Update calculation method to reflect sophisticated assessment
+        quality_metrics.calculation_method = "sophisticated_quality_assessment"
+        
+        logger.info(
+            "Sophisticated quality assessment completed",
+            enhanced_confidence=enhanced_confidence,
+            overall_uncertainty=overall_uncertainty,
+            validation_passed=validation_passed,
+            uncertainty_breakdown=list(uncertainty_estimates.keys())
         )
         
-        return QualityMetrics(
-            confidence_score=confidence_score,
-            completeness_score=completeness_score,
-            consistency_score=consistency_score,
-            reliability_score=reliability_score,
-            uncertainty_level=uncertainty_level,
-            validation_passed=validation_passed,
-            data_coverage=high_confidence_sources / total_sources if total_sources > 0 else 0.0,
-            extraction_quality=sum(d.extraction_confidence for d in normalized_data_list) / len(normalized_data_list) if normalized_data_list else 0.0,
-            conflict_resolution_rate=len(resolutions) / len(conflicts) if conflicts else 1.0,
-            calculation_method="advanced_aggregation"
-        )
+        return quality_metrics
 
 
 class ResultGenerationPhase:
