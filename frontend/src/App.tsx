@@ -1,26 +1,34 @@
 /**
- * Main App component with error boundaries and global providers.
+ * Main App component with Material-UI theme and routing.
  */
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
-import { deDE } from '@mui/material/locale';
+import { 
+  ThemeProvider, 
+  createTheme, 
+  CssBaseline,
+  Container,
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Paper
+} from '@mui/material';
+import { 
+  Architecture as ArchitectureIcon 
+} from '@mui/icons-material';
 
-// Error Boundary and Notifications
-import ErrorBoundary from '@components/error/ErrorBoundary';
-import NotificationProvider from '@components/notifications/NotificationProvider';
+// Components
+import QueryForm from '@components/query/QueryForm';
 
-// Pages
-import UploadPage from '@pages/UploadPage';
-import QueryPage from '@pages/QueryPage';
-import ResultsPage from '@pages/ResultsPage';
+// Stores
+import { useQueryActions, useActiveQuery, useQueryError } from '@stores/queryStore';
+import { useSelectedFile, useFileError } from '@stores/fileStore';
 
-// Navigation
-import Navigation from '@components/navigation/Navigation';
+// Utils
+import { APIErrorHandler } from '@utils/errorUtils';
 
-// Create responsive theme with German locale
+// Create Material-UI theme
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -30,130 +38,154 @@ const theme = createTheme({
     secondary: {
       main: '#dc004e',
     },
+    background: {
+      default: '#f5f5f5',
+    },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    // Responsive typography
-    h4: {
+    h1: {
+      fontSize: '2.5rem',
+      fontWeight: 600,
+    },
+    h2: {
       fontSize: '2rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.5rem',
-      },
-    },
-    h5: {
-      fontSize: '1.5rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.25rem',
-      },
-    },
-    h6: {
-      fontSize: '1.25rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.1rem',
-      },
-    },
-  },
-  breakpoints: {
-    values: {
-      xs: 0,
-      sm: 600,
-      md: 900,
-      lg: 1200,
-      xl: 1536,
+      fontWeight: 500,
     },
   },
   components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          // Responsive button sizing
-          '@media (max-width:600px)': {
-            minHeight: 44, // Touch-friendly size
-            fontSize: '0.875rem',
-          },
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          // Responsive card padding
-          '& .MuiCardContent-root': {
-            '@media (max-width:600px)': {
-              padding: '16px 12px',
-            },
-          },
-        },
-      },
-    },
-    MuiContainer: {
-      styleOverrides: {
-        root: {
-          '@media (max-width:600px)': {
-            paddingLeft: 16,
-            paddingRight: 16,
-          },
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          // Touch-friendly input fields
-          '@media (max-width:600px)': {
-            '& .MuiInputBase-input': {
-              fontSize: '16px', // Prevents zoom on iOS
-            },
-          },
-        },
-      },
-    },
-    MuiToolbar: {
-      styleOverrides: {
-        root: {
-          // Responsive toolbar padding
-          '@media (max-width:600px)': {
-            minHeight: 56,
-            paddingLeft: 8,
-            paddingRight: 8,
-          },
-        },
+    MuiPaper: {
+      defaultProps: {
+        elevation: 2,
       },
     },
   },
-}, deDE);
+});
 
 const App: React.FC = () => {
+  const { submitQuery } = useQueryActions();
+  const { isSubmitting } = useActiveQuery();
+  const selectedFile = useSelectedFile();
+  const queryError = useQueryError();
+  const fileError = useFileError();
+
+  const handleQuerySubmit = async () => {
+    if (!selectedFile) {
+      return;
+    }
+
+    const success = await submitQuery(selectedFile.file_id);
+    if (success) {
+      console.log('Query submitted successfully');
+    }
+  };
+
+  // Get validation errors
+  const errors = queryError ? APIErrorHandler.handleError({ message: queryError }) : [];
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <ErrorBoundary>
-        <Router>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            {/* Navigation */}
-            <Navigation />
-            
-            {/* Main Content */}
-            <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-              <ErrorBoundary>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/upload" replace />} />
-                  <Route path="/upload" element={<UploadPage />} />
-                  <Route path="/query" element={<QueryPage />} />
-                  <Route path="/results" element={<ResultsPage />} />
-                  <Route path="/results/:queryId" element={<ResultsPage />} />
-                  <Route path="*" element={<Navigate to="/upload" replace />} />
-                </Routes>
-              </ErrorBoundary>
-            </Box>
+      
+      {/* App Bar */}
+      <AppBar position="static" elevation={0}>
+        <Toolbar>
+          <ArchitectureIcon sx={{ mr: 2 }} />
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            IFC JSON Chunking - Bauwesen Datenanalyse
+          </Typography>
+        </Toolbar>
+      </AppBar>
+
+      {/* Main Content */}
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h2" component="h1" gutterBottom align="center">
+            Willkommen zur IFC Datenanalyse
+          </Typography>
+          <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 4 }}>
+            Analysieren Sie Ihre IFC-Gebäudedaten mit fortschrittlicher KI-Technologie.
+            Stellen Sie Fragen zu Mengen, Bauteilen, Materialien und räumlichen Beziehungen.
+          </Typography>
+        </Box>
+
+        {/* File Upload Section */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            1. Datei hochladen
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Laden Sie Ihre IFC JSON-Datei hoch, um mit der Analyse zu beginnen.
+          </Typography>
+          {/* TODO: Add file upload component */}
+          <Box sx={{ 
+            p: 3, 
+            border: '2px dashed #ccc', 
+            borderRadius: 1, 
+            textAlign: 'center',
+            bgcolor: 'grey.50'
+          }}>
+            <Typography variant="body2" color="text.secondary">
+              Datei-Upload-Komponente wird hier implementiert
+            </Typography>
           </Box>
+          {fileError && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              {fileError}
+            </Typography>
+          )}
+        </Paper>
+
+        {/* Query Section */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            2. Abfrage stellen
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Beschreiben Sie, was Sie über Ihre IFC-Daten wissen möchten.
+            Nutzen Sie natürliche Sprache für Ihre Fragen.
+          </Typography>
           
-          {/* Global Notifications */}
-          <NotificationProvider />
-        </Router>
-      </ErrorBoundary>
+          <QueryForm
+            onSubmit={handleQuerySubmit}
+            isSubmitting={isSubmitting}
+            validationErrors={errors}
+          />
+        </Paper>
+
+        {/* Results Section */}
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            3. Ergebnisse
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Die Analyse-Ergebnisse werden hier in Echtzeit angezeigt.
+          </Typography>
+          {/* TODO: Add results display component */}
+          <Box sx={{ 
+            p: 3, 
+            border: '1px solid #e0e0e0', 
+            borderRadius: 1,
+            bgcolor: 'grey.50',
+            minHeight: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Typography variant="body2" color="text.secondary">
+              Ergebnisse werden nach der Abfrage hier angezeigt
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+
+      {/* Footer */}
+      <Box component="footer" sx={{ bgcolor: 'grey.100', py: 3, mt: 4 }}>
+        <Container maxWidth="lg">
+          <Typography variant="body2" color="text.secondary" align="center">
+            IFC JSON Chunking System - Moderne Bauwesen Datenanalyse mit KI
+          </Typography>
+        </Container>
+      </Box>
     </ThemeProvider>
   );
 };

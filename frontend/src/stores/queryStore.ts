@@ -1,467 +1,281 @@
 /**
- * Query management state with real-time progress tracking and error handling.
+ * Query management store using Zustand.
  */
 
 import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
-import { handleGlobalError, showSuccessNotification, showErrorNotification } from './appStore';
-import { normalizeError, getQueryErrorMessage, isRetryableError, getRetryDelay } from '@utils/errorUtils';
+import { QueryRequest, QueryResponse, QueryStatus, QueryResultResponse, WebSocketMessage } from '@types/api';
+import apiService from '@services/api';
 
-export interface QueryRequest {
-  query: string;
-  file_id: string;
-  intent_hint?: string;
-  max_concurrent?: number;
-  timeout_seconds?: number;
-  cache_results?: boolean;
+interface CurrentQuery {
+  text: string;
+  intentHint?: string;
+  maxConcurrent: number;
+  timeoutSeconds: number;
+  cacheResults: boolean;
 }
 
-export interface QueryStatus {
-  status: 'pending' | 'started' | 'preprocessing' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  progress_percentage: number;
-  current_chunk?: number;
-  total_chunks?: number;
-  estimated_time_remaining?: number;
-  error_message?: string;
-  last_updated: string;
-}
-
-export interface QueryResult {
-  query_id: string;
-  original_query: string;
-  answer: string;
-  confidence_score: number;
-  intent: string;
-  model_used: string;
-  processing_time: number;
-  total_chunks: number;
-  successful_chunks: number;
-  structured_data?: {
-    entities?: Array<{
-      type: string;
-      name: string;
-      properties: Record<string, any>;
-    }>;
-    quantities?: Record<string, number | string>;
-    materials?: string[];
-    spatial_context?: Record<string, any>;
-  };
-  metadata?: Record<string, any>;
-}
-
-export interface ActiveQuery {
-  queryId: string;
-  request: QueryRequest;
-  status: QueryStatus;
-  result?: QueryResult;
-  retryCount: number;
-  websocket?: WebSocket;
-}
-
-interface QueryState {
-  // Query Management
-  activeQueries: Record<string, ActiveQuery>;
-  queryHistory: QueryResult[];
+interface QueryStore {
+  // Current query state
+  currentQuery: CurrentQuery;
   
-  // Current Query Form State
-  currentQuery: {
-    text: string;
-    intentHint?: string;
-    maxConcurrent: number;
-    timeoutSeconds: number;
-    cacheResults: boolean;
-  };
+  // Active query state
+  activeQuery: QueryResponse | null;
+  queryStatus: QueryStatus | null;
+  queryResult: QueryResultResponse | null;
   
-  // WebSocket Management
-  websockets: Record<string, WebSocket>;
-  reconnectAttempts: Record<string, number>;
+  // WebSocket connection
+  webSocket: WebSocket | null;
   
-  // Actions
-  updateCurrentQuery: (updates: Partial<QueryState['currentQuery']>) => void;
+  // UI state
+  isSubmitting: boolean;
+  error: string | null;
+
+  // Actions for current query
+  updateCurrentQuery: (updates: Partial<CurrentQuery>) => void;
   resetCurrentQuery: () => void;
   
-  // Query Execution
-  submitQuery: (request: QueryRequest) => Promise<string>;
-  cancelQuery: (queryId: string) => void;
-  retryQuery: (queryId: string) => Promise<void>;
+  // Actions for active query
+  setActiveQuery: (query: QueryResponse | null) => void;
+  setQueryStatus: (status: QueryStatus | null) => void;
+  setQueryResult: (result: QueryResultResponse | null) => void;
   
-  // Real-time Updates
-  connectToQueryUpdates: (queryId: string) => void;
-  disconnectFromQueryUpdates: (queryId: string) => void;
-  updateQueryStatus: (queryId: string, status: QueryStatus) => void;
-  setQueryResult: (queryId: string, result: QueryResult) => void;
+  // WebSocket actions
+  connectWebSocket: (queryId: string) => void;
+  disconnectWebSocket: () => void;
   
-  // History and Results
-  addToHistory: (result: QueryResult) => void;
-  clearHistory: () => void;
-  getQueryResult: (queryId: string) => Promise<QueryResult | null>;
+  // UI actions
+  setIsSubmitting: (submitting: boolean) => void;
+  setError: (error: string | null) => void;
   
-  // Utility
-  getActiveQuery: (queryId: string) => ActiveQuery | null;
-  getQueriesByStatus: (status: QueryStatus['status']) => ActiveQuery[];
+  // Async actions
+  submitQuery: (fileId: string) => Promise<boolean>;
+  cancelQuery: () => Promise<boolean>;
+  refreshQueryStatus: () => Promise<void>;
+  fetchQueryResult: () => Promise<void>;
 }
 
-// Mock WebSocket API (replace with actual implementation)
-const connectToQueryWebSocket = (
-  queryId: string,
-  onStatusUpdate: (status: QueryStatus) => void,
-  onResult: (result: QueryResult) => void,
-  onError: (error: any) => void
-): WebSocket => {
-  // Simulate WebSocket connection
-  const ws = {
-    send: () => {},
-    close: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  } as unknown as WebSocket;
-
-  // Simulate status updates
-  let progress = 0;
-  const interval = setInterval(() => {
-    progress += Math.random() * 15;
-    
-    if (progress >= 100) {
-      clearInterval(interval);
-      // Simulate completion
-      onResult({
-        query_id: queryId,
-        original_query: 'Sample query',
-        answer: 'Sample answer for the query',
-        confidence_score: 0.85,
-        intent: 'general',
-        model_used: 'gpt-4',
-        processing_time: 45.2,
-        total_chunks: 10,
-        successful_chunks: 10,
-      });
-    } else {
-      onStatusUpdate({
-        status: progress < 10 ? 'preprocessing' : 'processing',
-        progress_percentage: Math.min(progress, 100),
-        current_chunk: Math.floor(progress / 10),
-        total_chunks: 10,
-        estimated_time_remaining: (100 - progress) * 0.5,
-        last_updated: new Date().toISOString(),
-      });
-    }
-  }, 500);
-
-  return ws;
+const defaultCurrentQuery: CurrentQuery = {
+  text: '',
+  intentHint: undefined,
+  maxConcurrent: 3,
+  timeoutSeconds: 300,
+  cacheResults: true,
 };
 
-// Mock API functions
-const submitQueryToAPI = async (request: QueryRequest): Promise<{ query_id: string }> => {
-  // Simulate API validation
-  if (!request.query.trim()) {
-    throw { code: 'QUERY_EMPTY', message: 'Query cannot be empty' };
-  }
+export const useQueryStore = create<QueryStore>((set, get) => ({
+  // Initial state
+  currentQuery: defaultCurrentQuery,
+  activeQuery: null,
+  queryStatus: null,
+  queryResult: null,
+  webSocket: null,
+  isSubmitting: false,
+  error: null,
 
-  if (request.query.length > 1000) {
-    throw { code: 'QUERY_TOO_LONG', message: 'Query too long' };
-  }
-
-  if (!request.file_id) {
-    throw { code: 'NO_FILE_SELECTED', message: 'No file selected' };
-  }
-
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  return {
-    query_id: `query_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-  };
-};
-
-const getQueryResultFromAPI = async (queryId: string): Promise<QueryResult | null> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Current query actions
+  updateCurrentQuery: (updates) => set((state) => ({
+    currentQuery: { ...state.currentQuery, ...updates }
+  })),
   
-  // Return mock result or null if not found
-  return Math.random() > 0.1 ? {
-    query_id: queryId,
-    original_query: 'Sample query',
-    answer: 'Sample answer retrieved from API',
-    confidence_score: 0.78,
-    intent: 'general',
-    model_used: 'gpt-4',
-    processing_time: 32.1,
-    total_chunks: 8,
-    successful_chunks: 8,
-  } : null;
-};
+  resetCurrentQuery: () => set({
+    currentQuery: defaultCurrentQuery,
+    error: null,
+  }),
 
-const useQueryStore = create<QueryState>()(
-  subscribeWithSelector((set, get) => ({
-    // Initial State
-    activeQueries: {},
-    queryHistory: [],
-    currentQuery: {
-      text: '',
-      intentHint: undefined,
-      maxConcurrent: 3,
-      timeoutSeconds: 300,
-      cacheResults: true,
-    },
-    websockets: {},
-    reconnectAttempts: {},
+  // Active query actions
+  setActiveQuery: (query) => set({ activeQuery: query }),
+  setQueryStatus: (status) => set({ queryStatus: status }),
+  setQueryResult: (result) => set({ queryResult: result }),
 
-    // Current Query Actions
-    updateCurrentQuery: (updates) =>
-      set(state => ({
-        currentQuery: { ...state.currentQuery, ...updates },
-      })),
-
-    resetCurrentQuery: () =>
-      set({
-        currentQuery: {
-          text: '',
-          intentHint: undefined,
-          maxConcurrent: 3,
-          timeoutSeconds: 300,
-          cacheResults: true,
-        },
-      }),
-
-    // Query Execution
-    submitQuery: async (request: QueryRequest): Promise<string> => {
-      try {
-        const response = await submitQueryToAPI(request);
-        const queryId = response.query_id;
-
-        // Create active query
-        const activeQuery: ActiveQuery = {
-          queryId,
-          request,
-          status: {
-            status: 'pending',
-            progress_percentage: 0,
-            last_updated: new Date().toISOString(),
-          },
-          retryCount: 0,
-        };
-
-        set(state => ({
-          activeQueries: { ...state.activeQueries, [queryId]: activeQuery },
-        }));
-
-        // Connect to real-time updates
-        get().connectToQueryUpdates(queryId);
-
-        showSuccessNotification('Abfrage gestartet');
-        return queryId;
-
-      } catch (error) {
-        const normalizedError = normalizeError(error);
-        const errorMessage = getQueryErrorMessage(normalizedError);
-        
-        handleGlobalError(error, 'Query submission');
-        throw new Error(errorMessage);
-      }
-    },
-
-    cancelQuery: (queryId: string) => {
-      const query = get().activeQueries[queryId];
-      if (!query) return;
-
-      // Close WebSocket connection
-      get().disconnectFromQueryUpdates(queryId);
-
-      // Update query status
-      get().updateQueryStatus(queryId, {
-        status: 'cancelled',
-        progress_percentage: query.status.progress_percentage,
-        last_updated: new Date().toISOString(),
-      });
-
-      showInfoNotification('Abfrage abgebrochen');
-    },
-
-    retryQuery: async (queryId: string) => {
-      const query = get().activeQueries[queryId];
-      if (!query) return;
-
-      const retryCount = query.retryCount + 1;
-      const maxRetries = 3;
-
-      if (retryCount > maxRetries) {
-        showErrorNotification('Maximale Anzahl der Wiederholungsversuche erreicht');
-        return;
-      }
-
-      // Wait for retry delay
-      const delay = getRetryDelay(retryCount);
-      await new Promise(resolve => setTimeout(resolve, delay));
-
-      try {
-        // Update retry count
-        set(state => ({
-          activeQueries: {
-            ...state.activeQueries,
-            [queryId]: { ...query, retryCount },
-          },
-        }));
-
-        // Resubmit query
-        await get().submitQuery(query.request);
-
-      } catch (error) {
-        handleGlobalError(error, `Query retry: ${queryId}`);
-      }
-    },
-
-    // Real-time Updates
-    connectToQueryUpdates: (queryId: string) => {
-      // Disconnect existing connection if any
-      get().disconnectFromQueryUpdates(queryId);
-
-      try {
-        const ws = connectToQueryWebSocket(
-          queryId,
-          (status) => get().updateQueryStatus(queryId, status),
-          (result) => get().setQueryResult(queryId, result),
-          (error) => {
-            handleGlobalError(error, `WebSocket: ${queryId}`);
-            
-            // Attempt to reconnect
-            const attempts = get().reconnectAttempts[queryId] || 0;
-            if (attempts < 3) {
-              set(state => ({
-                reconnectAttempts: { ...state.reconnectAttempts, [queryId]: attempts + 1 },
-              }));
-              
-              setTimeout(() => get().connectToQueryUpdates(queryId), getRetryDelay(attempts + 1));
-            }
+  // WebSocket actions
+  connectWebSocket: (queryId: string) => {
+    const { disconnectWebSocket, setQueryStatus, setQueryResult, setError } = get();
+    
+    // Disconnect existing connection
+    disconnectWebSocket();
+    
+    try {
+      const ws = apiService.createWebSocket(queryId);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setError(null);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data);
+          
+          switch (message.type) {
+            case 'status_update':
+              setQueryStatus(message.data as QueryStatus);
+              break;
+            case 'result':
+              setQueryResult(message.data as QueryResultResponse);
+              break;
+            case 'error':
+              setError((message.data as any).detail || 'WebSocket error');
+              break;
           }
-        );
-
-        set(state => ({
-          websockets: { ...state.websockets, [queryId]: ws },
-          reconnectAttempts: { ...state.reconnectAttempts, [queryId]: 0 },
-        }));
-
-      } catch (error) {
-        handleGlobalError(error, `WebSocket connection: ${queryId}`);
-      }
-    },
-
-    disconnectFromQueryUpdates: (queryId: string) => {
-      const { websockets } = get();
-      const ws = websockets[queryId];
-      
-      if (ws) {
-        ws.close();
-        
-        set(state => {
-          const { [queryId]: removed, ...remainingWs } = state.websockets;
-          return { websockets: remainingWs };
-        });
-      }
-    },
-
-    updateQueryStatus: (queryId: string, status: QueryStatus) => {
-      set(state => {
-        const query = state.activeQueries[queryId];
-        if (!query) return state;
-
-        return {
-          activeQueries: {
-            ...state.activeQueries,
-            [queryId]: { ...query, status },
-          },
-        };
-      });
-    },
-
-    setQueryResult: (queryId: string, result: QueryResult) => {
-      set(state => {
-        const query = state.activeQueries[queryId];
-        if (!query) return state;
-
-        // Add to history
-        const updatedHistory = [result, ...state.queryHistory.slice(0, 49)]; // Keep last 50
-
-        return {
-          activeQueries: {
-            ...state.activeQueries,
-            [queryId]: { 
-              ...query, 
-              result,
-              status: { ...query.status, status: 'completed', progress_percentage: 100 },
-            },
-          },
-          queryHistory: updatedHistory,
-        };
-      });
-
-      // Disconnect WebSocket
-      get().disconnectFromQueryUpdates(queryId);
-      
-      showSuccessNotification('Abfrage abgeschlossen');
-    },
-
-    // History Management
-    addToHistory: (result: QueryResult) =>
-      set(state => ({
-        queryHistory: [result, ...state.queryHistory.slice(0, 49)],
-      })),
-
-    clearHistory: () =>
-      set({ queryHistory: [] }),
-
-    getQueryResult: async (queryId: string): Promise<QueryResult | null> => {
-      try {
-        const result = await getQueryResultFromAPI(queryId);
-        
-        if (result) {
-          // Update active query with result
-          get().setQueryResult(queryId, result);
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
         }
-        
-        return result;
-      } catch (error) {
-        handleGlobalError(error, `Get query result: ${queryId}`);
-        return null;
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setError('WebSocket connection error');
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+      };
+      
+      set({ webSocket: ws });
+    } catch (error) {
+      setError('Failed to create WebSocket connection');
+    }
+  },
+  
+  disconnectWebSocket: () => {
+    const { webSocket } = get();
+    if (webSocket) {
+      webSocket.close();
+      set({ webSocket: null });
+    }
+  },
+
+  // UI actions
+  setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
+  setError: (error) => set({ error }),
+
+  // Async actions
+  submitQuery: async (fileId: string) => {
+    const { 
+      currentQuery, 
+      setIsSubmitting, 
+      setError, 
+      setActiveQuery, 
+      setQueryStatus, 
+      setQueryResult,
+      connectWebSocket 
+    } = get();
+    
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setActiveQuery(null);
+      setQueryStatus(null);
+      setQueryResult(null);
+
+      const queryRequest: QueryRequest = {
+        query: currentQuery.text,
+        file_id: fileId,
+        intent_hint: currentQuery.intentHint,
+        max_concurrent: currentQuery.maxConcurrent,
+        timeout_seconds: currentQuery.timeoutSeconds,
+        cache_results: currentQuery.cacheResults,
+      };
+
+      const response = await apiService.submitQuery(queryRequest);
+
+      if (response.success) {
+        setActiveQuery(response.data);
+        connectWebSocket(response.data.query_id);
+        return true;
+      } else {
+        setError(response.message);
+        return false;
       }
-    },
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to submit query');
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  },
 
-    // Utility Functions
-    getActiveQuery: (queryId: string) => {
-      return get().activeQueries[queryId] || null;
-    },
+  cancelQuery: async () => {
+    const { activeQuery, setError, disconnectWebSocket } = get();
+    
+    if (!activeQuery) {
+      setError('No active query to cancel');
+      return false;
+    }
+    
+    try {
+      setError(null);
+      const response = await apiService.cancelQuery(activeQuery.query_id);
+      
+      if (response.success) {
+        disconnectWebSocket();
+        return true;
+      } else {
+        setError(response.message);
+        return false;
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to cancel query');
+      return false;
+    }
+  },
 
-    getQueriesByStatus: (status: QueryStatus['status']) => {
-      const { activeQueries } = get();
-      return Object.values(activeQueries).filter(query => query.status.status === status);
-    },
-  }))
-);
+  refreshQueryStatus: async () => {
+    const { activeQuery, setQueryStatus, setError } = get();
+    
+    if (!activeQuery) return;
+    
+    try {
+      const response = await apiService.getQueryStatus(activeQuery.query_id);
+      
+      if (response.success) {
+        setQueryStatus(response.data);
+      } else {
+        setError(response.message);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to refresh query status');
+    }
+  },
 
-// Export hooks
-export const useActiveQueries = () => useQueryStore(state => state.activeQueries);
+  fetchQueryResult: async () => {
+    const { activeQuery, setQueryResult, setError } = get();
+    
+    if (!activeQuery) return;
+    
+    try {
+      const response = await apiService.getQueryResult(activeQuery.query_id);
+      
+      if (response.success) {
+        setQueryResult(response.data);
+      } else {
+        setError(response.message);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch query result');
+    }
+  },
+}));
 
-export const useCurrentQuery = () => useQueryStore(state => ({
+// Convenience hooks
+export const useCurrentQuery = () => useQueryStore((state) => ({
   currentQuery: state.currentQuery,
   updateCurrentQuery: state.updateCurrentQuery,
   resetCurrentQuery: state.resetCurrentQuery,
 }));
 
-export const useQueryActions = () => useQueryStore(state => ({
+export const useActiveQuery = () => useQueryStore((state) => ({
+  activeQuery: state.activeQuery,
+  queryStatus: state.queryStatus,
+  queryResult: state.queryResult,
+  isSubmitting: state.isSubmitting,
+}));
+
+export const useQueryActions = () => useQueryStore((state) => ({
   submitQuery: state.submitQuery,
   cancelQuery: state.cancelQuery,
-  retryQuery: state.retryQuery,
+  refreshQueryStatus: state.refreshQueryStatus,
+  fetchQueryResult: state.fetchQueryResult,
 }));
 
-export const useQueryMonitoring = () => useQueryStore(state => ({
-  connectToQueryUpdates: state.connectToQueryUpdates,
-  disconnectFromQueryUpdates: state.disconnectFromQueryUpdates,
-  getQueryResult: state.getQueryResult,
-}));
-
-export const useQueryHistory = () => useQueryStore(state => ({
-  history: state.queryHistory,
-  addToHistory: state.addToHistory,
-  clearHistory: state.clearHistory,
-}));
-
-export default useQueryStore;
+export const useQueryError = () => useQueryStore((state) => state.error);
