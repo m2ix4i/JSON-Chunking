@@ -232,9 +232,12 @@ class TestContextManager:
         """Test updating context with chunk results."""
         chunk = Chunk(
             chunk_id="chunk_001",
-            content={"test": "data"},
-            chunk_type=ChunkType.SEMANTIC,
-            metadata={}
+            sequence_number=1,
+            json_path="test.data",
+            chunk_type=ChunkType.GENERAL,
+            data={"test": "data"},
+            size_bytes=100,
+            created_timestamp=1640995200.0  # 2022-01-01 00:00:00
         )
         
         chunk_result = ChunkResult(
@@ -258,9 +261,12 @@ class TestContextManager:
         """Test entity tracking across chunks."""
         chunk = Chunk(
             chunk_id="chunk_001",
-            content={"test": "data"},
-            chunk_type=ChunkType.SEMANTIC,
-            metadata={}
+            sequence_number=1,
+            json_path="test.data",
+            chunk_type=ChunkType.GENERAL,
+            data={"test": "data"},
+            size_bytes=100,
+            created_timestamp=1640995200.0  # 2022-01-01 00:00:00
         )
         
         chunk_result = ChunkResult(
@@ -312,7 +318,7 @@ class TestQueryOptimizer:
             Chunk(
                 chunk_id=f"chunk_{i:03d}",
                 content={"test": f"data_{i}"},
-                chunk_type=ChunkType.SEMANTIC,
+                chunk_type=ChunkType.GENERAL,
                 metadata={}
             )
             for i in range(10)
@@ -455,7 +461,7 @@ class TestQueryProcessor:
             Chunk(
                 chunk_id=f"chunk_{i:03d}",
                 content={"building_element": f"element_{i}", "material": "concrete"},
-                chunk_type=ChunkType.SEMANTIC,
+                chunk_type=ChunkType.GENERAL,
                 metadata={"floor": i % 3 + 1}
             )
             for i in range(3)
@@ -550,7 +556,7 @@ class TestOrchestrationIntegration:
                         {"type": "slab", "material": "concrete", "volume": 15.2}
                     ]
                 },
-                chunk_type=ChunkType.SEMANTIC,
+                chunk_type=ChunkType.GENERAL,
                 metadata={"floor": 1}
             ),
             Chunk(
@@ -561,7 +567,7 @@ class TestOrchestrationIntegration:
                         {"type": "beam", "material": "concrete", "volume": 12.1}
                     ]
                 },
-                chunk_type=ChunkType.SEMANTIC,
+                chunk_type=ChunkType.GENERAL,
                 metadata={"floor": 2}
             )
         ]
@@ -648,7 +654,7 @@ class TestOrchestrationIntegration:
             Chunk(
                 chunk_id="test_chunk",
                 content={"test": "data"},
-                chunk_type=ChunkType.SEMANTIC,
+                chunk_type=ChunkType.GENERAL,
                 metadata={}
             )
         ]
