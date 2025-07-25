@@ -73,7 +73,7 @@ ipdb = "^0.13.0"
 # Additional test dependencies
 factory-boy = "^3.3.0"
 freezegun = "^1.4.0"
-responses = "^0.24.0"
+responses = "^0.25.7"
 
 [tool.poetry.extras]
 mqtt = ["asyncio-mqtt"]
