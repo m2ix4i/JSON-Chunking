@@ -1,8 +1,8 @@
 """
-Query processing endpoints for IFC data analysis.
+Query processing endpoints for IFC data analysis with performance monitoring.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from typing import Dict, Any, Optional
 import structlog
 
@@ -15,17 +15,23 @@ from ..models.responses import QueryResponse, QueryStatusResponse, QueryResultRe
 logger = structlog.get_logger(__name__)
 router = APIRouter()
 
-# Initialize services
-config = Config()
-query_service = QueryService(config)
+def get_query_service(request: Request) -> QueryService:
+    """Get QueryService instance with monitoring components from app state."""
+    return QueryService(
+        config=request.app.state.config,
+        metrics_collector=request.app.state.metrics_collector,
+        memory_profiler=request.app.state.memory_profiler,
+        redis_cache=request.app.state.redis_cache
+    )
 
 @router.post("/queries",
     response_model=QueryResponse,
     summary="Submit query for IFC data analysis"
 )
 async def submit_query(
-    request: APIQueryRequest,
-    background_tasks: BackgroundTasks
+    query_request: APIQueryRequest,
+    background_tasks: BackgroundTasks,
+    request: Request
 ) -> QueryResponse:
     """
     Submit a query for processing against uploaded IFC data.
@@ -40,17 +46,20 @@ async def submit_query(
     Returns query ID for tracking progress via WebSocket or status endpoint.
     """
     try:
+        # Get query service with monitoring components
+        query_service = get_query_service(request)
+        
         # Validate file exists
-        await query_service.validate_file_exists(request.file_id)
+        await query_service.validate_file_exists(query_request.file_id)
         
         # Create query processing task
-        query_id = await query_service.create_query(request)
+        query_id = await query_service.create_query(query_request)
         
         # Start background processing
         background_tasks.add_task(
             query_service.process_query_background,
             query_id,
-            request
+            query_request
         )
         
         logger.info(
@@ -78,7 +87,7 @@ async def submit_query(
     response_model=QueryStatusResponse,
     summary="Get query processing status"
 )
-async def get_query_status(query_id: str) -> QueryStatusResponse:
+async def get_query_status(query_id: str, request: Request) -> QueryStatusResponse:
     """
     Get current status of query processing.
     
@@ -86,6 +95,7 @@ async def get_query_status(query_id: str) -> QueryStatusResponse:
     Use WebSocket endpoint for real-time updates.
     """
     try:
+        query_service = get_query_service(request)
         status = await query_service.get_query_status(query_id)
         
         if not status:
@@ -111,7 +121,7 @@ async def get_query_status(query_id: str) -> QueryStatusResponse:
     response_model=QueryResultResponse,
     summary="Get query processing results"
 )
-async def get_query_results(query_id: str) -> QueryResultResponse:
+async def get_query_results(query_id: str, request: Request) -> QueryResultResponse:
     """
     Get final results of completed query processing.
     
@@ -122,6 +132,7 @@ async def get_query_results(query_id: str) -> QueryResultResponse:
     - Processing statistics
     """
     try:
+        query_service = get_query_service(request)
         results = await query_service.get_query_results(query_id)
         
         if not results:
@@ -175,13 +186,14 @@ async def get_query_results(query_id: str) -> QueryResultResponse:
 @router.delete("/queries/{query_id}",
     summary="Cancel query processing"
 )
-async def cancel_query(query_id: str) -> Dict[str, str]:
+async def cancel_query(query_id: str, request: Request) -> Dict[str, str]:
     """
     Cancel ongoing query processing.
     
     Attempts to stop processing gracefully and clean up resources.
     """
     try:
+        query_service = get_query_service(request)
         cancelled = await query_service.cancel_query(query_id)
         
         if not cancelled:
@@ -205,7 +217,8 @@ async def cancel_query(query_id: str) -> Dict[str, str]:
 async def list_queries(
     limit: int = 50,
     offset: int = 0,
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    request: Request = None
 ) -> Dict[str, Any]:
     """
     List recent queries with optional status filtering.
@@ -213,6 +226,7 @@ async def list_queries(
     Returns paginated list of queries with basic information.
     """
     try:
+        query_service = get_query_service(request)
         queries = await query_service.list_queries(
             limit=limit,
             offset=offset,
