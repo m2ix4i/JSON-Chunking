@@ -20,114 +20,8 @@ from .config import Config
 logger = structlog.get_logger(__name__)
 
 
-class SpatialElements(Enum):
-    """IFC spatial structure elements."""
-    SITE = "IfcSite"
-    BUILDING = "IfcBuilding"
-    BUILDING_STOREY = "IfcBuildingStorey"
-    SPACE = "IfcSpace"
-    ROOM = "IfcRoom"
-    ZONE = "IfcZone"
-
-
-class ArchitecturalElements(Enum):
-    """IFC architectural building elements."""
-    WALL = "IfcWall"
-    DOOR = "IfcDoor"
-    WINDOW = "IfcWindow"
-    ROOF = "IfcRoof"
-    STAIR = "IfcStair"
-    RAMP = "IfcRamp"
-    CURTAIN_WALL = "IfcCurtainWall"
-
-
-class StructuralElements(Enum):
-    """IFC structural building elements."""
-    BEAM = "IfcBeam"
-    COLUMN = "IfcColumn"
-    SLAB = "IfcSlab"
-    FOOTING = "IfcFooting"
-    PILE = "IfcPile"
-    PLATE = "IfcPlate"
-    MEMBER = "IfcMember"
-    REINFORCING_BAR = "IfcReinforcingBar"
-
-
-class MEPElements(Enum):
-    """IFC mechanical, electrical, and plumbing elements."""
-    PIPE = "IfcPipe"
-    DUCT = "IfcDuct"
-    CABLE_CARRIER_FITTING = "IfcCableCarrierFitting"
-    FLOW_TERMINAL = "IfcFlowTerminal"
-    DISTRIBUTION_ELEMENT = "IfcDistributionElement"
-    FLOW_CONTROLLER = "IfcFlowController"
-    FLOW_MOVING_DEVICE = "IfcFlowMovingDevice"
-    ENERGY_CONVERSION_DEVICE = "IfcEnergyConversionDevice"
-    FLOW_STORAGE_DEVICE = "IfcFlowStorageDevice"
-
-
-class RelationshipTypes(Enum):
-    """IFC relationship types."""
-    REL_CONTAINED_IN_SPATIAL = "IfcRelContainedInSpatialStructure"
-    REL_AGGREGATES = "IfcRelAggregates"
-    REL_ASSIGNS_TO_GROUP = "IfcRelAssignsToGroup"
-    REL_DEFINES_BY_PROPERTIES = "IfcRelDefinesByProperties"
-    REL_CONNECTS_ELEMENTS = "IfcRelConnectsElements"
-    REL_CONNECTS_PATH_ELEMENTS = "IfcRelConnectsPathElements"
-
-
-class IFCEntityRegistry:
-    """Registry for all IFC entity types organized by domain."""
-    
-    # Combine all entity types
-    ALL_ENTITIES = {
-        **{e.name: e.value for e in SpatialElements},
-        **{e.name: e.value for e in ArchitecturalElements},
-        **{e.name: e.value for e in StructuralElements},
-        **{e.name: e.value for e in MEPElements},
-        **{e.name: e.value for e in RelationshipTypes}
-    }
-    
-    # Group by discipline for easy access
-    SPATIAL = {e.name: e.value for e in SpatialElements}
-    ARCHITECTURAL = {e.name: e.value for e in ArchitecturalElements}
-    STRUCTURAL = {e.name: e.value for e in StructuralElements}
-    MEP = {e.name: e.value for e in MEPElements}
-    RELATIONSHIPS = {e.name: e.value for e in RelationshipTypes}
-    
-    @classmethod
-    def from_string(cls, type_str: str) -> str:
-        """Convert string to IFC entity type."""
-        # Normalize input
-        normalized = type_str.strip()
-        
-        # Direct match
-        for entity_value in cls.ALL_ENTITIES.values():
-            if entity_value.lower() == normalized.lower():
-                return entity_value
-        
-        return "Unknown"
-    
-    @classmethod
-    def get_discipline(cls, entity_type: str) -> str:
-        """Get discipline for an entity type."""
-        if entity_type in cls.SPATIAL.values():
-            return "Spatial"
-        elif entity_type in cls.ARCHITECTURAL.values():
-            return "Architectural"
-        elif entity_type in cls.STRUCTURAL.values():
-            return "Structural"
-        elif entity_type in cls.MEP.values():
-            return "MEP"
-        elif entity_type in cls.RELATIONSHIPS.values():
-            return "Relationship"
-        else:
-            return "Unknown"
-
-
-# Maintain backward compatibility
 class IFCEntityType(Enum):
-    """Common IFC entity types - maintained for backward compatibility."""
+    """Common IFC entity types for building components."""
     
     # Spatial Structure
     SITE = "IfcSite"
@@ -135,7 +29,7 @@ class IFCEntityType(Enum):
     BUILDING_STOREY = "IfcBuildingStorey"
     SPACE = "IfcSpace"
     
-    # Building Elements  
+    # Building Elements
     WALL = "IfcWall"
     DOOR = "IfcDoor"
     WINDOW = "IfcWindow"
@@ -150,18 +44,20 @@ class IFCEntityType(Enum):
     DUCT = "IfcDuct"
     EQUIPMENT = "IfcFlowTerminal"
     
+    # Relationships
+    REL_CONTAINED_IN_SPATIAL = "IfcRelContainedInSpatialStructure"
+    REL_AGGREGATES = "IfcRelAggregates"
+    REL_ASSIGNS_TO_GROUP = "IfcRelAssignsToGroup"
+    REL_DEFINES_BY_PROPERTIES = "IfcRelDefinesByProperties"
+    
     # Other
     UNKNOWN = "Unknown"
 
     @classmethod
     def from_string(cls, type_str: str) -> "IFCEntityType":
         """Convert string to IFCEntityType enum."""
-        # Use registry for comprehensive lookup
-        entity_value = IFCEntityRegistry.from_string(type_str)
-        
-        # Map to enum values
         for entity_type in cls:
-            if entity_type.value == entity_value:
+            if entity_type.value.lower() == type_str.lower():
                 return entity_type
         return cls.UNKNOWN
 
@@ -386,6 +282,183 @@ class IFCHierarchy:
         ancestors.reverse()  # Start from root
         ancestors.append(entity_id)
         return ancestors
+    
+    def get_building_decomposition(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get complete building decomposition structure for all buildings.
+        
+        Returns:
+            Dictionary mapping building IDs to their complete decomposition
+        """
+        decomposition = {}
+        
+        # Find all buildings (level 1 entities)
+        buildings = self.get_entities_at_level(1)
+        
+        for building_id in buildings:
+            decomposition[building_id] = self._get_entity_decomposition(building_id)
+        
+        return decomposition
+    
+    def _get_entity_decomposition(self, entity_id: str) -> Dict[str, Any]:
+        """Get the complete decomposition structure for an entity."""
+        children = self.get_children(entity_id)
+        
+        decomposition = {
+            "entity_id": entity_id,
+            "children": {},
+            "child_count": len(children),
+            "descendant_count": len(self.get_descendants(entity_id))
+        }
+        
+        for child_id in children:
+            decomposition["children"][child_id] = self._get_entity_decomposition(child_id)
+        
+        return decomposition
+    
+    def find_entities_by_hierarchy_pattern(
+        self, 
+        pattern: List[int]
+    ) -> List[List[str]]:
+        """
+        Find entity paths that match a specific hierarchy pattern.
+        
+        Args:
+            pattern: List of hierarchy levels to match (e.g., [0, 1, 2] for Site→Building→Floor)
+            
+        Returns:
+            List of entity ID paths matching the pattern
+        """
+        matching_paths = []
+        
+        def find_paths_recursive(current_path: List[str], remaining_pattern: List[int]):
+            if not remaining_pattern:
+                matching_paths.append(current_path.copy())
+                return
+            
+            current_level = remaining_pattern[0]
+            remaining = remaining_pattern[1:]
+            
+            if not current_path:
+                # Start with root entities
+                start_entities = self.get_entities_at_level(current_level)
+                for entity_id in start_entities:
+                    find_paths_recursive([entity_id], remaining)
+            else:
+                # Continue from current path
+                last_entity = current_path[-1]
+                children = self.get_children(last_entity)
+                
+                for child_id in children:
+                    # Check if child is at the expected level
+                    child_entities_at_level = self.get_entities_at_level(current_level)
+                    if child_id in child_entities_at_level:
+                        find_paths_recursive(current_path + [child_id], remaining)
+        
+        find_paths_recursive([], pattern)
+        return matching_paths
+    
+    def get_spatial_siblings(self, entity_id: str) -> List[str]:
+        """Get entities at the same spatial level with the same parent."""
+        parent_id = self.get_parent(entity_id)
+        if not parent_id:
+            return []
+        
+        siblings = self.get_children(parent_id)
+        return [sibling_id for sibling_id in siblings if sibling_id != entity_id]
+    
+    def validate_hierarchy_integrity(self) -> Dict[str, Any]:
+        """
+        Validate the integrity of the spatial hierarchy.
+        
+        Returns:
+            Dictionary with validation results and any issues found
+        """
+        issues = []
+        
+        # Check for orphaned entities (entities with missing parents)
+        orphaned_entities = []
+        for entity_id, parent_id in self.reverse_hierarchy.items():
+            if parent_id not in self.hierarchy_map:
+                orphaned_entities.append(entity_id)
+        
+        if orphaned_entities:
+            issues.append({
+                "type": "orphaned_entities",
+                "count": len(orphaned_entities),
+                "entities": orphaned_entities[:10]  # Show first 10
+            })
+        
+        # Check for circular references
+        circular_refs = []
+        visited = set()
+        
+        def check_circular(entity_id: str, path: Set[str]) -> bool:
+            if entity_id in path:
+                return True
+            if entity_id in visited:
+                return False
+            
+            visited.add(entity_id)
+            path.add(entity_id)
+            
+            children = self.get_children(entity_id)
+            for child_id in children:
+                if check_circular(child_id, path.copy()):
+                    circular_refs.append(entity_id)
+                    return True
+            
+            return False
+        
+        for root_id in self.root_entities:
+            check_circular(root_id, set())
+        
+        if circular_refs:
+            issues.append({
+                "type": "circular_references",
+                "count": len(circular_refs),
+                "entities": circular_refs
+            })
+        
+        # Check hierarchy level consistency
+        level_inconsistencies = []
+        for level, entities in self.entities_by_level.items():
+            for entity_id in entities:
+                parent_id = self.get_parent(entity_id)
+                if parent_id:
+                    # Parent should be at a lower level number
+                    parent_level = None
+                    for lvl, lvl_entities in self.entities_by_level.items():
+                        if parent_id in lvl_entities:
+                            parent_level = lvl
+                            break
+                    
+                    if parent_level is not None and parent_level >= level:
+                        level_inconsistencies.append({
+                            "entity_id": entity_id,
+                            "level": level,
+                            "parent_id": parent_id,
+                            "parent_level": parent_level
+                        })
+        
+        if level_inconsistencies:
+            issues.append({
+                "type": "level_inconsistencies",
+                "count": len(level_inconsistencies),
+                "examples": level_inconsistencies[:5]
+            })
+        
+        return {
+            "is_valid": len(issues) == 0,
+            "total_issues": len(issues),
+            "issues": issues,
+            "statistics": {
+                "total_entities": sum(len(entities) for entities in self.entities_by_level.values()),
+                "root_entities": len(self.root_entities),
+                "max_depth": self.get_max_depth(),
+                "levels_populated": len(self.entities_by_level)
+            }
+        }
 
 
 class IFCSchemaParser:
@@ -548,14 +621,17 @@ class IFCSchemaParser:
         logger.info("Building IFC spatial hierarchy")
         
         # First pass: Add all spatial entities to hierarchy
+        spatial_entities_added = 0
         for entity in self.entities.values():
             if entity.is_spatial_element():
                 self.hierarchy.add_entity(entity)
+                spatial_entities_added += 1
         
         # Second pass: Process containment relationships
         await self._process_containment_relationships()
         
         # Third pass: Add non-spatial entities to their containers
+        non_spatial_entities_added = 0
         for entity in self.entities.values():
             if not entity.is_spatial_element():
                 # Find spatial container for this entity
@@ -563,13 +639,120 @@ class IFCSchemaParser:
                 if container_id:
                     entity.spatial_container = container_id
                     self.hierarchy.add_entity(entity)
+                    non_spatial_entities_added += 1
+        
+        # Fourth pass: Handle complex spatial structures and multiple buildings
+        await self._process_complex_spatial_structures()
+        
+        # Fifth pass: Validate and fix hierarchy integrity
+        validation_result = self.hierarchy.validate_hierarchy_integrity()
+        if not validation_result["is_valid"]:
+            logger.warning(
+                "Hierarchy integrity issues detected",
+                issues=validation_result["total_issues"],
+                issue_types=[issue["type"] for issue in validation_result["issues"]]
+            )
+            await self._repair_hierarchy_issues(validation_result["issues"])
         
         logger.info(
             "Spatial hierarchy built",
+            spatial_entities=spatial_entities_added,
+            non_spatial_entities=non_spatial_entities_added,
             root_entities=len(self.hierarchy.root_entities),
             hierarchy_levels=len(self.hierarchy.entities_by_level),
-            max_depth=self.hierarchy.get_max_depth()
+            max_depth=self.hierarchy.get_max_depth(),
+            is_valid=validation_result["is_valid"]
         )
+    
+    async def _process_complex_spatial_structures(self) -> None:
+        """Handle complex spatial structures and multiple buildings."""
+        logger.info("Processing complex spatial structures")
+        
+        # Handle multiple buildings on a single site
+        sites = [entity for entity in self.entities.values() 
+                if entity.entity_type == IFCEntityType.SITE]
+        
+        for site in sites:
+            # Find buildings that should be under this site
+            buildings = [entity for entity in self.entities.values()
+                        if (entity.entity_type == IFCEntityType.BUILDING and 
+                            entity.spatial_container is None)]
+            
+            # If we have buildings without a site container, assign them
+            for building in buildings:
+                if not building.spatial_container:
+                    building.spatial_container = site.entity_id
+                    self.hierarchy.add_entity(building)
+        
+        # Handle building complexes (multiple buildings)
+        building_groups = await self._identify_building_groups()
+        for group_id, buildings in building_groups.items():
+            logger.info(f"Identified building group {group_id} with {len(buildings)} buildings")
+    
+    async def _identify_building_groups(self) -> Dict[str, List[IFCEntity]]:
+        """Identify groups of related buildings (building complexes)."""
+        building_groups = {}
+        
+        buildings = [entity for entity in self.entities.values() 
+                    if entity.entity_type == IFCEntityType.BUILDING]
+        
+        # Simple grouping by site container
+        for building in buildings:
+            site_id = building.spatial_container or "default_site"
+            if site_id not in building_groups:
+                building_groups[site_id] = []
+            building_groups[site_id].append(building)
+        
+        return building_groups
+    
+    async def _repair_hierarchy_issues(self, issues: List[Dict[str, Any]]) -> None:
+        """Attempt to repair hierarchy integrity issues."""
+        for issue in issues:
+            issue_type = issue["type"]
+            
+            if issue_type == "orphaned_entities":
+                await self._repair_orphaned_entities(issue["entities"])
+            elif issue_type == "level_inconsistencies":
+                await self._repair_level_inconsistencies(issue["examples"])
+            # Note: Circular references are more complex and may require manual intervention
+    
+    async def _repair_orphaned_entities(self, orphaned_entities: List[str]) -> None:
+        """Attempt to repair orphaned entities by finding appropriate parents."""
+        for entity_id in orphaned_entities:
+            if entity_id in self.entities:
+                entity = self.entities[entity_id]
+                
+                # Try to find an appropriate spatial container
+                container_id = await self._find_spatial_container(entity)
+                if container_id and container_id in self.entities:
+                    entity.spatial_container = container_id
+                    self.hierarchy.add_entity(entity)
+                    logger.info(f"Repaired orphaned entity {entity_id} by assigning to {container_id}")
+    
+    async def _repair_level_inconsistencies(self, inconsistencies: List[Dict[str, Any]]) -> None:
+        """Attempt to repair level inconsistencies."""
+        for inconsistency in inconsistencies:
+            entity_id = inconsistency["entity_id"]
+            parent_id = inconsistency["parent_id"]
+            
+            # Remove the problematic relationship and try to reassign
+            if entity_id in self.hierarchy.reverse_hierarchy:
+                del self.hierarchy.reverse_hierarchy[entity_id]
+            
+            if parent_id in self.hierarchy.hierarchy_map:
+                self.hierarchy.hierarchy_map[parent_id] = [
+                    child for child in self.hierarchy.hierarchy_map[parent_id] 
+                    if child != entity_id
+                ]
+            
+            # Try to find a better parent
+            if entity_id in self.entities:
+                entity = self.entities[entity_id]
+                container_id = await self._find_spatial_container(entity)
+                if container_id and container_id != parent_id:
+                    entity.spatial_container = container_id
+                    self.hierarchy.add_entity(entity)
+                    logger.info(f"Repaired level inconsistency for {entity_id}")
     
     async def _process_containment_relationships(self) -> None:
         """Process IFC spatial containment relationships."""
@@ -705,3 +888,103 @@ class IFCSchemaParser:
             }
         
         return context
+    
+    def get_building_hierarchy_summary(self) -> Dict[str, Any]:
+        """
+        Get a comprehensive summary of the entire building hierarchy.
+        
+        Returns:
+            Dictionary containing hierarchy statistics and structure overview
+        """
+        # Get all buildings and their decomposition
+        building_decomposition = self.hierarchy.get_building_decomposition()
+        
+        # Calculate statistics by level
+        level_stats = {}
+        for level, entity_ids in self.hierarchy.entities_by_level.items():
+            entities = [self.entities[eid] for eid in entity_ids if eid in self.entities]
+            
+            level_stats[level] = {
+                "count": len(entities),
+                "entity_types": {},
+                "disciplines": {}
+            }
+            
+            # Count by entity type
+            for entity in entities:
+                entity_type = entity.entity_type.value
+                if entity_type not in level_stats[level]["entity_types"]:
+                    level_stats[level]["entity_types"][entity_type] = 0
+                level_stats[level]["entity_types"][entity_type] += 1
+                
+                # Count by discipline
+                discipline = entity.discipline.value
+                if discipline not in level_stats[level]["disciplines"]:
+                    level_stats[level]["disciplines"][discipline] = 0
+                level_stats[level]["disciplines"][discipline] += 1
+        
+        # Validation results
+        validation_result = self.hierarchy.validate_hierarchy_integrity()
+        
+        return {
+            "total_entities": len(self.entities),
+            "spatial_hierarchy": {
+                "root_entities": len(self.hierarchy.root_entities),
+                "max_depth": self.hierarchy.get_max_depth(),
+                "levels_populated": len(self.hierarchy.entities_by_level),
+                "level_statistics": level_stats
+            },
+            "building_decomposition": building_decomposition,
+            "integrity_validation": validation_result,
+            "entity_distribution": {
+                "spatial_elements": len([e for e in self.entities.values() if e.is_spatial_element()]),
+                "building_elements": len([e for e in self.entities.values() if e.is_building_element()]),
+                "mep_elements": len([e for e in self.entities.values() if e.is_mep_element()]),
+                "other_elements": len([e for e in self.entities.values() 
+                                     if not (e.is_spatial_element() or e.is_building_element() or e.is_mep_element())])
+            },
+            "discipline_distribution": {
+                discipline.value: len([e for e in self.entities.values() if e.discipline == discipline])
+                for discipline in Discipline
+            }
+        }
+    
+    def export_hierarchy_for_chunking(self) -> Dict[str, Any]:
+        """
+        Export hierarchy data optimized for semantic chunking strategies.
+        
+        Returns:
+            Dictionary with hierarchy data formatted for chunking algorithms
+        """
+        return {
+            "spatial_structure": self.get_spatial_structure(),
+            "entity_relationships": {
+                entity_id: {
+                    "entity": entity,
+                    "spatial_container": entity.spatial_container,
+                    "children": self.hierarchy.get_children(entity_id),
+                    "level": entity.get_hierarchy_level(),
+                    "discipline": entity.discipline.value,
+                    "relationships": entity.relationships
+                }
+                for entity_id, entity in self.entities.items()
+            },
+            "chunking_metadata": {
+                "hierarchy_paths": {
+                    entity_id: self.hierarchy.get_hierarchy_path(entity_id)
+                    for entity_id in self.entities.keys()
+                },
+                "building_groups": self.hierarchy.get_building_decomposition(),
+                "level_groupings": {
+                    level: list(entity_ids)
+                    for level, entity_ids in self.hierarchy.entities_by_level.items()
+                },
+                "discipline_groupings": {
+                    discipline.value: [
+                        entity.entity_id for entity in self.entities.values()
+                        if entity.discipline == discipline
+                    ]
+                    for discipline in Discipline
+                }
+            }
+        }
