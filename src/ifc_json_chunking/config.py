@@ -63,16 +63,33 @@ class ConfigurationParser:
     
     @staticmethod
     def _is_safe_absolute_path(path: Path) -> bool:
-        """Check if absolute path is safe (not a traversal attack)."""
+        """Check if absolute path is safe using whitelist approach."""
         try:
-            # Allow absolute paths that don't try to escape outside reasonable bounds
+            # Resolve path and check if it's within allowed directories (whitelist approach)
             resolved = path.resolve()
-            path_str = str(resolved)
             
-            # Reject obvious traversal attempts
-            dangerous_patterns = ['..', '/etc/', '/var/', '/sys/', '/proc/']
-            return not any(pattern in path_str for pattern in dangerous_patterns)
-        except (OSError, RuntimeError):
+            # Define allowed base directories
+            allowed_bases = [
+                Path.cwd(),                    # Current working directory
+                Path.home(),                   # User home directory
+                Path('/tmp'),                  # Temporary directory
+                Path('/var/tmp'),              # Alternative temp directory
+                Path('/opt/app') if Path('/opt/app').exists() else None,  # App directory
+            ]
+            
+            # Remove None entries
+            allowed_bases = [base for base in allowed_bases if base is not None]
+            
+            # Check if resolved path is relative to any allowed base
+            for base in allowed_bases:
+                try:
+                    resolved.relative_to(base.resolve())
+                    return True  # Path is within allowed base
+                except ValueError:
+                    continue  # Not relative to this base, try next
+            
+            return False  # Path not within any allowed base
+        except (OSError, ValueError, RuntimeError):
             return False
 
 
