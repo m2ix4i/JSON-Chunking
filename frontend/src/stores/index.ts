@@ -39,3 +39,15 @@ export {
   useQuerySubmission,
   useQueryMonitoring,
 } from './queryStore';
+
+// Settings store
+export {
+  useSettingsStore,
+  useTheme,
+  useLanguage,
+  useQueryDefaults,
+  useNotificationSettings,
+  useAdvancedSettings,
+  getEffectiveTheme,
+  initializeSettings,
+} from './settingsStore';
