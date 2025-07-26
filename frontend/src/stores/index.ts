@@ -51,3 +51,22 @@ export {
   getEffectiveTheme,
   initializeSettings,
 } from './settingsStore';
+
+// Offline query store
+export {
+  useOfflineQueryStore,
+  useEnhancedQuerySubmission,
+  useCachedQueries,
+  useQueuedQueries,
+  useOfflineQueryActions,
+} from './offlineQueryStore';
+
+// Offline file store
+export {
+  useOfflineFileStore,
+  useEnhancedFileUpload,
+  useCachedFiles,
+  useQueuedUploads,
+  useOfflineFileActions,
+  useOfflineUploadManager,
+} from './offlineFileStore';

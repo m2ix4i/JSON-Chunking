@@ -14,7 +14,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
 // Service Worker for PWA functionality
-import { serviceWorkerManager } from '@services/serviceWorker';
+import { serviceWorkerManager } from '@/services/serviceWorker';
+import { offlineService } from '@/services/offline';
+import { syncService } from '@/services/sync';
 
 // Components (non-lazy loaded for immediate availability)
 import Layout from '@components/layout/Layout';
@@ -59,12 +61,27 @@ const App: React.FC = () => {
   useEffect(() => {
     initialize();
     
-    // Initialize service worker in production
-    if (import.meta.env.PROD) {
-      serviceWorkerManager.register().catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
-    }
+    // Initialize PWA services
+    const initializePWA = async () => {
+      try {
+        // Initialize service worker
+        if (import.meta.env.PROD) {
+          await serviceWorkerManager.register();
+        }
+        
+        // Initialize offline service
+        await offlineService.initialize();
+        
+        // Initialize sync service
+        await syncService.initialize();
+        
+        console.log('PWA services initialized successfully');
+      } catch (error) {
+        console.error('PWA services initialization failed:', error);
+      }
+    };
+    
+    initializePWA();
   }, [initialize]);
 
   // Create Material-UI theme

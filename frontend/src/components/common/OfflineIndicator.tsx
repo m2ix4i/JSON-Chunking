@@ -37,7 +37,7 @@ import {
   InstallMobile,
   Close,
 } from '@mui/icons-material';
-import { useNetworkStatus } from '@hooks/useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface OfflineIndicatorProps {
   position?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';

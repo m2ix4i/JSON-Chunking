@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { syncService, SyncStats } from '@services/sync';
-import { serviceWorkerManager, ServiceWorkerStatus } from '@services/serviceWorker';
+import { syncService, SyncStats } from '@/services/sync';
+import { serviceWorkerManager, ServiceWorkerStatus } from '@/services/serviceWorker';
 
 export interface NetworkStatus {
   isOnline: boolean;
