@@ -43,9 +43,8 @@ const ResultsPage: React.FC = () => {
           if (!activeQuery) {
             setActiveQuery({
               query_id: queryId,
-              query: 'Loading...',
               status: 'processing',
-              created_at: new Date().toISOString(),
+              message: 'Loading...',
             });
           }
         })
@@ -136,7 +135,6 @@ const ResultsPage: React.FC = () => {
               {result && status?.status === 'completed' ? (
                 <QueryResultDisplay 
                   result={result}
-                  queryId={queryId}
                 />
               ) : status?.status === 'failed' ? (
                 <Alert severity="error" sx={{ mb: 3 }}>
