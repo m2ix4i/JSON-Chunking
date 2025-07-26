@@ -1,28 +1,14 @@
 /**
-<<<<<<< HEAD
- * File selector component for choosing files for queries.
-=======
  * File selector component for choosing uploaded files.
  * Provides radio-button selection interface with file details.
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
-<<<<<<< HEAD
-  Alert,
-  Button,
-} from '@mui/material';
-import { CloudUpload as UploadIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-
-// Store hooks
-import { useSelectedFile } from '@stores/fileStore';
-=======
   List,
   ListItem,
   ListItemIcon,
@@ -31,45 +17,48 @@ import { useSelectedFile } from '@stores/fileStore';
   Chip,
   Alert,
   Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Description as FileIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
-import { useFileSelection } from '@stores/fileStore';
+import { useFileSelection, useFileStore } from '@stores/fileStore';
 
 // Types
 import type { UploadedFile } from '@/types/app';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 interface FileSelectorProps {
   title?: string;
   showUploadPrompt?: boolean;
-<<<<<<< HEAD
-=======
   compact?: boolean;
   onFileSelected?: (file: UploadedFile | null) => void;
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 }
 
 const FileSelector: React.FC<FileSelectorProps> = ({
   title = "Datei auswählen",
   showUploadPrompt = true,
-<<<<<<< HEAD
-}) => {
-  const navigate = useNavigate();
-  const selectedFile = useSelectedFile();
-=======
   compact = false,
   onFileSelected,
 }) => {
   const navigate = useNavigate();
   const { files, selectedFileId, selectFile } = useFileSelection();
+  const deleteFile = useFileStore((state) => state.deleteFile);
+
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
 
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
@@ -104,6 +93,31 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
     }
+  };
+
+  // Delete handlers
+  const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
+    e.stopPropagation(); // Prevent file selection when clicking delete
+    setFileToDelete(file);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (fileToDelete) {
+      try {
+        await deleteFile(fileToDelete.file_id);
+        setDeleteConfirmOpen(false);
+        setFileToDelete(null);
+      } catch (error) {
+        // Error handling is done in the store
+        console.error('Delete failed:', error);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+    setFileToDelete(null);
   };
 
   // Show empty state if no files
@@ -142,7 +156,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
       </Card>
     );
   }
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
   return (
     <Card>
@@ -150,37 +163,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
-        
-<<<<<<< HEAD
-        {selectedFile ? (
-          <Alert severity="success">
-            <Typography variant="body2">
-              <strong>Ausgewählte Datei:</strong> {selectedFile.filename}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Größe: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-            </Typography>
-          </Alert>
-        ) : (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                Keine Datei ausgewählt. Wählen Sie eine Datei aus oder laden Sie eine neue hoch.
-              </Typography>
-            </Alert>
-            
-            {showUploadPrompt && (
-              <Button
-                variant="contained"
-                startIcon={<UploadIcon />}
-                onClick={() => navigate('/upload')}
-                fullWidth
-              >
-                Datei hochladen
-              </Button>
-            )}
-          </>
-=======
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
@@ -268,6 +250,17 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                     </Typography>
                   }
                 />
+
+                {/* Delete button */}
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={(e) => handleDeleteClick(e, file)}
+                  size="small"
+                  sx={{ ml: 1 }}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </ListItem>
             );
           })}
@@ -294,8 +287,33 @@ const FileSelector: React.FC<FileSelectorProps> = ({
               Weitere Dateien hochladen
             </Button>
           </Box>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
         )}
+
+        {/* Delete confirmation dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Datei löschen
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Möchten Sie die Datei "{fileToDelete?.filename}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary">
+              Abbrechen
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Löschen
+            </Button>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   );

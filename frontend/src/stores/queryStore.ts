@@ -1,23 +1,20 @@
 /**
  * Query state management store using Zustand.
- * Enhanced with WebSocket integration for real-time query status updates.
+ * Enhanced with WebSocket integration for real-time query status updates and history management.
  */
 
 import { create } from 'zustand';
-<<<<<<< HEAD
 import type {
   QueryResponse,
   QueryStatusResponse,
   QueryResultResponse,
+  QueryListResponse,
   ProgressMessage,
   ErrorMessage,
   CompletionMessage,
   WebSocketMessage,
 } from '@/types/api';
 import type { WebSocketConnection } from '@/services/websocket';
-=======
-import { QueryResponse, QueryStatus, QueryResultResponse } from '@/types/api';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 export interface CurrentQuery {
   text: string;
@@ -25,6 +22,22 @@ export interface CurrentQuery {
   maxConcurrent: number;
   timeoutSeconds: number;
   cacheResults: boolean;
+}
+
+export interface QueryHistoryState {
+  queries: QueryStatusResponse[];
+  loading: boolean;
+  error: string | null;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+  filters: {
+    search: string;
+    status: string | null;
+    dateRange: { start: Date; end: Date } | null;
+  };
 }
 
 interface QueryStore {
@@ -42,6 +55,9 @@ interface QueryStore {
   lastProgressUpdate: ProgressMessage | null;
   useWebSocket: boolean;
   
+  // Query history state
+  history: QueryHistoryState;
+  
   // UI state
   isSubmitting: boolean;
   isConnected: boolean;
@@ -56,7 +72,6 @@ interface QueryStore {
   setQueryStatus: (status: QueryStatusResponse | null) => void;
   setQueryResult: (result: QueryResultResponse | null) => void;
   
-<<<<<<< HEAD
   // Query submission with WebSocket integration
   submitQuery: (fileId: string) => Promise<void>;
   
@@ -67,11 +82,13 @@ interface QueryStore {
   setConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
   startPolling: (queryId: string) => Promise<void>;
   
-=======
-  // Query submission action
-  submitQuery: (fileId: string) => Promise<void>;
+  // History actions
+  loadQueryHistory: (params?: { page?: number; limit?: number; status?: string; search?: string }) => Promise<void>;
+  updateHistoryFilters: (filters: Partial<QueryHistoryState['filters']>) => void;
+  updateHistoryPagination: (pagination: Partial<QueryHistoryState['pagination']>) => void;
+  deleteQuery: (queryId: string) => Promise<void>;
+  rerunQuery: (queryId: string) => void;
   
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
   setIsConnected: (connected: boolean) => void;
@@ -86,6 +103,22 @@ const defaultCurrentQuery: CurrentQuery = {
   cacheResults: true,
 };
 
+const defaultHistoryState: QueryHistoryState = {
+  queries: [],
+  loading: false,
+  error: null,
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+  },
+  filters: {
+    search: '',
+    status: null,
+    dateRange: null,
+  },
+};
+
 export const useQueryStore = create<QueryStore>((set, get) => ({
   // Initial state
   currentQuery: defaultCurrentQuery,
@@ -98,6 +131,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   connectionStatus: 'disconnected',
   lastProgressUpdate: null,
   useWebSocket: true, // Enable WebSocket by default, fallback to polling on error
+  
+  // History state
+  history: defaultHistoryState,
   
   // UI state
   isSubmitting: false,
@@ -119,15 +155,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   setQueryStatus: (status) => set({ queryStatus: status }),
   setQueryResult: (result) => set({ queryResult: result }),
 
-<<<<<<< HEAD
   // Query submission with WebSocket integration
   submitQuery: async (fileId: string) => {
     const { currentQuery, useWebSocket } = get();
-=======
-  // Query submission
-  submitQuery: async (fileId: string) => {
-    const { currentQuery } = get();
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
     
     if (!currentQuery.text.trim()) {
       set({ error: 'Query text is required' });
@@ -140,11 +170,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       // Import API service
       const { apiService } = await import('@/services/api');
       
-<<<<<<< HEAD
       // Submit query to backend
-=======
-      // Submit query
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
       const queryResponse = await apiService.submitQuery({
         file_id: fileId,
         query: currentQuery.text,
@@ -157,7 +183,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       // Set active query
       set({ activeQuery: queryResponse });
 
-<<<<<<< HEAD
       // Try WebSocket connection first
       if (useWebSocket) {
         try {
@@ -172,36 +197,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         // Use polling directly
         get().startPolling(queryResponse.query_id);
       }
-=======
-      // Start monitoring the query status
-      const monitorQuery = async () => {
-        try {
-          while (true) {
-            const status = await apiService.getQueryStatus(queryResponse.query_id);
-            set({ queryStatus: status });
-
-            if (status.status === 'completed') {
-              // Get final results
-              const result = await apiService.getQueryResult(queryResponse.query_id);
-              set({ queryResult: result });
-              break;
-            } else if (status.status === 'failed') {
-              set({ error: status.error_message || 'Query processing failed' });
-              break;
-            }
-
-            // Wait 2 seconds before next check
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
-        } catch (error) {
-          console.error('Error monitoring query:', error);
-          set({ error: 'Failed to monitor query status' });
-        }
-      };
-
-      // Start monitoring in background
-      monitorQuery();
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
     } catch (error: any) {
       console.error('Error submitting query:', error);
@@ -211,7 +206,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     }
   },
 
-<<<<<<< HEAD
   // WebSocket connection management
   connectWebSocket: async (queryId: string) => {
     try {
@@ -369,8 +363,116 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     poll();
   },
 
-=======
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
+  // History actions
+  loadQueryHistory: async (params = {}) => {
+    const { history } = get();
+    const { page = history.pagination.page, limit = history.pagination.limit, status, search } = params;
+    
+    set((state) => ({
+      history: { ...state.history, loading: true, error: null }
+    }));
+
+    try {
+      const { apiService } = await import('@/services/api');
+      
+      // Convert page to offset for API call
+      const offset = (page - 1) * limit;
+      
+      const response = await apiService.listQueries({
+        offset,
+        limit,
+        status,
+        // Note: search parameter may not be supported by backend yet
+      });
+
+      set((state) => ({
+        history: {
+          ...state.history,
+          queries: response.queries,
+          loading: false,
+          pagination: {
+            page,
+            limit,
+            total: response.total,
+          },
+        }
+      }));
+
+    } catch (error: any) {
+      console.error('Error loading query history:', error);
+      set((state) => ({
+        history: {
+          ...state.history,
+          loading: false,
+          error: error.message || 'Failed to load query history',
+        }
+      }));
+    }
+  },
+
+  updateHistoryFilters: (filters) => {
+    set((state) => ({
+      history: {
+        ...state.history,
+        filters: { ...state.history.filters, ...filters },
+        pagination: { ...state.history.pagination, page: 1 }, // Reset to first page
+      }
+    }));
+  },
+
+  updateHistoryPagination: (pagination) => {
+    set((state) => ({
+      history: {
+        ...state.history,
+        pagination: { ...state.history.pagination, ...pagination },
+      }
+    }));
+  },
+
+  deleteQuery: async (queryId: string) => {
+    try {
+      const { apiService } = await import('@/services/api');
+      await apiService.cancelQuery(queryId); // Using cancel as delete
+      
+      // Remove from local state
+      set((state) => ({
+        history: {
+          ...state.history,
+          queries: state.history.queries.filter(q => q.query_id !== queryId),
+        }
+      }));
+
+    } catch (error: any) {
+      console.error('Error deleting query:', error);
+      set((state) => ({
+        history: {
+          ...state.history,
+          error: error.message || 'Failed to delete query',
+        }
+      }));
+    }
+  },
+
+  rerunQuery: (queryId: string) => {
+    // Find the query in history
+    const { history } = get();
+    const query = history.queries.find(q => q.query_id === queryId);
+    
+    if (query && query.original_query) {
+      // Update current query with the previous query text
+      set((state) => ({
+        currentQuery: {
+          ...state.currentQuery,
+          text: query.original_query || '',
+        }
+      }));
+      
+      // Navigate to query page - we'll handle this in the component
+      // For now, just set the query text
+      console.log('Rerunning query:', query.original_query);
+    }
+  },
+
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),
@@ -378,16 +480,13 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   setConnectionStatus: (status) => set({ connectionStatus: status }),
 }));
 
-<<<<<<< HEAD
 // Selectors for better performance and component integration
 export const useActiveQueries = () => useQueryStore((state) => {
   if (!state.activeQuery) return {};
   return { [state.activeQuery.query_id]: state.activeQuery };
 });
 
-export const useQueryHistory = () => useQueryStore((state) => 
-  state.queryResult ? [state.queryResult] : []
-);
+export const useQueryHistory = () => useQueryStore((state) => state.history);
 
 export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery);
 
@@ -419,32 +518,14 @@ export const useWebSocketStatus = () => useQueryStore((state) => ({
   isConnected: state.isConnected,
   useWebSocket: state.useWebSocket,
   lastProgressUpdate: state.lastProgressUpdate,
-=======
-  // WebSocket cleanup
-  disconnectWebSocket: () => {
-    // Import here to avoid circular dependency
-    import('@/services/websocket').then(({ websocketService }) => {
-      websocketService.disconnectAll();
-    });
-    set({ isConnected: false });
-  },
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 }));
 
-// Selectors for better performance
-export const useActiveQueries = () => useQueryStore((state) => {
-  if (!state.activeQuery) return {};
-  return { [state.activeQuery.query_id]: state.activeQuery };
-});
-export const useQueryHistory = () => useQueryStore((state) => state.queryResult ? [state.queryResult] : []);
-export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery);
-export const useGermanSuggestions = () => []; // Placeholder - implement as needed
-export const useWebSocketConnected = () => useQueryStore((state) => state.isConnected);
-export const useQuerySubmission = () => useQueryStore((state) => state.isSubmitting);
-export const useQueryMonitoring = () => useQueryStore((state) => ({
-  activeQuery: state.activeQuery,
-  status: state.queryStatus,
-  result: state.queryResult
+export const useQueryHistoryActions = () => useQueryStore((state) => ({
+  loadQueryHistory: state.loadQueryHistory,
+  updateHistoryFilters: state.updateHistoryFilters,
+  updateHistoryPagination: state.updateHistoryPagination,
+  deleteQuery: state.deleteQuery,
+  rerunQuery: state.rerunQuery,
 }));
 
 // Export store for direct access
