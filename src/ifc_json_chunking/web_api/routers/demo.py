@@ -2,14 +2,13 @@
 Demo endpoints for testing with real-world wooden components data.
 """
 
-from fastapi import APIRouter, HTTPException, Request
-from typing import Dict, Any, List
 import json
 import os
 from pathlib import Path
-import structlog
+from typing import Any, Dict, List
 
-from ...config import Config
+import structlog
+from fastapi import APIRouter, HTTPException, Request
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -20,25 +19,25 @@ _demo_data_cache = None
 def get_demo_data() -> Dict[str, Any]:
     """Load demo data from the wooden components file."""
     global _demo_data_cache
-    
+
     if _demo_data_cache is not None:
         return _demo_data_cache
-    
+
     demo_data_path = os.getenv("DEMO_DATA_PATH", "")
     if not demo_data_path:
         raise HTTPException(status_code=404, detail="Demo data path not configured")
-    
+
     path = Path(demo_data_path)
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Demo data file not found: {demo_data_path}")
-    
+
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             _demo_data_cache = json.load(f)
-        
+
         logger.info("Demo data loaded successfully", file_path=demo_data_path, components=len(_demo_data_cache))
         return _demo_data_cache
-        
+
     except Exception as e:
         logger.error("Failed to load demo data", error=str(e), file_path=demo_data_path)
         raise HTTPException(status_code=500, detail=f"Failed to load demo data: {str(e)}")
@@ -54,7 +53,7 @@ async def get_demo_stats() -> Dict[str, Any]:
     """
     try:
         data = get_demo_data()
-        
+
         # Calculate statistics
         stats = {
             "total_components": 0,
@@ -67,28 +66,28 @@ async def get_demo_stats() -> Dict[str, Any]:
                 "description": "801 wooden building components from real BIM model"
             }
         }
-        
+
         for component_type, components in data.items():
             component_count = len(components)
             stats["total_components"] += component_count
             stats["component_types"][component_type] = component_count
-            
+
             # Analyze materials, floors, manufacturers
             for component in components:
                 # Materials
                 holzart = component.get("Holzart", "Unknown")
                 stats["materials"][holzart] = stats["materials"].get(holzart, 0) + 1
-                
+
                 # Floors
                 geschoss = component.get("Geschoss", "Unknown")
                 stats["floors"][geschoss] = stats["floors"].get(geschoss, 0) + 1
-                
+
                 # Manufacturers
                 hersteller = component.get("Hersteller/Produkt", "Unknown")
                 stats["manufacturers"][hersteller] = stats["manufacturers"].get(hersteller, 0) + 1
-        
+
         return stats
-        
+
     except Exception as e:
         logger.error("Error generating demo stats", error=str(e))
         raise HTTPException(status_code=500, detail=f"Error generating demo stats: {str(e)}")
@@ -170,24 +169,24 @@ async def get_sample_components(
     """
     try:
         data = get_demo_data()
-        
+
         if component_type not in data:
             available_types = list(data.keys())
             raise HTTPException(
-                status_code=404, 
+                status_code=404,
                 detail=f"Component type '{component_type}' not found. Available types: {available_types}"
             )
-        
+
         components = data[component_type]
         sample = components[:limit] if len(components) > limit else components
-        
+
         return {
             "component_type": component_type,
             "total_count": len(components),
             "sample_count": len(sample),
             "sample_components": sample
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -205,21 +204,21 @@ async def preload_demo_data(request: Request) -> Dict[str, Any]:
     """
     try:
         data = get_demo_data()
-        
+
         # Here we would normally upload the data through the file service
         # For now, just return confirmation that data is available
-        
+
         stats = {
             "total_components": sum(len(components) for components in data.values()),
             "component_types": {name: len(components) for name, components in data.items()},
             "status": "preloaded",
             "message": "Demo data is available for query processing"
         }
-        
+
         logger.info("Demo data preloaded", stats=stats)
-        
+
         return stats
-        
+
     except Exception as e:
         logger.error("Error preloading demo data", error=str(e))
         raise HTTPException(status_code=500, detail=f"Error preloading demo data: {str(e)}")

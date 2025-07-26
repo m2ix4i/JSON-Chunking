@@ -6,23 +6,23 @@ processing different types of building industry queries.
 """
 
 from .types import (
-    QueryIntent,
-    QueryStatus,
-    ProgressEventType,
-    QueryParameters,
-    QueryContext,
-    ProgressEvent,
     ChunkResult,
-    QueryResult,
-    QueryRequest,
+    ErrorCallback,
     ProgressCallback,
+    ProgressEvent,
+    ProgressEventType,
+    QueryContext,
+    QueryIntent,
+    QueryParameters,
+    QueryRequest,
+    QueryResult,
+    QueryStatus,
     ResultCallback,
-    ErrorCallback
 )
 
 __all__ = [
     "QueryIntent",
-    "QueryStatus", 
+    "QueryStatus",
     "ProgressEventType",
     "QueryParameters",
     "QueryContext",

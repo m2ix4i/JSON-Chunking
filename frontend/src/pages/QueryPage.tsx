@@ -11,6 +11,7 @@ import {
   Grid,
   Alert,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 // Components
 import QuerySuggestions from '@components/query/QuerySuggestions';
@@ -67,6 +68,7 @@ const QueryPage: React.FC = () => {
       // Error handling is already managed by the queryStore and displayed via error state
     }
   };
+
 
   return (
     <Box>

@@ -1,8 +1,6 @@
 /**
  * Query templates component for enhanced query interface.
  * Provides browsable templates for common IFC building analysis queries.
- * Orchestrates template display using smaller, focused components.
- * Follows Single Responsibility Principle and Rule of 5.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -11,6 +9,8 @@ import {
   Card,
   CardContent,
   Typography,
+  Tabs,
+  Tab,
   List,
   ListItem,
   ListItemText,
@@ -45,6 +45,7 @@ import {
   PlayArrow as UseIcon,
   Edit as CustomizeIcon,
   Clear as ClearIcon,
+  FilterList as FilterIcon,
   Calculate as QuantityIcon,
   Palette as MaterialIcon,
   Place as SpatialIcon,
@@ -56,6 +57,8 @@ import {
 import type { QueryTemplate, QueryVariable } from '@/types/app';
 import { 
   queryTemplates, 
+  getTemplatesByCategory, 
+  getTemplatesByDifficulty,
   searchTemplates,
   getPopularTemplates,
   templateCategories 

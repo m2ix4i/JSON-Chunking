@@ -3,7 +3,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { handleGlobalError, useErrorState } from '@stores/appStore';
+import { useAppStore, useErrorState } from '@stores/appStore';
 import { 
   normalizeError, 
   isRetryableError, 
@@ -42,7 +42,10 @@ export const useErrorHandler = (
     suppressGlobalError = false,
   } = options;
 
-  const { lastError, clearError: clearGlobalError } = useErrorState();
+  const errors = useErrorState();
+  const addError = useAppStore((state) => state.addError);
+  const clearErrors = useAppStore((state) => state.clearErrors);
+  const lastError = errors.length > 0 ? errors[errors.length - 1] : null;
   const [localError, setLocalError] = React.useState<AppError | null>(null);
   const [isRetrying, setIsRetrying] = React.useState(false);
   const [retryCount, setRetryCount] = React.useState(0);
@@ -70,7 +73,7 @@ export const useErrorHandler = (
 
     // Send to global error handler unless suppressed
     if (!suppressGlobalError) {
-      handleGlobalError(normalizedError, context);
+      addError({ ...normalizedError, context });
     }
   }, [context, onError, suppressGlobalError]);
 
@@ -119,8 +122,8 @@ export const useErrorHandler = (
     setLocalError(null);
     setRetryCount(0);
     setIsRetrying(false);
-    clearGlobalError();
-  }, [clearGlobalError]);
+    clearErrors();
+  }, [clearErrors]);
 
   return {
     error: currentError,

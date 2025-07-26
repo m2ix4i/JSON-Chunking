@@ -2,13 +2,14 @@
 Health check endpoints for monitoring system status.
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
 import time
-import structlog
+from typing import Any, Dict
 
-from ...orchestration.query_processor import QueryProcessor
+import structlog
+from fastapi import APIRouter, HTTPException
+
 from ...config import Config
+from ...orchestration.query_processor import QueryProcessor
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -25,10 +26,10 @@ async def health_check() -> Dict[str, Any]:
     - Storage system availability
     """
     start_time = time.time()
-    
+
     try:
         config = Config()
-        
+
         # Basic health info
         health_status = {
             "status": "healthy",
@@ -36,7 +37,7 @@ async def health_check() -> Dict[str, Any]:
             "version": "0.1.0",
             "services": {}
         }
-        
+
         # Check query processor
         try:
             query_processor = QueryProcessor(config)
@@ -52,27 +53,27 @@ async def health_check() -> Dict[str, Any]:
                 "error": str(e)
             }
             health_status["status"] = "degraded"
-        
+
         # Check configuration
         health_status["services"]["configuration"] = {
             "status": "healthy" if config.gemini_api_key else "missing_api_key",
             "llm_model": config.target_llm_model,
             "max_concurrent": config.max_concurrent_requests
         }
-        
+
         # Check storage systems
         health_status["services"]["storage"] = {
             "status": "healthy",
             "cache_enabled": config.enable_caching,
             "redis_configured": bool(config.redis_url)
         }
-        
+
         # Calculate response time
         response_time = time.time() - start_time
         health_status["response_time_ms"] = round(response_time * 1000, 2)
-        
+
         return health_status
-        
+
     except Exception as e:
         logger.error("Health check failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")

@@ -1,13 +1,13 @@
 """Output formatting and template components."""
 
 from .formatter import OutputFormatter
-from .templates import TemplateEngine
-from .reports import ReportGenerator
 from .metadata import MetadataAttacher
+from .reports import ReportGenerator
+from .templates import TemplateEngine
 
 __all__ = [
     "OutputFormatter",
     "TemplateEngine",
     "ReportGenerator",
-    "MetadataAttacher", 
+    "MetadataAttacher",
 ]

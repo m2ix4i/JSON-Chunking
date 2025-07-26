@@ -5,14 +5,15 @@ This module provides comprehensive metadata attachment capabilities
 for enhanced query results and processing context.
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from ...query.types import QueryIntent
 from ...types.aggregation_types import (
-    EnhancedQueryResult, QualityMetrics, AggregationMetadata, 
-    ExtractedData, Conflict, ConflictResolution
+    Conflict,
+    EnhancedQueryResult,
 )
 
 logger = structlog.get_logger(__name__)
@@ -34,11 +35,11 @@ class MetadataAttacher:
     Provides detailed metadata about processing, quality, provenance,
     validation, and performance for transparency and auditability.
     """
-    
+
     def __init__(self):
         """Initialize metadata attacher."""
         logger.debug("MetadataAttacher initialized")
-    
+
     def attach_comprehensive_metadata(
         self,
         result: EnhancedQueryResult,
@@ -62,38 +63,38 @@ class MetadataAttacher:
                 MetadataType.VALIDATION,
                 MetadataType.PERFORMANCE
             ]
-        
+
         metadata = {
             "metadata_version": "1.0.0",
             "generated_at": datetime.now().isoformat(),
             "query_metadata": self._create_query_metadata(result)
         }
-        
+
         # Add requested metadata types
         if MetadataType.PROCESSING in include_types:
             metadata["processing_metadata"] = self._create_processing_metadata(result)
-        
+
         if MetadataType.QUALITY in include_types:
             metadata["quality_metadata"] = self._create_quality_metadata(result)
-        
+
         if MetadataType.PROVENANCE in include_types:
             metadata["provenance_metadata"] = self._create_provenance_metadata(result)
-        
+
         if MetadataType.VALIDATION in include_types:
             metadata["validation_metadata"] = self._create_validation_metadata(result)
-        
+
         if MetadataType.PERFORMANCE in include_types:
             metadata["performance_metadata"] = self._create_performance_metadata(result)
-        
+
         logger.debug(
             "Comprehensive metadata attached",
             query_id=result.query_id,
             metadata_types=include_types,
             sections=len(metadata)
         )
-        
+
         return metadata
-    
+
     def _create_query_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create query-specific metadata."""
         return {
@@ -107,7 +108,7 @@ class MetadataAttacher:
             "timestamp": datetime.now().isoformat(),
             "status": result.status.value if hasattr(result.status, 'value') else str(result.status)
         }
-    
+
     def _create_processing_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create processing metadata."""
         processing_meta = {
@@ -115,7 +116,7 @@ class MetadataAttacher:
                 "approach": "7-phase advanced aggregation pipeline",
                 "phases_executed": [
                     "Data Extraction",
-                    "Data Normalization", 
+                    "Data Normalization",
                     "Conflict Detection",
                     "Conflict Resolution",
                     "Statistical Aggregation",
@@ -137,7 +138,7 @@ class MetadataAttacher:
                 "prompt_strategy": result.prompt_strategy
             }
         }
-        
+
         # Add aggregation metadata if available
         if result.aggregation_metadata:
             am = result.aggregation_metadata
@@ -150,9 +151,9 @@ class MetadataAttacher:
                 "chunks_successful": am.chunks_successful,
                 "aggregation_time": am.processing_time
             }
-        
+
         return processing_meta
-    
+
     def _create_quality_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create quality assessment metadata."""
         if not result.quality_metrics:
@@ -164,7 +165,7 @@ class MetadataAttacher:
                     "relevance": result.relevance_score
                 }
             }
-        
+
         qm = result.quality_metrics
         quality_meta = {
             "overall_assessment": {
@@ -212,9 +213,9 @@ class MetadataAttacher:
                 }
             }
         }
-        
+
         return quality_meta
-    
+
     def _create_provenance_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create data provenance metadata."""
         provenance_meta = {
@@ -261,7 +262,7 @@ class MetadataAttacher:
                 }
             ]
         }
-        
+
         # Add extraction details if available
         if result.extracted_data:
             for i, data in enumerate(result.extracted_data[:10]):  # Limit to 10
@@ -275,9 +276,9 @@ class MetadataAttacher:
                     "properties_extracted": len(data.properties),
                     "processing_errors": data.processing_errors
                 })
-        
+
         return provenance_meta
-    
+
     def _create_validation_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create validation metadata."""
         validation_meta = {
@@ -298,7 +299,7 @@ class MetadataAttacher:
                 "consistency_validation": self._validate_consistency(result)
             }
         }
-        
+
         # Add conflict details
         for conflict in result.conflicts_detected[:5]:  # Limit to 5 examples
             conflict_detail = {
@@ -308,9 +309,9 @@ class MetadataAttacher:
                 "resolution_status": "resolved" if any(res.conflict == conflict for res in result.conflicts_resolved) else "unresolved"
             }
             validation_meta["conflict_analysis"]["conflict_details"].append(conflict_detail)
-        
+
         return validation_meta
-    
+
     def _create_performance_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create performance metadata."""
         performance_meta = {
@@ -330,7 +331,7 @@ class MetadataAttacher:
                 "computational_complexity": "O(n) for n chunks"
             }
         }
-        
+
         # Add aggregation-specific performance data
         if result.aggregation_metadata:
             performance_meta["aggregation_performance"] = {
@@ -338,9 +339,9 @@ class MetadataAttacher:
                 "aggregation_efficiency": result.aggregation_metadata.chunks_successful / result.aggregation_metadata.chunks_processed if result.aggregation_metadata.chunks_processed > 0 else 0.0,
                 "algorithms_used": result.aggregation_metadata.algorithms_used
             }
-        
+
         return performance_meta
-    
+
     def create_audit_trail(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create comprehensive audit trail."""
         audit_trail = {
@@ -355,9 +356,9 @@ class MetadataAttacher:
             "data_transformations": self._document_data_transformations(result),
             "verification_points": self._document_verification_points(result)
         }
-        
+
         return audit_trail
-    
+
     def create_compliance_metadata(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Create compliance and governance metadata."""
         compliance_meta = {
@@ -379,9 +380,9 @@ class MetadataAttacher:
                 "transparency_level": "Full processing transparency"
             }
         }
-        
+
         return compliance_meta
-    
+
     def _get_intent_description(self, intent: QueryIntent) -> str:
         """Get human-readable intent description."""
         descriptions = {
@@ -392,14 +393,14 @@ class MetadataAttacher:
             QueryIntent.COST: "Cost analysis, pricing, and financial data extraction"
         }
         return descriptions.get(intent, "General purpose analysis")
-    
+
     def _determine_analysis_type(self, result: EnhancedQueryResult) -> str:
         """Determine the type of analysis performed."""
         if result.aggregation_metadata:
             strategy = result.aggregation_metadata.strategy_used.value
             return f"Advanced {strategy} aggregation"
         return "Standard aggregation"
-    
+
     def _get_quality_rating(self, score: float) -> str:
         """Get quality rating from score."""
         if score >= 0.9:
@@ -412,30 +413,30 @@ class MetadataAttacher:
             return "Moderate"
         else:
             return "Poor"
-    
+
     def _validate_sources(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Validate data sources."""
         if not result.extracted_data:
             return {"status": "No source data to validate"}
-        
+
         high_confidence = len([d for d in result.extracted_data if d.extraction_confidence >= 0.7])
         total_sources = len(result.extracted_data)
-        
+
         return {
             "total_sources": total_sources,
             "high_confidence_sources": high_confidence,
             "source_reliability": high_confidence / total_sources if total_sources > 0 else 0.0,
             "validation_status": "PASSED" if (high_confidence / total_sources) >= 0.6 else "FAILED"
         }
-    
+
     def _validate_content(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Validate content quality."""
         if not result.extracted_data:
             return {"status": "No content to validate"}
-        
+
         total_entities = sum(len(d.entities) for d in result.extracted_data)
         total_quantities = sum(len(d.quantities) for d in result.extracted_data)
-        
+
         return {
             "content_richness": {
                 "total_entities": total_entities,
@@ -445,7 +446,7 @@ class MetadataAttacher:
             },
             "validation_status": "PASSED" if total_entities > 0 or total_quantities > 0 else "FAILED"
         }
-    
+
     def _validate_consistency(self, result: EnhancedQueryResult) -> Dict[str, Any]:
         """Validate cross-source consistency."""
         consistency_validation = {
@@ -454,9 +455,9 @@ class MetadataAttacher:
             "consistency_score": result.quality_metrics.consistency_score if result.quality_metrics else 0.0,
             "validation_status": "PASSED" if len(result.conflicts_detected) - len(result.conflicts_resolved) <= 2 else "FAILED"
         }
-        
+
         return consistency_validation
-    
+
     def _assess_conflict_severity(self, conflict: Conflict) -> str:
         """Assess severity of a conflict."""
         if conflict.conflict_type.value == 'critical_inconsistency':
@@ -465,7 +466,7 @@ class MetadataAttacher:
             return "MEDIUM"
         else:
             return "LOW"
-    
+
     def _document_processing_steps(self, result: EnhancedQueryResult) -> List[Dict[str, Any]]:
         """Document each processing step."""
         steps = [
@@ -513,9 +514,9 @@ class MetadataAttacher:
                 "output": "Enhanced query result with metadata"
             }
         ]
-        
+
         return steps
-    
+
     def _document_decision_points(self, result: EnhancedQueryResult) -> List[Dict[str, Any]]:
         """Document key decision points in processing."""
         decisions = [
@@ -525,16 +526,16 @@ class MetadataAttacher:
                 "chosen_strategy": result.aggregation_metadata.strategy_used.value if result.aggregation_metadata else "standard"
             }
         ]
-        
+
         if result.conflicts_detected:
             decisions.append({
                 "decision": "Conflict Resolution Approach",
                 "basis": f"{len(result.conflicts_detected)} conflicts detected",
                 "resolution_strategies": [res.strategy.value for res in result.conflicts_resolved]
             })
-        
+
         return decisions
-    
+
     def _document_quality_gates(self, result: EnhancedQueryResult) -> List[Dict[str, Any]]:
         """Document quality gate checkpoints."""
         gates = [
@@ -544,21 +545,21 @@ class MetadataAttacher:
                 "status": "PASSED" if result.successful_chunks / result.total_chunks >= 0.7 else "FAILED"
             },
             {
-                "gate": "Content Validation", 
+                "gate": "Content Validation",
                 "criteria": "Extracted entities or quantities present",
                 "status": "PASSED" if result.extracted_data and any(d.entities or d.quantities for d in result.extracted_data) else "FAILED"
             }
         ]
-        
+
         if result.quality_metrics:
             gates.append({
                 "gate": "Overall Quality",
                 "criteria": "Quality score ≥60% and validation passed",
                 "status": "PASSED" if result.quality_metrics.overall_quality >= 0.6 and result.quality_metrics.validation_passed else "FAILED"
             })
-        
+
         return gates
-    
+
     def _document_data_transformations(self, result: EnhancedQueryResult) -> List[Dict[str, Any]]:
         """Document data transformations applied."""
         transformations = [
@@ -574,16 +575,16 @@ class MetadataAttacher:
                 "algorithms": ["Unit conversion", "Format standardization", "Entity resolution"]
             }
         ]
-        
+
         if result.aggregation_metadata:
             transformations.append({
                 "transformation": "Statistical Aggregation",
                 "description": f"Apply {result.aggregation_metadata.strategy_used.value} aggregation strategy",
                 "algorithms": result.aggregation_metadata.algorithms_used
             })
-        
+
         return transformations
-    
+
     def _document_verification_points(self, result: EnhancedQueryResult) -> List[Dict[str, Any]]:
         """Document verification checkpoints."""
         verifications = [
@@ -598,12 +599,12 @@ class MetadataAttacher:
                 "result": f"{len(result.conflicts_resolved)}/{len(result.conflicts_detected)} conflicts resolved"
             }
         ]
-        
+
         if result.quality_metrics:
             verifications.append({
                 "verification": "Quality Assurance Verification",
                 "method": "Multi-factor quality scoring",
                 "result": f"Overall quality: {result.quality_metrics.overall_quality:.2f}, Validation: {'PASSED' if result.quality_metrics.validation_passed else 'FAILED'}"
             })
-        
+
         return verifications

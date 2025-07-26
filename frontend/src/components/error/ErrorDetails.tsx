@@ -1,6 +1,6 @@
 /**
  * Error details component for displaying detailed connection information.
- * Focused component extracted from ConnectionErrorHandler.
+ * Focused component following Single Responsibility Principle.
  */
 
 import React from 'react';
@@ -8,163 +8,149 @@ import {
   Box,
   Typography,
   Stack,
-  Button,
-  Card,
-  CardContent,
   Collapse,
+  IconButton,
 } from '@mui/material';
 import {
-  Refresh as RetryIcon,
-  CloudOff as OfflineIcon,
-  Error as ErrorIcon,
-  Warning as WarningIcon,
-  CheckCircle as SuccessIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 
-// Services
-import type { ConnectionStatus } from '@/services/connectionManager';
-
-// Types
-import type { ErrorNotification } from '@/hooks/useConnectionStatus';
-
 interface ErrorDetailsProps {
+  queryId: string;
+  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
+  errorMessage?: string;
+  retryCount?: number;
+  lastRetryTime?: Date;
   expanded: boolean;
-  connectionStatus: ConnectionStatus;
-  notifications: ErrorNotification[];
-  isRetrying: boolean;
-  onRetry: () => void;
-  onForceFallback: () => void;
+  onToggleExpanded: () => void;
+  showToggle?: boolean;
 }
 
 const ErrorDetails: React.FC<ErrorDetailsProps> = ({
-  expanded,
+  queryId,
   connectionStatus,
-  notifications,
-  isRetrying,
-  onRetry,
-  onForceFallback,
+  errorMessage,
+  retryCount = 0,
+  lastRetryTime,
+  expanded,
+  onToggleExpanded,
+  showToggle = true,
 }) => {
-  return (
-    <Collapse in={expanded}>
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Verbindungsdetails
+  const renderToggleButton = () => {
+    if (!showToggle) return null;
+
+    return (
+      <IconButton
+        size="small"
+        onClick={onToggleExpanded}
+        aria-label={expanded ? 'Details ausblenden' : 'Details anzeigen'}
+      >
+        {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      </IconButton>
+    );
+  };
+
+  const renderDetailsContent = () => (
+    <Box mt={2}>
+      <Typography variant="subtitle2" gutterBottom>
+        Verbindungsdetails:
+      </Typography>
+      
+      <Stack spacing={1}>
+        <Box display="flex" justifyContent="space-between">
+          <Typography variant="body2" color="text.secondary">
+            Abfrage-ID:
           </Typography>
-          
-          <Stack spacing={2}>
-            {/* Connection metrics */}
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Leistungsmetriken
-              </Typography>
-              <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Nachrichten empfangen
-                  </Typography>
-                  <Typography variant="body2">
-                    {connectionStatus.metrics.messageCount}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Fehlerrate
-                  </Typography>
-                  <Typography variant="body2">
-                    {connectionStatus.metrics.messageCount > 0 
-                      ? Math.round((connectionStatus.metrics.errorCount / connectionStatus.metrics.messageCount) * 100)
-                      : 0}%
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Uptime
-                  </Typography>
-                  <Typography variant="body2">
-                    {Math.round(connectionStatus.metrics.uptime / 1000)}s
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Wiederverbindungsversuche
-                  </Typography>
-                  <Typography variant="body2">
-                    {connectionStatus.retryCount}
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
+          <Typography variant="body2" fontFamily="monospace">
+            {queryId}
+          </Typography>
+        </Box>
+        
+        <Box display="flex" justifyContent="space-between">
+          <Typography variant="body2" color="text.secondary">
+            Status:
+          </Typography>
+          <Typography variant="body2">
+            {connectionStatus}
+          </Typography>
+        </Box>
 
-            {/* Manual controls */}
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Manuelle Kontrollen
-              </Typography>
-              <Stack direction="row" spacing={1}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={onRetry}
-                  disabled={isRetrying}
-                  startIcon={<RetryIcon />}
-                >
-                  WebSocket neu verbinden
-                </Button>
-                
-                {connectionStatus.mode === 'websocket' && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={onForceFallback}
-                    startIcon={<OfflineIcon />}
-                  >
-                    Polling erzwingen
-                  </Button>
-                )}
-              </Stack>
-            </Box>
+        {retryCount > 0 && (
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              Wiederholungsversuche:
+            </Typography>
+            <Typography variant="body2">
+              {retryCount}
+            </Typography>
+          </Box>
+        )}
 
-            {/* Recent notifications */}
-            {notifications.length > 0 && (
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Letzte Ereignisse
-                </Typography>
-                <Stack spacing={1}>
-                  {notifications.slice(-3).map((notification) => (
-                    <Box
-                      key={notification.id}
-                      display="flex"
-                      alignItems="center"
-                      gap={1}
-                      sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1 }}
-                    >
-                      {notification.type === 'error' && <ErrorIcon fontSize="small" color="error" />}
-                      {notification.type === 'warning' && <WarningIcon fontSize="small" color="warning" />}
-                      {notification.type === 'success' && <SuccessIcon fontSize="small" color="success" />}
-                      
-                      <Box flexGrow={1}>
-                        <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                          {notification.title}
-                        </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          {notification.message}
-                        </Typography>
-                      </Box>
-                      
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(notification.timestamp).toLocaleTimeString('de-DE')}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            )}
-          </Stack>
-        </CardContent>
-      </Card>
-    </Collapse>
+        {lastRetryTime && (
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              Letzter Versuch:
+            </Typography>
+            <Typography variant="body2">
+              {lastRetryTime.toLocaleTimeString()}
+            </Typography>
+          </Box>
+        )}
+
+        {errorMessage && (
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Fehlermeldung:
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontFamily: 'monospace', 
+                bgcolor: 'grey.100', 
+                p: 1, 
+                borderRadius: 1,
+                fontSize: '0.75rem'
+              }}
+            >
+              {errorMessage}
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+
+      <Box mt={2}>
+        <Typography variant="body2" color="text.secondary">
+          <strong>Tipps zur Fehlerbehebung:</strong>
+        </Typography>
+        <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <li>
+            <Typography variant="body2" color="text.secondary">
+              Überprüfen Sie Ihre Internetverbindung
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body2" color="text.secondary">
+              Aktualisieren Sie die Seite (F5)
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body2" color="text.secondary">
+              Kontaktieren Sie den Support bei anhaltenden Problemen
+            </Typography>
+          </li>
+        </ul>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <>
+      {renderToggleButton()}
+      <Collapse in={expanded}>
+        {renderDetailsContent()}
+      </Collapse>
+    </>
   );
 };
 

@@ -1,41 +1,57 @@
 /**
  * Status chip component for displaying connection status.
- * Focused component extracted from ConnectionErrorHandler.
+ * Focused component following Single Responsibility Principle.
  */
 
 import React from 'react';
-import { Box, Chip } from '@mui/material';
-import {
-  CloudOff as OfflineIcon,
-  CloudDone as OnlineIcon,
-  Speed as SpeedIcon,
-} from '@mui/icons-material';
-
-// Services
-import type { ConnectionStatus } from '@/services/connectionManager';
+import { Chip } from '@mui/material';
 
 interface StatusChipProps {
-  connectionStatus: ConnectionStatus;
+  status: 'connecting' | 'connected' | 'disconnected' | 'error';
+  size?: 'small' | 'medium';
+  variant?: 'filled' | 'outlined';
 }
 
-const StatusChip: React.FC<StatusChipProps> = ({ connectionStatus }) => {
+const StatusChip: React.FC<StatusChipProps> = ({
+  status,
+  size = 'small',
+  variant = 'outlined',
+}) => {
+  const getStatusColor = (): 'success' | 'warning' | 'error' | 'default' => {
+    switch (status) {
+      case 'connected':
+        return 'success';
+      case 'connecting':
+        return 'warning';
+      case 'error':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusLabel = (): string => {
+    switch (status) {
+      case 'connected':
+        return 'Verbunden';
+      case 'connecting':
+        return 'Verbindet...';
+      case 'disconnected':
+        return 'Getrennt';
+      case 'error':
+        return 'Fehler';
+      default:
+        return status;
+    }
+  };
+
   return (
-    <Box display="flex" alignItems="center" gap={1} mt={1}>
-      <Chip
-        icon={connectionStatus.mode === 'websocket' ? <OnlineIcon /> : <OfflineIcon />}
-        label={connectionStatus.mode === 'websocket' ? 'Live-Updates' : 'Polling-Modus'}
-        color={connectionStatus.mode === 'websocket' ? 'success' : 'warning'}
-        size="small"
-        variant="outlined"
-      />
-      
-      <Chip
-        icon={<SpeedIcon />}
-        label={`${connectionStatus.metrics.averageLatency}ms`}
-        size="small"
-        variant="outlined"
-      />
-    </Box>
+    <Chip
+      label={getStatusLabel()}
+      color={getStatusColor()}
+      size={size}
+      variant={variant}
+    />
   );
 };
 

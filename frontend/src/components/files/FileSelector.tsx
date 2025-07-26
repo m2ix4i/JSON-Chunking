@@ -94,7 +94,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const getFileStatus = (file: UploadedFile) => {
     if (file.status === 'uploaded') {
       return { icon: <SuccessIcon color="success" />, label: 'Bereit', color: 'success' as const };
-    } else if (file.status === 'failed') {
+    } else if (file.status === 'error') {
       return { icon: <ErrorIcon color="error" />, label: 'Fehler', color: 'error' as const };
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
@@ -175,7 +175,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const handleBulkDeleteCancel = () => {
     setBulkDeleteOpen(false);
   };
-
   // Show empty state if no files
   if (files.length === 0) {
     return (
@@ -219,6 +218,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
+        
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>

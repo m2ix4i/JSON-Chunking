@@ -2,7 +2,7 @@
 Custom exceptions for IFC JSON Chunking system.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class IFCChunkingError(Exception):
@@ -11,7 +11,7 @@ class IFCChunkingError(Exception):
     
     All custom exceptions in the system should inherit from this class.
     """
-    
+
     def __init__(self, message: str, error_code: Optional[str] = None, context: Optional[Dict[str, Any]] = None):
         """
         Initialize the exception.
@@ -25,7 +25,7 @@ class IFCChunkingError(Exception):
         self.message = message
         self.error_code = error_code
         self.context = context or {}
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert exception to dictionary for logging/serialization.
@@ -43,7 +43,7 @@ class IFCChunkingError(Exception):
 
 class ConfigurationError(IFCChunkingError):
     """Exception raised for configuration-related errors."""
-    
+
     def __init__(self, message: str, config_key: Optional[str] = None, **kwargs):
         """
         Initialize configuration error.
@@ -61,7 +61,7 @@ class ConfigurationError(IFCChunkingError):
 
 class ProcessingError(IFCChunkingError):
     """Exception raised during file processing operations."""
-    
+
     def __init__(self, message: str, file_path: Optional[str] = None, **kwargs):
         """
         Initialize processing error.
@@ -79,7 +79,7 @@ class ProcessingError(IFCChunkingError):
 
 class ChunkingError(IFCChunkingError):
     """Exception raised during data chunking operations."""
-    
+
     def __init__(self, message: str, chunk_id: Optional[str] = None, **kwargs):
         """
         Initialize chunking error.
@@ -97,7 +97,7 @@ class ChunkingError(IFCChunkingError):
 
 class ValidationError(IFCChunkingError):
     """Exception raised for data validation errors."""
-    
+
     def __init__(self, message: str, field_name: Optional[str] = None, **kwargs):
         """
         Initialize validation error.
@@ -115,7 +115,7 @@ class ValidationError(IFCChunkingError):
 
 class StorageError(IFCChunkingError):
     """Exception raised for storage-related operations."""
-    
+
     def __init__(self, message: str, storage_path: Optional[str] = None, **kwargs):
         """
         Initialize storage error.
@@ -133,7 +133,7 @@ class StorageError(IFCChunkingError):
 
 class TimeoutError(IFCChunkingError):
     """Exception raised when operations exceed timeout limits."""
-    
+
     def __init__(self, message: str, timeout_seconds: Optional[int] = None, **kwargs):
         """
         Initialize timeout error.

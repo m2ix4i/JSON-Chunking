@@ -1,32 +1,45 @@
 /**
- * Test setup for Vitest
+ * Test setup file for Vitest
+ * Configures testing environment and mocks
  */
 
-import { beforeEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-// Cleanup after each test
-beforeEach(cleanup);
-
-// Mock global objects that may be needed
+// Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: (query: string) => ({
+  value: vi.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => {},
-  }),
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
 });
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock console methods to reduce noise in test output
+global.console = {
+  ...console,
+  // Uncomment to silence console output during tests
+  // log: vi.fn(),
+  // warn: vi.fn(),
+  // error: vi.fn(),
 };

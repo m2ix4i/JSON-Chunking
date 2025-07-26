@@ -6,15 +6,14 @@ identifying quantitative mismatches, qualitative contradictions, and
 inconsistencies that need resolution during aggregation.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Set
 import statistics
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from ...types.aggregation_types import (
-    ExtractedData, Conflict, ConflictType, Evidence
-)
 from ...query.types import QueryContext, QueryIntent
+from ...types.aggregation_types import Conflict, ConflictType, Evidence, ExtractedData
 
 logger = structlog.get_logger(__name__)
 
@@ -27,7 +26,7 @@ class ConflictDetector:
     quantitative mismatches, qualitative contradictions,
     and consistency issues across chunks.
     """
-    
+
     def __init__(self, tolerance_thresholds: Optional[Dict[str, float]] = None):
         """
         Initialize conflict detector.
@@ -42,12 +41,12 @@ class ConflictDetector:
             'majority_threshold': 0.6,            # Threshold for majority rule
             'statistical_outlier_threshold': 2.0  # Standard deviations for outlier detection
         }
-        
+
         logger.info(
             "ConflictDetector initialized",
             tolerance_thresholds=self.tolerance_thresholds
         )
-    
+
     async def detect_conflicts(
         self,
         extracted_data_list: List[ExtractedData],
@@ -68,63 +67,63 @@ class ConflictDetector:
             data_count=len(extracted_data_list),
             query_intent=context.intent.value
         )
-        
+
         if len(extracted_data_list) < 2:
             logger.debug("Insufficient data for conflict detection")
             return []
-        
+
         conflicts = []
-        
+
         try:
             # Filter out low-confidence data
             high_confidence_data = [
                 data for data in extracted_data_list
                 if data.extraction_confidence >= self.tolerance_thresholds['confidence_threshold']
             ]
-            
+
             if len(high_confidence_data) < 2:
                 logger.debug("Insufficient high-confidence data for conflict detection")
                 return []
-            
+
             # Detect different types of conflicts based on query intent
             if context.intent in [QueryIntent.QUANTITY, QueryIntent.COST]:
                 conflicts.extend(await self._detect_quantitative_conflicts(high_confidence_data))
-            
+
             if context.intent in [QueryIntent.COMPONENT, QueryIntent.MATERIAL]:
                 conflicts.extend(await self._detect_qualitative_conflicts(high_confidence_data))
                 conflicts.extend(await self._detect_entity_conflicts(high_confidence_data))
-            
+
             if context.intent == QueryIntent.SPATIAL:
                 conflicts.extend(await self._detect_spatial_conflicts(high_confidence_data))
                 conflicts.extend(await self._detect_relationship_conflicts(high_confidence_data))
-            
+
             # Always check for property conflicts and missing information
             conflicts.extend(await self._detect_property_conflicts(high_confidence_data))
             conflicts.extend(await self._detect_missing_information_conflicts(high_confidence_data))
             conflicts.extend(await self._detect_unit_inconsistencies(high_confidence_data))
-            
+
             # Filter and rank conflicts by severity
             conflicts = await self._filter_and_rank_conflicts(conflicts)
-            
+
             logger.info(
                 "Conflict detection completed",
                 conflicts_detected=len(conflicts),
                 conflict_types=[c.conflict_type.value for c in conflicts]
             )
-            
+
             return conflicts
-            
+
         except Exception as e:
             logger.error(
                 "Conflict detection failed",
                 error=str(e)
             )
             return []
-    
+
     async def _detect_quantitative_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect conflicts in quantitative data."""
         conflicts = []
-        
+
         # Group quantities by type
         quantity_groups = defaultdict(list)
         for data in data_list:
@@ -135,7 +134,7 @@ class ConflictDetector:
                         numeric_value = qty_value['value']
                     else:
                         numeric_value = qty_value
-                    
+
                     if isinstance(numeric_value, (int, float)):
                         quantity_groups[qty_type].append({
                             'value': numeric_value,
@@ -143,34 +142,34 @@ class ConflictDetector:
                             'data': data,
                             'original': qty_value
                         })
-        
+
         # Check for conflicts in each quantity type
         for qty_type, values in quantity_groups.items():
             if len(values) < 2:
                 continue
-            
+
             conflict = await self._analyze_quantitative_values(qty_type, values)
             if conflict:
                 conflicts.append(conflict)
-        
+
         return conflicts
-    
+
     async def _analyze_quantitative_values(
         self,
         qty_type: str,
         values: List[Dict[str, Any]]
     ) -> Optional[Conflict]:
         """Analyze quantitative values for conflicts."""
-        
+
         numeric_values = [v['value'] for v in values]
-        
+
         # Statistical analysis
         mean_val = statistics.mean(numeric_values)
         if len(numeric_values) > 2:
             stdev = statistics.stdev(numeric_values)
         else:
             stdev = 0
-        
+
         # Detect outliers using statistical threshold
         outliers = []
         for i, val in enumerate(numeric_values):
@@ -178,12 +177,12 @@ class ConflictDetector:
                 z_score = abs(val - mean_val) / stdev
                 if z_score > self.tolerance_thresholds['statistical_outlier_threshold']:
                     outliers.append(i)
-        
+
         # Detect significant variations using relative tolerance
         max_val = max(numeric_values)
         min_val = min(numeric_values)
         relative_diff = (max_val - min_val) / max_val if max_val > 0 else 0
-        
+
         # Check if variation exceeds tolerance
         has_conflict = False
         if relative_diff > self.tolerance_thresholds['quantity_relative_tolerance']:
@@ -191,7 +190,7 @@ class ConflictDetector:
             absolute_diff = max_val - min_val
             if absolute_diff > self.tolerance_thresholds['quantity_absolute_tolerance']:
                 has_conflict = True
-        
+
         if has_conflict or outliers:
             # Create evidence for each value
             evidence = []
@@ -203,10 +202,10 @@ class ConflictDetector:
                     quality_score=0.8 if value_info['data'].data_quality == 'high' else 0.5,
                     supporting_data={'original_value': value_info['original']}
                 ))
-            
+
             # Calculate severity based on variation
             severity = min(relative_diff * 2, 1.0)  # Scale to 0-1
-            
+
             return Conflict(
                 conflict_type=ConflictType.QUANTITATIVE_MISMATCH,
                 description=f"Quantitative mismatch in {qty_type}: values range from {min_val:.2f} to {max_val:.2f} ({relative_diff:.1%} variation)",
@@ -224,13 +223,13 @@ class ConflictDetector:
                     }
                 }
             )
-        
+
         return None
-    
+
     async def _detect_qualitative_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect conflicts in qualitative/descriptive data."""
         conflicts = []
-        
+
         # Group properties by key
         property_groups = defaultdict(list)
         for data in data_list:
@@ -242,12 +241,12 @@ class ConflictDetector:
                         'chunk_id': data.chunk_id,
                         'data': data
                     })
-        
+
         # Check for conflicts in each property
         for prop_key, prop_values in property_groups.items():
             if len(prop_values) < 2:
                 continue
-            
+
             # Check for contradictory values
             unique_values = set(v['value'] for v in prop_values)
             if len(unique_values) > 1:
@@ -255,24 +254,24 @@ class ConflictDetector:
                 conflict = await self._analyze_qualitative_values(prop_key, prop_values)
                 if conflict:
                     conflicts.append(conflict)
-        
+
         return conflicts
-    
+
     async def _analyze_qualitative_values(
         self,
         prop_key: str,
         prop_values: List[Dict[str, Any]]
     ) -> Optional[Conflict]:
         """Analyze qualitative values for conflicts."""
-        
+
         # Count occurrences of each value
         value_counts = Counter(v['value'] for v in prop_values)
-        
+
         # If there's a clear majority, might not be a conflict
         total_count = len(prop_values)
         majority_count = value_counts.most_common(1)[0][1]
         majority_ratio = majority_count / total_count
-        
+
         # Only consider it a conflict if no clear majority exists
         if majority_ratio < self.tolerance_thresholds['majority_threshold']:
             evidence = []
@@ -284,10 +283,10 @@ class ConflictDetector:
                     quality_score=0.7,
                     supporting_data={'normalized_value': prop_info['value']}
                 ))
-            
+
             # Calculate severity based on how evenly values are distributed
             severity = 1.0 - majority_ratio  # Higher severity for more even distribution
-            
+
             return Conflict(
                 conflict_type=ConflictType.QUALITATIVE_CONTRADICTION,
                 description=f"Qualitative contradiction in {prop_key}: {len(value_counts)} different values found",
@@ -301,13 +300,13 @@ class ConflictDetector:
                     'majority_ratio': majority_ratio
                 }
             )
-        
+
         return None
-    
+
     async def _detect_entity_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect conflicts in entity identification."""
         conflicts = []
-        
+
         # Group entities by ID if available
         entity_groups = defaultdict(list)
         for data in data_list:
@@ -319,12 +318,12 @@ class ConflictDetector:
                         'chunk_id': data.chunk_id,
                         'data': data
                     })
-        
+
         # Check for conflicts in entity types or properties for the same ID
         for entity_id, entities in entity_groups.items():
             if len(entities) < 2:
                 continue
-            
+
             # Check for type conflicts
             entity_types = set(e['entity'].get('type') for e in entities if e['entity'].get('type'))
             if len(entity_types) > 1:
@@ -336,7 +335,7 @@ class ConflictDetector:
                         confidence=entity_info['data'].extraction_confidence,
                         quality_score=0.8
                     ))
-                
+
                 conflicts.append(Conflict(
                     conflict_type=ConflictType.ENTITY_MISMATCH,
                     description=f"Entity {entity_id} has conflicting types: {', '.join(entity_types)}",
@@ -346,22 +345,22 @@ class ConflictDetector:
                     evidence=evidence,
                     context={'entity_id': entity_id, 'conflicting_types': list(entity_types)}
                 ))
-        
+
         return conflicts
-    
+
     async def _detect_property_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect property-level conflicts."""
         conflicts = []
-        
+
         # This is similar to qualitative conflicts but focuses on specific property contradictions
         # Could be expanded with domain-specific property validation rules
-        
+
         return conflicts
-    
+
     async def _detect_spatial_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect spatial relationship conflicts."""
         conflicts = []
-        
+
         # Check for spatial context inconsistencies
         spatial_contexts = []
         for data in data_list:
@@ -371,10 +370,10 @@ class ConflictDetector:
                     'chunk_id': data.chunk_id,
                     'data': data
                 })
-        
+
         if len(spatial_contexts) < 2:
             return conflicts
-        
+
         # Check for floor/level conflicts
         floors = [ctx['context'].get('floor') for ctx in spatial_contexts if ctx['context'].get('floor') is not None]
         if len(set(floors)) > 1 and len(floors) > 1:
@@ -388,7 +387,7 @@ class ConflictDetector:
                         confidence=ctx_info['data'].extraction_confidence,
                         quality_score=0.7
                     ))
-            
+
             conflicts.append(Conflict(
                 conflict_type=ConflictType.ENTITY_MISMATCH,
                 description=f"Spatial floor conflict: multiple floors mentioned ({', '.join(map(str, set(floors)))})",
@@ -398,13 +397,13 @@ class ConflictDetector:
                 evidence=evidence,
                 context={'spatial_type': 'floor', 'conflicting_floors': list(set(floors))}
             ))
-        
+
         return conflicts
-    
+
     async def _detect_relationship_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect relationship conflicts."""
         conflicts = []
-        
+
         # Collect all relationships
         all_relationships = []
         for data in data_list:
@@ -414,7 +413,7 @@ class ConflictDetector:
                     'chunk_id': data.chunk_id,
                     'data': data
                 })
-        
+
         # Check for contradictory relationships (same source/target with different types)
         relationship_map = defaultdict(list)
         for rel_info in all_relationships:
@@ -424,12 +423,12 @@ class ConflictDetector:
             if source and target:
                 key = (source, target)
                 relationship_map[key].append(rel_info)
-        
+
         # Look for conflicts in relationship types
         for (source, target), relationships in relationship_map.items():
             if len(relationships) < 2:
                 continue
-            
+
             rel_types = set(r['relationship'].get('type') for r in relationships if r['relationship'].get('type'))
             if len(rel_types) > 1:
                 evidence = []
@@ -440,7 +439,7 @@ class ConflictDetector:
                         confidence=rel_info['data'].extraction_confidence,
                         quality_score=0.6
                     ))
-                
+
                 conflicts.append(Conflict(
                     conflict_type=ConflictType.RELATIONSHIP_CONFLICT,
                     description=f"Relationship conflict between {source} and {target}: {', '.join(rel_types)}",
@@ -454,13 +453,13 @@ class ConflictDetector:
                         'conflicting_types': list(rel_types)
                     }
                 ))
-        
+
         return conflicts
-    
+
     async def _detect_missing_information_conflicts(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect missing information that should be consistent across chunks."""
         conflicts = []
-        
+
         # Find entities that appear in multiple chunks
         entity_appearances = defaultdict(list)
         for data in data_list:
@@ -472,12 +471,12 @@ class ConflictDetector:
                         'chunk_id': data.chunk_id,
                         'data': data
                     })
-        
+
         # Check for missing properties in some chunks
         for entity_id, appearances in entity_appearances.items():
             if len(appearances) < 2:
                 continue
-            
+
             # Collect all properties mentioned for this entity
             all_properties = set()
             entity_properties = {}
@@ -487,12 +486,12 @@ class ConflictDetector:
                 entity_props = entity.get('properties', {})
                 all_properties.update(entity_props.keys())
                 entity_properties[chunk_id] = entity_props
-            
+
             # Check for properties missing in some chunks
             for prop_name in all_properties:
                 chunks_with_prop = [cid for cid, props in entity_properties.items() if prop_name in props]
                 chunks_without_prop = [cid for cid, props in entity_properties.items() if prop_name not in props]
-                
+
                 if chunks_without_prop and len(chunks_with_prop) >= 2:
                     # This might indicate missing information
                     evidence = []
@@ -503,7 +502,7 @@ class ConflictDetector:
                             confidence=0.6,
                             quality_score=0.5
                         ))
-                    
+
                     conflicts.append(Conflict(
                         conflict_type=ConflictType.MISSING_INFORMATION,
                         description=f"Property {prop_name} for entity {entity_id} missing in some chunks",
@@ -518,13 +517,13 @@ class ConflictDetector:
                             'chunks_without_property': chunks_without_prop
                         }
                     ))
-        
+
         return conflicts
-    
+
     async def _detect_unit_inconsistencies(self, data_list: List[ExtractedData]) -> List[Conflict]:
         """Detect unit inconsistencies in measurements."""
         conflicts = []
-        
+
         # Check for quantities with different units
         quantity_units = defaultdict(list)
         for data in data_list:
@@ -537,12 +536,12 @@ class ConflictDetector:
                             'chunk_id': data.chunk_id,
                             'value': qty_value['original_value']
                         })
-        
+
         # Look for inconsistent original units
         for qty_type, unit_info in quantity_units.items():
             if len(unit_info) < 2:
                 continue
-            
+
             original_units = set(info['original_unit'] for info in unit_info)
             if len(original_units) > 1:
                 evidence = []
@@ -553,7 +552,7 @@ class ConflictDetector:
                         confidence=0.7,
                         quality_score=0.6
                     ))
-                
+
                 conflicts.append(Conflict(
                     conflict_type=ConflictType.INCONSISTENT_UNITS,
                     description=f"Inconsistent units for {qty_type}: {', '.join(original_units)}",
@@ -566,16 +565,16 @@ class ConflictDetector:
                         'inconsistent_units': list(original_units)
                     }
                 ))
-        
+
         return conflicts
-    
+
     async def _filter_and_rank_conflicts(self, conflicts: List[Conflict]) -> List[Conflict]:
         """Filter and rank conflicts by severity and importance."""
-        
+
         # Filter out low-severity conflicts
         filtered_conflicts = [c for c in conflicts if c.severity >= 0.3]
-        
+
         # Sort by severity (highest first)
         filtered_conflicts.sort(key=lambda c: c.severity, reverse=True)
-        
+
         return filtered_conflicts

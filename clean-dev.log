@@ -1,0 +1,92 @@
+
+> ifc-json-chunking-frontend@0.1.0 dev
+> vite
+
+Port 3000 is in use, trying another one...
+Port 3001 is in use, trying another one...
+
+  VITE v4.5.14  ready in 414 ms
+
+  ➜  Local:   http://localhost:3002/
+  ➜  Network: use --host to expose
+Error: The following dependencies are imported but could not be resolved:
+
+  date-fns (imported by /Users/max/Downloads/JSON-Chunking/frontend/src/components/history/QueryHistoryItem.tsx)
+  date-fns/locale (imported by /Users/max/Downloads/JSON-Chunking/frontend/src/components/history/QueryHistoryItem.tsx)
+
+Are they installed?
+    at file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:45783:23
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:45191:38
+Failed to load url /src/utils/time (resolved id: /Users/max/Downloads/JSON-Chunking/frontend/src/utils/time). Does the file exist?
+Failed to load url /src/utils/time (resolved id: /Users/max/Downloads/JSON-Chunking/frontend/src/utils/time) in /Users/max/Downloads/JSON-Chunking/frontend/src/pages/ResultsPage.tsx. Does the file exist?
+Failed to resolve import "date-fns" from "src/components/history/QueryHistoryItem.tsx". Does the file exist?
+5:54:49 PM [vite] Internal server error: Failed to resolve import "date-fns" from "src/components/history/QueryHistoryItem.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/max/Downloads/JSON-Chunking/frontend/src/components/history/QueryHistoryItem.tsx:29:36
+  37 |    Cancel as CancelledIcon
+  38 |  } from "@mui/icons-material";
+  39 |  import { formatDistanceToNow } from "date-fns";
+     |                                       ^
+  40 |  import { de } from "date-fns/locale";
+  41 |  const QueryHistoryItem = ({
+      at formatError (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:44066:46)
+      at TransformContext.error (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:44062:19)
+      at normalizeUrl (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:41845:33)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:41999:47
+      at async Promise.all (index 5)
+      at async TransformContext.transform (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:41915:13)
+      at async Object.transform (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:44356:30)
+      at async loadAndTransform (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:55088:29)
+      at async viteTransformMiddleware (file:///Users/max/Downloads/JSON-Chunking/frontend/node_modules/vite/dist/node/chunks/dep-827b23df.js:64699:32)
+5:55:05 PM [vite] hmr update /src/pages/QueryPage.tsx, /src/pages/Dashboard.tsx, /src/pages/ResultsPage.tsx, /src/components/history/QueryHistoryList.tsx, /src/components/query/QuerySuggestions.tsx, /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx, /src/components/query/QueryForm.tsx
+5:55:33 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:55:33 PM [vite] hmr update /src/pages/QueryPage.tsx
+5:55:33 PM [vite] hmr update /src/pages/ResultsPage.tsx
+5:55:33 PM [vite] hmr update /src/pages/QueryPage.tsx, /src/pages/Dashboard.tsx, /src/pages/ResultsPage.tsx, /src/components/history/QueryHistoryList.tsx, /src/components/query/QuerySuggestions.tsx, /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx, /src/components/query/QueryForm.tsx
+5:55:40 PM [vite] hmr update /src/components/history/QueryHistoryList.tsx
+5:55:40 PM [vite] hmr update /src/components/settings/AdvancedSettings.tsx
+5:55:40 PM [vite] hmr update /src/components/settings/LanguageSelector.tsx
+5:55:40 PM [vite] hmr update /src/components/settings/NotificationSettings.tsx
+5:55:40 PM [vite] hmr update /src/components/settings/QueryDefaults.tsx
+5:55:40 PM [vite] hmr update /src/components/settings/ThemeSelector.tsx
+5:55:40 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/AdvancedSettings.tsx
+5:55:40 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx
+5:55:41 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:55:41 PM [vite] hmr update /src/components/query/QueryForm.tsx
+5:55:41 PM [vite] hmr update /src/pages/HistoryPage.tsx
+5:55:41 PM [vite] hmr update /src/pages/QueryPage.tsx
+5:55:41 PM [vite] hmr update /src/pages/ResultsPage.tsx
+5:55:41 PM [vite] hmr update /src/pages/SettingsPage.tsx
+5:55:41 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx
+5:55:41 PM [vite] hmr update /src/pages/QueryPage.tsx, /src/pages/Dashboard.tsx, /src/pages/ResultsPage.tsx, /src/components/history/QueryHistoryList.tsx, /src/components/query/QuerySuggestions.tsx, /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx, /src/components/query/QueryForm.tsx
+5:56:10 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:56:16 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:56:24 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:56:26 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:56:31 PM [vite] hmr update /src/components/history/QueryHistoryList.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/LanguageSelector.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/NotificationSettings.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/QueryDefaults.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/ThemeSelector.tsx
+5:56:31 PM [vite] hmr update /src/components/files/FileSelector.tsx
+5:56:31 PM [vite] hmr update /src/components/history/QueryHistoryList.tsx
+5:56:31 PM [vite] hmr update /src/components/query/QueryForm.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/LanguageSelector.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/NotificationSettings.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/QueryDefaults.tsx
+5:56:31 PM [vite] hmr update /src/components/settings/ThemeSelector.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/pages/HistoryPage.tsx
+5:56:31 PM [vite] hmr update /src/pages/QueryPage.tsx
+5:56:31 PM [vite] hmr update /src/pages/ResultsPage.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx
+5:56:31 PM [vite] hmr update /src/pages/QueryPage.tsx, /src/pages/Dashboard.tsx, /src/pages/ResultsPage.tsx, /src/components/history/QueryHistoryList.tsx, /src/components/query/QuerySuggestions.tsx, /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx, /src/components/query/QueryForm.tsx
+5:56:31 PM [vite] hmr update /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx
+5:56:55 PM [vite] hmr update /src/pages/QueryPage.tsx, /src/pages/Dashboard.tsx, /src/pages/ResultsPage.tsx, /src/components/history/QueryHistoryList.tsx, /src/components/query/QuerySuggestions.tsx, /src/pages/SettingsPage.tsx, /src/components/settings/LanguageSelector.tsx, /src/components/settings/QueryDefaults.tsx, /src/components/settings/ThemeSelector.tsx, /src/components/settings/NotificationSettings.tsx, /src/components/settings/AdvancedSettings.tsx, /src/components/query/QueryForm.tsx

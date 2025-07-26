@@ -1,9 +1,10 @@
 /**
- * Results page with real-time WebSocket integration and export functionality.
- * Shows structured query results with live status updates and export/share capabilities.
+ * Results page with real-time WebSocket integration for live query status updates.
+ * Shows structured query results with live status updates and comprehensive export features.
  */
 
 import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -17,7 +18,6 @@ import {
   Chip,
   Divider,
 } from '@mui/material';
-import { useParams, useNavigate } from 'react-router-dom';
 import {
   Assessment as ResultsIcon,
   ArrowBack as BackIcon,
@@ -32,39 +32,33 @@ import { showErrorNotification, showSuccessNotification } from '@stores/appStore
 // Components
 import QueryProgressTracker from '@components/progress/QueryProgressTracker';
 import QueryResultDisplay from '@components/results/QueryResultDisplay';
-import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 import QueryProgress from '@components/query/QueryProgress';
+import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 
 // Utils
 import { exportQueryResult, shareQueryResult } from '@utils/export';
-import { formatDuration } from '@utils/time';
 import type { ExportFormat } from '@utils/export';
+
 const ResultsPage: React.FC = () => {
   const { queryId } = useParams<{ queryId: string }>();
   const navigate = useNavigate();
   
-  // Hybrid approach: Use WebSocket monitoring (HEAD) and query store state (feature)
+  // Combined state from both implementations
   const { activeQuery, status, result, isConnected } = useQueryMonitoring();
-  const { 
-    connectWebSocket, 
-    setActiveQuery,
-    error, 
-    isSubmitting, 
-    queryStatus, 
-    queryResult, 
-    isConnected: isWebSocketConnected 
-  } = useQueryStore();
+  const { connectWebSocket, setActiveQuery, error, isSubmitting, queryStatus, queryResult } = useQueryStore();
   
   // Local state
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Combine data from both sources, prioritizing WebSocket data when available
-  const hasResult = result || queryResult !== null;
+  // Check if we have a result to display
+  const hasResult = queryResult !== null || result !== null;
   const hasActiveQuery = activeQuery !== null;
-  const isProcessing = status?.status !== 'completed' && (queryStatus && ['started', 'preprocessing', 'processing'].includes(queryStatus.status));
-  const isCompleted = status?.status === 'completed' || queryStatus?.status === 'completed';
-  const isFailed = status?.status === 'failed' || queryStatus?.status === 'failed' || error !== null;
+  const isProcessing = (queryStatus && ['started', 'preprocessing', 'processing'].includes(queryStatus.status)) || 
+                      (status && ['started', 'preprocessing', 'processing'].includes(status.status));
+  const isCompleted = queryStatus?.status === 'completed' || status?.status === 'completed';
+  const isFailed = queryStatus?.status === 'failed' || status?.status === 'failed' || error !== null;
+  const isWebSocketConnected = isConnected;
 
   // Connect WebSocket for live updates when accessing a specific query
   useEffect(() => {
@@ -93,14 +87,22 @@ const ResultsPage: React.FC = () => {
     }
   }, [queryId, activeQuery, connectWebSocket, setActiveQuery]);
 
+  // Auto-refresh status when processing
+  useEffect(() => {
+    if (isProcessing && !isSubmitting) {
+      // The queryStore already handles status monitoring
+      // This effect could be used for additional refresh logic if needed
+    }
+  }, [isProcessing, isSubmitting]);
+
   // Export handler
   const handleExport = async (format: ExportFormat) => {
-    const resultToExport = result || queryResult;
-    if (!resultToExport) return;
+    const currentResult = queryResult || result;
+    if (!currentResult) return;
 
     setIsExporting(true);
     try {
-      await exportQueryResult(resultToExport, format);
+      await exportQueryResult(currentResult, format);
       showSuccessNotification(`Ergebnis als ${format.toUpperCase()} exportiert`);
     } catch (error: any) {
       showErrorNotification(`Export fehlgeschlagen: ${error.message}`);
@@ -111,11 +113,11 @@ const ResultsPage: React.FC = () => {
 
   // Share handler
   const handleShare = async () => {
-    const resultToShare = result || queryResult;
-    if (!resultToShare) return;
+    const currentResult = queryResult || result;
+    if (!currentResult) return;
 
     try {
-      await shareQueryResult(resultToShare);
+      await shareQueryResult(currentResult);
       showSuccessNotification('Ergebnis in Zwischenablage kopiert');
     } catch (error: any) {
       showErrorNotification(`Teilen fehlgeschlagen: ${error.message}`);
@@ -131,8 +133,18 @@ const ResultsPage: React.FC = () => {
     navigate('/dashboard');
   };
 
+  // Format processing time
+  const formatDuration = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
+  };
+
   // Render loading state
-  if ((isProcessing || isLoading) && !hasResult) {
+  if ((isProcessing && !hasResult) || isLoading) {
     return (
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
@@ -145,12 +157,12 @@ const ResultsPage: React.FC = () => {
           </Button>
           <Box>
             <Typography variant="h4" component="h1">
-              Verarbeitung läuft...
+              {isLoading ? 'Verbindung wird hergestellt...' : 'Verarbeitung läuft...'}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
               <Chip 
-                label={isConnected || isWebSocketConnected ? 'Live-Updates' : 'Standard-Polling'} 
-                color={isConnected || isWebSocketConnected ? 'success' : 'info'}
+                label={isWebSocketConnected ? 'Live-Updates' : 'Standard-Polling'} 
+                color={isWebSocketConnected ? 'success' : 'info'}
                 size="small"
                 variant="outlined"
               />
@@ -160,7 +172,18 @@ const ResultsPage: React.FC = () => {
 
         {/* Real-time query progress display */}
         <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-          <QueryProgress compact={false} />
+          {isLoading ? (
+            <Card>
+              <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                <CircularProgress sx={{ mb: 2 }} />
+                <Typography variant="body1">
+                  Verbindung zu Abfrage wird hergestellt...
+                </Typography>
+              </CardContent>
+            </Card>
+          ) : (
+            <QueryProgress compact={false} />
+          )}
         </Box>
       </Box>
     );
@@ -188,7 +211,7 @@ const ResultsPage: React.FC = () => {
             Fehler bei der Abfrageverarbeitung
           </Typography>
           <Typography variant="body2">
-            {error || status?.error_message || queryStatus?.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
+            {error || queryStatus?.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
           </Typography>
         </Alert>
 
@@ -246,10 +269,10 @@ const ResultsPage: React.FC = () => {
     );
   }
 
-  // Hybrid layout: WebSocket architecture with export functionality
+  // Main render - combine both implementations
   return (
     <Box>
-      {/* Enhanced header with status indicators */}
+      {/* Enhanced header with status information */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Button
@@ -264,11 +287,11 @@ const ResultsPage: React.FC = () => {
               Abfrage-Ergebnisse
             </Typography>
             {queryId && (
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Live-Überwachung für Abfrage {queryId.slice(0, 8)}...
               </Typography>
             )}
-            {(result || queryResult) && (
+            {(queryResult || result) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                 <Chip 
                   label={isCompleted ? 'Abgeschlossen' : 'Verarbeitung'} 
@@ -276,8 +299,8 @@ const ResultsPage: React.FC = () => {
                   size="small"
                 />
                 <Chip 
-                  label={isConnected || isWebSocketConnected ? 'Live-Updates' : 'Polling'} 
-                  color={isConnected || isWebSocketConnected ? 'success' : 'info'}
+                  label={isWebSocketConnected ? 'Live-Updates' : 'Polling'} 
+                  color={isWebSocketConnected ? 'success' : 'info'}
                   size="small"
                   variant="outlined"
                 />
@@ -292,81 +315,64 @@ const ResultsPage: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Processing status banner (if still processing) */}
+      {isProcessing && hasResult && (
+        <Box sx={{ mb: 3 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Die Abfrage wird noch verarbeitet. 
+              {isWebSocketConnected 
+                ? ' Die Ergebnisse werden in Echtzeit aktualisiert.' 
+                : ' Die Ergebnisse werden regelmäßig aktualisiert.'}
+            </Typography>
+          </Alert>
+          
+          {/* Enhanced progress indicator with WebSocket support */}
+          {activeQuery && queryId && (
+            <QueryProgressTracker 
+              queryId={queryId}
+              compact={true}
+              showAllQueries={false}
+            />
+          )}
+          <QueryProgress compact={true} />
+        </Box>
+      )}
+
       <Grid container spacing={3}>
         {/* Main content area */}
         <Grid item xs={12} lg={8}>
-          {isLoading ? (
+          {/* Query results display with enhanced features */}
+          {(queryResult || result) ? (
+            <QueryResultDisplay
+              result={queryResult || result}
+              onExport={handleExport}
+              onShare={handleShare}
+            />
+          ) : isFailed ? (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                Abfrage fehlgeschlagen
+              </Typography>
+              <Typography variant="body2">
+                {error || status?.error_message || queryStatus?.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
+              </Typography>
+            </Alert>
+          ) : (
             <Card>
               <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                <CircularProgress sx={{ mb: 2 }} />
-                <Typography variant="body1">
-                  Verbindung zu Abfrage wird hergestellt...
+                <Typography variant="h6" gutterBottom>
+                  Abfrage wird verarbeitet...
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Die Ergebnisse werden angezeigt, sobald die Verarbeitung abgeschlossen ist.
                 </Typography>
               </CardContent>
             </Card>
-          ) : (
-            <>
-              {/* Real-time progress tracking */}
-              {activeQuery && !isCompleted && (
-                <Box sx={{ mb: 3 }}>
-                  <QueryProgressTracker 
-                    queryId={queryId}
-                    compact={false}
-                    showAllQueries={false}
-                  />
-                </Box>
-              )}
-
-              {/* Processing status banner (if still processing) */}
-              {isProcessing && hasResult && (
-                <Box sx={{ mb: 3 }}>
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    <Typography variant="body2">
-                      Die Abfrage wird noch verarbeitet. 
-                      {isConnected || isWebSocketConnected 
-                        ? ' Die Ergebnisse werden in Echtzeit aktualisiert.' 
-                        : ' Die Ergebnisse werden regelmäßig aktualisiert.'}
-                    </Typography>
-                  </Alert>
-                  
-                  {/* Compact progress indicator */}
-                  <QueryProgress compact={true} />
-                </Box>
-              )}
-
-              {/* Query results display with export functionality */}
-              {(result || queryResult) && isCompleted ? (
-                <QueryResultDisplay 
-                  result={result || queryResult}
-                  onExport={handleExport}
-                  onShare={handleShare}
-                />
-              ) : isFailed ? (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    Abfrage fehlgeschlagen
-                  </Typography>
-                  <Typography variant="body2">
-                    {status?.error_message || queryStatus?.error_message || error || 'Ein unbekannter Fehler ist aufgetreten.'}
-                  </Typography>
-                </Alert>
-              ) : (
-                <Card>
-                  <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Abfrage wird verarbeitet...
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Die Ergebnisse werden angezeigt, sobald die Verarbeitung abgeschlossen ist.
-                    </Typography>
-                  </CardContent>
-                </Card>
-              )}
-            </>
           )}
         </Grid>
 
-        {/* Enhanced sidebar with connection status */}
+        {/* Enhanced sidebar with WebSocket status */}
         <Grid item xs={12} lg={4}>
           {/* Connection status and controls */}
           <Card sx={{ mb: 3 }}>
@@ -375,7 +381,7 @@ const ResultsPage: React.FC = () => {
                 Verbindungsstatus
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {isConnected || isWebSocketConnected ? 'Live-WebSocket aktiv' : 'Standard-Polling aktiv'}
+                {isWebSocketConnected ? 'Live-WebSocket aktiv' : 'Standard-Polling aktiv'}
               </Typography>
               
               <Button 

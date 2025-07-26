@@ -8,12 +8,12 @@ structured output, and environment-specific configuration.
 import logging
 import logging.config
 import sys
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
+
 import structlog
 from structlog import stdlib
 from structlog.processors import JSONRenderer
-import os
 
 from .config import Config
 
@@ -27,7 +27,7 @@ def configure_logging(config: Optional[Config] = None) -> None:
     """
     if config is None:
         config = Config()
-    
+
     # Configure structlog
     structlog.configure(
         processors=[
@@ -45,17 +45,17 @@ def configure_logging(config: Optional[Config] = None) -> None:
         wrapper_class=stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
+
     # Configure standard library logging
     logging_config = _get_logging_config(config)
     logging.config.dictConfig(logging_config)
-    
+
     # Set root logger level
     logging.getLogger().setLevel(config.log_level.upper())
-    
+
     # Log initialization
     logger = structlog.get_logger(__name__)
-    logger.info("Logging configured", 
+    logger.info("Logging configured",
                 log_level=config.log_level,
                 log_format=config.log_format,
                 environment=config.environment)
@@ -88,16 +88,16 @@ def _get_logging_config(config: Config) -> Dict[str, Any]:
         Logging configuration dictionary
     """
     log_level = config.log_level.upper()
-    
+
     # Determine log file path
     log_dir = Path("logs")
     if config.environment != "development":
         log_dir.mkdir(exist_ok=True)
-    
+
     handlers = ["console"]
     if config.environment != "development":
         handlers.extend(["file", "error_file"])
-    
+
     return {
         "version": 1,
         "disable_existing_loggers": False,
@@ -167,7 +167,7 @@ class ContextualLogger:
     This class provides a way to maintain context (like request_id, user_id)
     across multiple log calls without repeating the context each time.
     """
-    
+
     def __init__(self, logger_name: str, **context):
         """
         Initialize contextual logger.
@@ -178,7 +178,7 @@ class ContextualLogger:
         """
         self.logger = structlog.get_logger(logger_name)
         self.context = context
-    
+
     def bind(self, **new_context) -> "ContextualLogger":
         """
         Create a new contextual logger with additional context.
@@ -191,27 +191,27 @@ class ContextualLogger:
         """
         combined_context = {**self.context, **new_context}
         return ContextualLogger(self.logger.name, **combined_context)
-    
+
     def debug(self, message: str, **kwargs) -> None:
         """Log debug message with context."""
         self.logger.debug(message, **self.context, **kwargs)
-    
+
     def info(self, message: str, **kwargs) -> None:
         """Log info message with context."""
         self.logger.info(message, **self.context, **kwargs)
-    
+
     def warning(self, message: str, **kwargs) -> None:
         """Log warning message with context."""
         self.logger.warning(message, **self.context, **kwargs)
-    
+
     def error(self, message: str, **kwargs) -> None:
         """Log error message with context."""
         self.logger.error(message, **self.context, **kwargs)
-    
+
     def critical(self, message: str, **kwargs) -> None:
         """Log critical message with context."""
         self.logger.critical(message, **self.context, **kwargs)
-    
+
     def exception(self, message: str, **kwargs) -> None:
         """Log exception message with context and traceback."""
         self.logger.exception(message, **self.context, **kwargs)

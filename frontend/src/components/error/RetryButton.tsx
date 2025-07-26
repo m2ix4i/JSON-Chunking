@@ -1,18 +1,17 @@
 /**
- * Retry button component for connection error recovery.
- * Focused component extracted from ConnectionErrorHandler.
+ * Retry button component for connection error handling.
+ * Focused component following Single Responsibility Principle.
  */
 
 import React from 'react';
-import { Button, LinearProgress } from '@mui/material';
-import { Refresh as RetryIcon } from '@mui/icons-material';
+import { Button } from '@mui/material';
+import { Refresh as RefreshIcon } from '@mui/icons-material';
 
 interface RetryButtonProps {
   isRetrying: boolean;
   onRetry: () => void;
   disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
-  variant?: 'text' | 'outlined' | 'contained';
 }
 
 const RetryButton: React.FC<RetryButtonProps> = ({
@@ -20,17 +19,16 @@ const RetryButton: React.FC<RetryButtonProps> = ({
   onRetry,
   disabled = false,
   size = 'small',
-  variant = 'text',
 }) => {
   return (
     <Button
       size={size}
-      variant={variant}
+      startIcon={<RefreshIcon />}
       onClick={onRetry}
-      disabled={isRetrying || disabled}
-      startIcon={isRetrying ? <LinearProgress sx={{ width: 20 }} /> : <RetryIcon />}
+      disabled={disabled || isRetrying}
+      variant="outlined"
     >
-      {isRetrying ? 'Verbinde...' : 'Erneut versuchen'}
+      {isRetrying ? 'Verbindung wird hergestellt...' : 'Wiederholen'}
     </Button>
   );
 };
