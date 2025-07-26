@@ -1,8 +1,9 @@
 /**
  * Dashboard page - main overview of the application.
+ * Enhanced with interactive analytics and comprehensive data visualization.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -17,6 +18,10 @@ import {
   ListItemIcon,
   Chip,
   LinearProgress,
+  Tabs,
+  Tab,
+  Alert,
+  Skeleton,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
@@ -27,15 +32,34 @@ import {
   CheckCircle as CompletedIcon,
   Error as ErrorIcon,
   Schedule as PendingIcon,
+  Analytics as AnalyticsIcon,
+  Timeline as TimelineIcon,
+  Speed as PerformanceIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
 import { useFiles, useSelectedFile } from '@stores/fileStore';
 import { useActiveQueries, useQueryHistory } from '@stores/queryStore';
+import { 
+  useAnalyticsStore,
+  useAnalyticsData,
+  useAnalyticsLoading,
+  useAnalyticsError,
+  useAnalyticsActions,
+  useFileAnalytics,
+  useQueryAnalytics,
+  usePerformanceMetrics,
+} from '@stores/analyticsStore';
 
 // Components
 import FileSelector from '@components/files/FileSelector';
+import {
+  MetricsWidget,
+  ChartWidget,
+  ProcessingTimeChart,
+  TrendAnalysis,
+} from '@components/analytics';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();

@@ -45,6 +45,9 @@ import { useFileSelection, useFileStore } from '@stores/fileStore';
 // Utils
 import { formatFileSize, formatTimestamp } from '@utils/time';
 
+// Components
+import VirtualFileList from '@components/common/VirtualFileList';
+
 // Types
 import type { UploadedFile } from '@/types/app';
 
