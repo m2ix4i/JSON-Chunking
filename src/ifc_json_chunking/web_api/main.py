@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 import structlog
 
 from ..config import Config
-from .routers import health, files, queries, websocket
+from .routers import health, files, queries, websocket, demo
 from .middleware.logging import LoggingMiddleware
 from ..monitoring.metrics_collector import MetricsCollector
 from ..monitoring.memory_profiler import MemoryProfiler
@@ -60,6 +60,7 @@ app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(files.router, prefix="/api", tags=["files"])
 app.include_router(queries.router, prefix="/api", tags=["queries"])
 app.include_router(websocket.router, prefix="/api", tags=["websocket"])
+app.include_router(demo.router, prefix="/api", tags=["demo"])
 
 @app.on_event("startup")
 async def startup_event():

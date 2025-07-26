@@ -288,7 +288,11 @@ class ProgressTracker:
         )
         
         # Clean up after a delay (keep for short-term status queries)
-        asyncio.create_task(self._cleanup_query(query_id, delay=300))  # 5 minutes
+        try:
+            asyncio.create_task(self._cleanup_query(query_id, delay=300))  # 5 minutes
+        except RuntimeError:
+            # No event loop running (e.g., in tests) - skip cleanup task
+            pass
     
     def cancel_tracking(self, query_id: str) -> bool:
         """
@@ -389,8 +393,12 @@ class ProgressTracker:
                     error=str(e)
                 )
         
-        # Broadcast to WebSocket connections
-        asyncio.create_task(self._broadcast_websocket(event))
+        # Broadcast to WebSocket connections (if event loop is running)
+        try:
+            asyncio.create_task(self._broadcast_websocket(event))
+        except RuntimeError:
+            # No event loop running (e.g., in tests) - skip websocket broadcast
+            pass
     
     async def _broadcast_websocket(self, event: ProgressEvent) -> None:
         """Broadcast progress event to WebSocket connections."""

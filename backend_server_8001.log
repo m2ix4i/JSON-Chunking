@@ -1,0 +1,132 @@
+INFO:     Will watch for changes in these directories: ['/Users/max/Downloads/JSON-Chunking/src']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [46723] using WatchFiles
+🚀 Starting IFC JSON Chunking API Server
+📍 Host: 0.0.0.0
+🔌 Port: 8001
+🐛 Debug Mode: True
+📊 API Docs: http://localhost:8001/api/docs
+📚 ReDoc: http://localhost:8001/api/redoc
+
+⚠️  Warning: GEMINI_API_KEY not set in .env file
+   Add your Gemini API key to .env for query processing functionality
+
+⚠️  Demo data not found - upload functionality will still work
+
+/Users/max/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+/Users/max/Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:373: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Total number of requests name=requests_total unit=count
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Request duration name=requests_duration_seconds unit=seconds
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Total number of request errors name=requests_errors_total unit=count
+2025-07-26 10:26:21 [debug    ] Metric registered              description=CPU usage percentage name=system_cpu_percent unit=percent
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Memory usage in bytes name=system_memory_bytes unit=bytes
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Memory usage percentage name=system_memory_percent unit=percent
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Disk usage in bytes name=system_disk_usage_bytes unit=bytes
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Query processing duration name=query_processing_duration unit=seconds
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Chunk processing duration name=chunk_processing_duration unit=seconds
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Cache hit rate name=cache_hit_rate unit=ratio
+2025-07-26 10:26:21 [debug    ] Metric registered              description=Number of active connections name=active_connections unit=count
+2025-07-26 10:26:21 [info     ] Standard metrics initialized
+2025-07-26 10:26:21 [info     ] Metrics collection started     interval=30
+2025-07-26 10:26:21 [info     ] Metrics collection thread started
+2025-07-26 10:26:21 [info     ] Redis cache initialized        host=localhost max_connections=50 port=6379
+INFO:     Started server process [46734]
+INFO:     Waiting for application startup.
+2025-07-26 10:26:21 [info     ] Starting IFC JSON Chunking API version=0.1.0
+2025-07-26 10:26:21 [error    ] Redis connection failed        error=Error 61 connecting to localhost:6379. 61.
+2025-07-26 10:26:21 [info     ] Memory tracing enabled
+2025-07-26 10:26:21 [info     ] Memory monitoring worker started
+2025-07-26 10:26:21 [info     ] Memory monitoring started      critical_threshold=1000 interval=60 warning_threshold=800
+2025-07-26 10:26:21 [info     ] Performance monitoring initialized successfully
+INFO:     Application startup complete.
+2025-07-26 10:26:22 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:26:22 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:26:22 [warning  ] Attempt to record unknown metric name=process_cpu_percent
+2025-07-26 10:26:30 [info     ] Request started                client_ip=127.0.0.1 method=GET request_id=faa772ca url=http://localhost:8001/api/health user_agent=curl/8.7.1
+2025-07-26 10:26:30 [info     ] IntentClassifier initialized with German building patterns
+2025-07-26 10:26:30 [info     ] RateLimiter initialized        adaptive=True max_concurrent=10 requests_per_minute=60 tokens_per_minute=1000000
+2025-07-26 10:26:30 [info     ] GeminiClient initialized       max_tokens=8000 model=gemini-2.5-pro timeout=30
+2025-07-26 10:26:30 [info     ] ChunkProcessor initialized     max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:26:30 [info     ] DataExtractor initialized
+2025-07-26 10:26:30 [info     ] DataNormalizer initialized
+2025-07-26 10:26:30 [info     ] ConflictDetector initialized   tolerance_thresholds={'quantity_relative_tolerance': 0.05, 'quantity_absolute_tolerance': 0.1, 'confidence_threshold': 0.3, 'majority_threshold': 0.6, 'statistical_outlier_threshold': 2.0}
+2025-07-26 10:26:30 [debug    ] ConfidenceCalculator initialized consensus_threshold=0.6 min_sources=2
+2025-07-26 10:26:30 [debug    ] QualityScorer initialized      completeness_weight=0.2 confidence_weight=0.25 consistency_weight=0.2 extraction_weight=0.15 reliability_weight=0.2
+2025-07-26 10:26:30 [debug    ] UncertaintyHandler initialized default_uncertainty=0.1
+2025-07-26 10:26:30 [info     ] QuantityAggregationStrategy initialized
+2025-07-26 10:26:30 [info     ] AdvancedAggregator initialized conflict_resolution=True quality_threshold=0.5 validation_level=standard
+2025-07-26 10:26:30 [info     ] Advanced aggregator initialized successfully
+2025-07-26 10:26:30 [info     ] QueryProcessor initialized     advanced_aggregation=True max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:26:30 [info     ] Gemini client initialized successfully model=gemini-2.5-pro
+2025-07-26 10:26:39 [error    ] Content generation failed      error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. request_id=health_check_740f4252
+2025-07-26 10:26:39 [error    ] API request failed             error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. prompt_length=51 request_id=health_check_740f4252
+2025-07-26 10:26:39 [warning  ] Health check failed            error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-07-26 10:26:39 [info     ] Request completed              method=GET processing_time=9.186 request_id=faa772ca status_code=200 url=http://localhost:8001/api/health
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x10de9d550>
+INFO:     127.0.0.1:59805 - "GET /api/health HTTP/1.1" 200 OK
+2025-07-26 10:26:53 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:26:53 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:26:53 [warning  ] Attempt to record unknown metric name=process_cpu_percent
+2025-07-26 10:27:24 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:27:24 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:27:24 [warning  ] Attempt to record unknown metric name=process_cpu_percent
+2025-07-26 10:27:55 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:27:55 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:27:55 [warning  ] Attempt to record unknown metric name=process_cpu_percent
+2025-07-26 10:28:26 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:28:26 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:28:26 [warning  ] Attempt to record unknown metric name=process_cpu_percent
+2025-07-26 10:28:34 [info     ] Request started                client_ip=127.0.0.1 method=GET request_id=6a7d94fa url=http://localhost:8001/api/health user_agent=curl/8.7.1
+2025-07-26 10:28:34 [info     ] IntentClassifier initialized with German building patterns
+2025-07-26 10:28:34 [info     ] RateLimiter initialized        adaptive=True max_concurrent=10 requests_per_minute=60 tokens_per_minute=1000000
+2025-07-26 10:28:34 [info     ] GeminiClient initialized       max_tokens=8000 model=gemini-2.5-pro timeout=30
+2025-07-26 10:28:34 [info     ] ChunkProcessor initialized     max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:28:34 [info     ] DataExtractor initialized
+2025-07-26 10:28:34 [info     ] DataNormalizer initialized
+2025-07-26 10:28:34 [info     ] ConflictDetector initialized   tolerance_thresholds={'quantity_relative_tolerance': 0.05, 'quantity_absolute_tolerance': 0.1, 'confidence_threshold': 0.3, 'majority_threshold': 0.6, 'statistical_outlier_threshold': 2.0}
+2025-07-26 10:28:34 [debug    ] ConfidenceCalculator initialized consensus_threshold=0.6 min_sources=2
+2025-07-26 10:28:34 [debug    ] QualityScorer initialized      completeness_weight=0.2 confidence_weight=0.25 consistency_weight=0.2 extraction_weight=0.15 reliability_weight=0.2
+2025-07-26 10:28:34 [debug    ] UncertaintyHandler initialized default_uncertainty=0.1
+2025-07-26 10:28:34 [info     ] QuantityAggregationStrategy initialized
+2025-07-26 10:28:34 [info     ] AdvancedAggregator initialized conflict_resolution=True quality_threshold=0.5 validation_level=standard
+2025-07-26 10:28:34 [info     ] Advanced aggregator initialized successfully
+2025-07-26 10:28:34 [info     ] QueryProcessor initialized     advanced_aggregation=True max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:28:34 [info     ] Gemini client initialized successfully model=gemini-2.5-pro
+2025-07-26 10:28:43 [error    ] Content generation failed      error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. request_id=health_check_f064782d
+2025-07-26 10:28:43 [error    ] API request failed             error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. prompt_length=51 request_id=health_check_f064782d
+2025-07-26 10:28:43 [warning  ] Health check failed            error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-07-26 10:28:43 [info     ] Request completed              method=GET processing_time=9.231 request_id=6a7d94fa status_code=200 url=http://localhost:8001/api/health
+INFO:     127.0.0.1:60009 - "GET /api/health HTTP/1.1" 200 OK
+2025-07-26 10:28:51 [info     ] Request started                client_ip=127.0.0.1 method=GET request_id=c1310ad6 url=http://localhost:8001/api/health user_agent=Python/3.9 aiohttp/3.12.14
+2025-07-26 10:28:51 [info     ] IntentClassifier initialized with German building patterns
+2025-07-26 10:28:51 [info     ] RateLimiter initialized        adaptive=True max_concurrent=10 requests_per_minute=60 tokens_per_minute=1000000
+2025-07-26 10:28:51 [info     ] GeminiClient initialized       max_tokens=8000 model=gemini-2.5-pro timeout=30
+2025-07-26 10:28:51 [info     ] ChunkProcessor initialized     max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:28:51 [info     ] DataExtractor initialized
+2025-07-26 10:28:51 [info     ] DataNormalizer initialized
+2025-07-26 10:28:51 [info     ] ConflictDetector initialized   tolerance_thresholds={'quantity_relative_tolerance': 0.05, 'quantity_absolute_tolerance': 0.1, 'confidence_threshold': 0.3, 'majority_threshold': 0.6, 'statistical_outlier_threshold': 2.0}
+2025-07-26 10:28:51 [debug    ] ConfidenceCalculator initialized consensus_threshold=0.6 min_sources=2
+2025-07-26 10:28:51 [debug    ] QualityScorer initialized      completeness_weight=0.2 confidence_weight=0.25 consistency_weight=0.2 extraction_weight=0.15 reliability_weight=0.2
+2025-07-26 10:28:51 [debug    ] UncertaintyHandler initialized default_uncertainty=0.1
+2025-07-26 10:28:51 [info     ] QuantityAggregationStrategy initialized
+2025-07-26 10:28:51 [info     ] AdvancedAggregator initialized conflict_resolution=True quality_threshold=0.5 validation_level=standard
+2025-07-26 10:28:51 [info     ] Advanced aggregator initialized successfully
+2025-07-26 10:28:51 [info     ] QueryProcessor initialized     advanced_aggregation=True max_concurrent=10 model=gemini-2.5-pro
+2025-07-26 10:28:51 [info     ] Gemini client initialized successfully model=gemini-2.5-pro
+Unclosed client session
+client_session: <aiohttp.client.ClientSession object at 0x10ef2dd00>
+2025-07-26 10:28:54 [error    ] Content generation failed      error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. request_id=health_check_5f6db4b0
+2025-07-26 10:28:54 [error    ] API request failed             error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information. prompt_length=51 request_id=health_check_5f6db4b0
+2025-07-26 10:28:54 [warning  ] Health check failed            error=Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+2025-07-26 10:28:54 [info     ] Request completed              method=GET processing_time=2.896 request_id=c1310ad6 status_code=200 url=http://localhost:8001/api/health
+INFO:     127.0.0.1:60049 - "GET /api/health HTTP/1.1" 200 OK
+2025-07-26 10:28:54 [info     ] Request started                client_ip=127.0.0.1 method=OPTIONS request_id=ced1bf35 url=http://localhost:8001/api/health user_agent=Python/3.9 aiohttp/3.12.14
+2025-07-26 10:28:54 [info     ] Request completed              method=OPTIONS processing_time=0.002 request_id=ced1bf35 status_code=200 url=http://localhost:8001/api/health
+INFO:     127.0.0.1:60060 - "OPTIONS /api/health HTTP/1.1" 200 OK
+2025-07-26 10:28:57 [warning  ] Attempt to record unknown metric name=system_disk_usage_percent
+2025-07-26 10:28:57 [warning  ] Attempt to record unknown metric name=process_memory_bytes
+2025-07-26 10:28:57 [warning  ] Attempt to record unknown metric name=process_cpu_percent

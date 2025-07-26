@@ -299,7 +299,7 @@ class QueryOptimizer:
         if not chunks:
             return 0.0
         
-        sizes = [len(str(chunk.content)) for chunk in chunks]
+        sizes = [len(str(chunk.data)) for chunk in chunks]
         if not sizes:
             return 0.0
         

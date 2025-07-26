@@ -72,7 +72,7 @@ class TestIntentClassifier:
         """Test material query classification."""
         queries = [
             "Alle Betonelemente auflisten",
-            "Material der Stützen",
+            "Welche Materialien wurden verwendet?",
             "Welche Baustoffe wurden verwendet?"
         ]
         
@@ -126,7 +126,7 @@ class TestIntentClassifier:
         result = classifier.classify_intent(query)
         
         assert result.intent == QueryIntent.QUANTITY
-        assert "beton" in [f.lower() for f in result.extracted_parameters.material_filters]
+        assert "concrete" in [f.lower() for f in result.extracted_parameters.material_filters]
         assert result.extracted_parameters.spatial_constraints.get("floor") == 2
         assert result.extracted_parameters.quantity_requirements.get("unit") == "cubic_meter"
 

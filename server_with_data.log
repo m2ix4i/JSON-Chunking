@@ -1,0 +1,15 @@
+INFO:     Will watch for changes in these directories: ['/Users/max/Downloads/JSON-Chunking/src']
+ERROR:    [Errno 48] Address already in use
+🚀 Starting IFC JSON Chunking API Server
+📍 Host: 0.0.0.0
+🔌 Port: 8001
+🐛 Debug Mode: True
+📊 API Docs: http://localhost:8001/api/docs
+📚 ReDoc: http://localhost:8001/api/redoc
+
+⚠️  Warning: GEMINI_API_KEY not set in .env file
+   Add your Gemini API key to .env for query processing functionality
+
+✅ Demo data found: /Users/max/Downloads/BA Cursor Projekt/IDM_Holzbauteile_mapped_cleaned.json
+   801 wooden building components available for testing
+
