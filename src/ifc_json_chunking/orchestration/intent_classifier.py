@@ -89,8 +89,8 @@ class IntentClassifier:
         best_intent = max(intent_scores.keys(), key=lambda k: intent_scores[k])
         best_score = intent_scores[best_intent]
         
-        # Apply confidence threshold
-        if best_score < 0.3:
+        # Apply confidence threshold - lower threshold for German building queries
+        if best_score < 0.2:
             best_intent = QueryIntent.UNKNOWN
             best_score = 0.0
             matched_patterns[best_intent] = []  # Add empty patterns for UNKNOWN
@@ -182,7 +182,9 @@ class IntentClassifier:
         
         # Normalize score based on query length and pattern weight
         query_length = len(query.split())
-        normalized_score = min(total_score / max(query_length * 0.5, 1), 1.0)
+        # Use gentler normalization for short queries to avoid over-penalizing
+        normalization_factor = max(query_length * 0.2, 1.0)  # Reduced from 0.5 to 0.2
+        normalized_score = min(total_score / normalization_factor, 1.0)
         
         # Apply intent-specific weight
         weighted_score = normalized_score * self.pattern_weights.get(intent, 1.0)
