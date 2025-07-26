@@ -1,10 +1,6 @@
 /**
-<<<<<<< HEAD
- * File selector component for choosing files for queries.
-=======
  * File selector component for choosing uploaded files.
  * Provides radio-button selection interface with file details.
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
  */
 
 import React from 'react';
@@ -13,16 +9,6 @@ import {
   Card,
   CardContent,
   Typography,
-<<<<<<< HEAD
-  Alert,
-  Button,
-} from '@mui/material';
-import { CloudUpload as UploadIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-
-// Store hooks
-import { useSelectedFile } from '@stores/fileStore';
-=======
   List,
   ListItem,
   ListItemIcon,
@@ -45,26 +31,17 @@ import { useFileSelection } from '@stores/fileStore';
 
 // Types
 import type { UploadedFile } from '@/types/app';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 interface FileSelectorProps {
   title?: string;
   showUploadPrompt?: boolean;
-<<<<<<< HEAD
-=======
   compact?: boolean;
   onFileSelected?: (file: UploadedFile | null) => void;
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 }
 
 const FileSelector: React.FC<FileSelectorProps> = ({
   title = "Datei auswählen",
   showUploadPrompt = true,
-<<<<<<< HEAD
-}) => {
-  const navigate = useNavigate();
-  const selectedFile = useSelectedFile();
-=======
   compact = false,
   onFileSelected,
 }) => {
@@ -142,7 +119,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
       </Card>
     );
   }
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
   return (
     <Card>
@@ -150,37 +126,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
-        
-<<<<<<< HEAD
-        {selectedFile ? (
-          <Alert severity="success">
-            <Typography variant="body2">
-              <strong>Ausgewählte Datei:</strong> {selectedFile.filename}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Größe: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-            </Typography>
-          </Alert>
-        ) : (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                Keine Datei ausgewählt. Wählen Sie eine Datei aus oder laden Sie eine neue hoch.
-              </Typography>
-            </Alert>
-            
-            {showUploadPrompt && (
-              <Button
-                variant="contained"
-                startIcon={<UploadIcon />}
-                onClick={() => navigate('/upload')}
-                fullWidth
-              >
-                Datei hochladen
-              </Button>
-            )}
-          </>
-=======
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
@@ -294,7 +239,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
               Weitere Dateien hochladen
             </Button>
           </Box>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
         )}
       </CardContent>
     </Card>
