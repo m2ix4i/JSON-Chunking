@@ -3,7 +3,7 @@
  * Provides radio-button selection interface with file details.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -23,6 +23,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Checkbox,
+  Toolbar,
+  Divider,
 } from '@mui/material';
 import {
   Description as FileIcon,
@@ -30,11 +33,17 @@ import {
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
+  SelectAll as SelectAllIcon,
+  ClearAll as ClearAllIcon,
+  DeleteSweep as BulkDeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
 import { useFileSelection, useFileStore } from '@stores/fileStore';
+
+// Utils
+import { formatFileSize, formatTimestamp } from '@utils/time';
 
 // Types
 import type { UploadedFile } from '@/types/app';
@@ -44,6 +53,7 @@ interface FileSelectorProps {
   showUploadPrompt?: boolean;
   compact?: boolean;
   onFileSelected?: (file: UploadedFile | null) => void;
+  enableBulkSelection?: boolean;
 }
 
 const FileSelector: React.FC<FileSelectorProps> = ({
@@ -60,29 +70,20 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
 
+  // Memoize the selected file to avoid unnecessary lookups
+  const selectedFile = useMemo(() => 
+    selectedFileId ? files.find(f => f.file_id === selectedFileId) || null : null,
+    [selectedFileId, files]
+  );
+
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
     
     // Call callback if provided
     if (onFileSelected) {
-      const selectedFile = fileId ? files.find(f => f.file_id === fileId) || null : null;
-      onFileSelected(selectedFile);
+      const file = fileId ? files.find(f => f.file_id === fileId) || null : null;
+      onFileSelected(file);
     }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
-  };
-
-  const formatUploadTime = (timestamp: string): string => {
-    return new Date(timestamp).toLocaleString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const getFileStatus = (file: UploadedFile) => {
@@ -237,7 +238,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   }
                   secondary={
                     <Typography variant="body2" color="text.secondary">
-                      {formatFileSize(file.size)} • Hochgeladen: {formatUploadTime(file.upload_timestamp)}
+                      {formatFileSize(file.size)} • Hochgeladen: {formatTimestamp(file.upload_timestamp)}
                       {file.validation_result && (
                         <span>
                           {' • '}
@@ -267,10 +268,10 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         </List>
 
         {/* Selected file summary */}
-        {selectedFileId && (
+        {selectedFile && (
           <Alert severity="success" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Ausgewählt:</strong> {files.find(f => f.file_id === selectedFileId)?.filename}
+              <strong>Ausgewählt:</strong> {selectedFile.filename}
             </Typography>
           </Alert>
         )}

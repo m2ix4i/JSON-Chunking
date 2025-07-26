@@ -58,8 +58,8 @@ import QueryProgress from '@components/query/QueryProgress';
 
 // Utils
 import { exportQueryResult, shareQueryResult } from '@utils/export';
+import { formatDuration } from '@utils/time';
 import type { ExportFormat } from '@utils/export';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 const ResultsPage: React.FC = () => {
   const { queryId } = useParams<{ queryId: string }>();
@@ -173,15 +173,6 @@ const ResultsPage: React.FC = () => {
     navigate('/dashboard');
   };
 
-  // Format processing time
-  const formatDuration = (seconds: number): string => {
-    if (seconds < 60) {
-      return `${seconds.toFixed(1)}s`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
-  };
 
   // Render loading state
   if (isProcessing && !hasResult) {
