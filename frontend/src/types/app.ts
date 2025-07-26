@@ -109,11 +109,11 @@ export interface GermanQuerySuggestion {
 export interface QueryTemplate {
   id: string;
   name: string;
+  category: QueryIntentHint;
   description: string;
   template: string;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
   variables: QueryVariable[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
   examples: string[];
   expectedResult: string;
   tags: string[];

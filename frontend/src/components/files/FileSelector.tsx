@@ -3,7 +3,7 @@
  * Provides radio-button selection interface with file details.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -17,17 +17,24 @@ import {
   Chip,
   Alert,
   Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Description as FileIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
-import { useFileSelection } from '@stores/fileStore';
+import { useFileSelection, useFileStore } from '@stores/fileStore';
 
 // Types
 import type { UploadedFile } from '@/types/app';
@@ -47,6 +54,11 @@ const FileSelector: React.FC<FileSelectorProps> = ({
 }) => {
   const navigate = useNavigate();
   const { files, selectedFileId, selectFile } = useFileSelection();
+  const deleteFile = useFileStore((state) => state.deleteFile);
+
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
 
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
@@ -83,6 +95,42 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     }
   };
 
+  /**
+   * Get validation summary text - Single Responsibility: Validation display logic
+   * Fixes Law of Demeter violation by encapsulating validation_result access
+   */
+  const getValidationSummary = (file: UploadedFile): string | null => {
+    if (!file.validation_result) return null;
+    
+    return file.validation_result.is_valid 
+      ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
+      : 'Validierung fehlgeschlagen';
+  };
+
+  // Delete handlers
+  const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
+    e.stopPropagation(); // Prevent file selection when clicking delete
+    setFileToDelete(file);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (fileToDelete) {
+      try {
+        await deleteFile(fileToDelete.file_id);
+        setDeleteConfirmOpen(false);
+        setFileToDelete(null);
+      } catch (error) {
+        // Error handling is done in the store
+        console.error('Delete failed:', error);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+    setFileToDelete(null);
+  };
   // Show empty state if no files
   if (files.length === 0) {
     return (
@@ -202,18 +250,26 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   secondary={
                     <Typography variant="body2" color="text.secondary">
                       {formatFileSize(file.size)} • Hochgeladen: {formatUploadTime(file.upload_timestamp)}
-                      {file.validation_result && (
+                      {getValidationSummary(file) && (
                         <span>
                           {' • '}
-                          {file.validation_result.is_valid 
-                            ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
-                            : 'Validierung fehlgeschlagen'
-                          }
+                          {getValidationSummary(file)}
                         </span>
                       )}
                     </Typography>
                   }
                 />
+
+                {/* Delete button */}
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={(e) => handleDeleteClick(e, file)}
+                  size="small"
+                  sx={{ ml: 1 }}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </ListItem>
             );
           })}
@@ -241,6 +297,32 @@ const FileSelector: React.FC<FileSelectorProps> = ({
             </Button>
           </Box>
         )}
+
+        {/* Delete confirmation dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Datei löschen
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Möchten Sie die Datei "{fileToDelete?.filename}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary">
+              Abbrechen
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Löschen
+            </Button>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   );
