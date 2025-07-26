@@ -49,10 +49,18 @@ const QueryPage: React.FC = () => {
 
     try {
       await submitQuery(selectedFile.file_id);
+      
       // Navigate to results page after successful submission
-      navigate('/results');
+      // If we have an active query with ID, navigate to specific result page
+      const { activeQuery } = useQueryStore.getState();
+      if (activeQuery?.query_id) {
+        navigate(`/results/${activeQuery.query_id}`);
+      } else {
+        navigate('/results');
+      }
     } catch (error) {
       console.error('Failed to submit query:', error);
+      // Error handling is already managed by the queryStore and displayed via error state
     }
   };
 
