@@ -8,16 +8,11 @@ with advanced features including rate limiting, error handling, and response val
 import asyncio
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import aiohttp
 import structlog
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type
-)
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 try:
     import google.generativeai as genai
@@ -28,14 +23,8 @@ except ImportError:
     genai = None
     GenerateContentResponse = None
 
-from .types import (
-    ProcessingRequest,
-    ProcessingResponse,
-    ProcessingStatus,
-    ErrorType,
-    LLMConfig
-)
 from .rate_limiter import RateLimiter
+from .types import ErrorType, LLMConfig, ProcessingRequest, ProcessingResponse, ProcessingStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -52,7 +41,7 @@ class GeminiClient:
     Provides robust integration with Gemini including rate limiting,
     error handling, retry logic, and response validation.
     """
-    
+
     def __init__(
         self,
         config: LLMConfig,
@@ -72,44 +61,44 @@ class GeminiClient:
                 "google-generativeai package not installed. "
                 "Install with: pip install google-generativeai"
             )
-        
+
         self.config = config
         self.rate_limiter = rate_limiter
         self.session = session
         self._model = None
         self._initialized = False
-        
+
         logger.info(
             "GeminiClient initialized",
             model=config.model,
             max_tokens=config.max_tokens,
             timeout=config.timeout
         )
-    
+
     async def initialize(self) -> None:
         """Initialize the Gemini client and model."""
         if self._initialized:
             return
-        
+
         try:
             # Configure the API
             genai.configure(api_key=self.config.api_key)
-            
+
             # Initialize the model
             self._model = genai.GenerativeModel(self.config.model)
-            
+
             # Create session if not provided
             if self.session is None:
                 timeout = aiohttp.ClientTimeout(total=self.config.timeout)
                 self.session = aiohttp.ClientSession(timeout=timeout)
-            
+
             self._initialized = True
-            
+
             logger.info(
                 "Gemini client initialized successfully",
                 model=self.config.model
             )
-            
+
         except Exception as e:
             logger.error(
                 "Failed to initialize Gemini client",
@@ -117,15 +106,15 @@ class GeminiClient:
                 model=self.config.model
             )
             raise GeminiClientError(f"Initialization failed: {e}") from e
-    
+
     async def close(self) -> None:
         """Close the client and cleanup resources."""
         if self.session and not self.session.closed:
             await self.session.close()
-        
+
         self._initialized = False
         logger.info("Gemini client closed")
-    
+
     async def process_request(self, request: ProcessingRequest) -> ProcessingResponse:
         """
         Process a single request with the Gemini API.
@@ -138,37 +127,37 @@ class GeminiClient:
         """
         if not self._initialized:
             await self.initialize()
-        
+
         start_time = time.time()
-        
+
         try:
             # Apply rate limiting if configured
             if self.rate_limiter:
                 await self.rate_limiter.acquire(request.request_id)
-            
+
             # Make the API request
             response = await self._make_api_request(request)
             processing_time = time.time() - start_time
-            
+
             logger.info(
                 "Request processed successfully",
                 request_id=request.request_id,
                 processing_time=processing_time,
                 tokens_used=response.tokens_used
             )
-            
+
             return response
-            
+
         except Exception as e:
             processing_time = time.time() - start_time
-            
+
             logger.error(
                 "Request processing failed",
                 request_id=request.request_id,
                 error=str(e),
                 processing_time=processing_time
             )
-            
+
             return ProcessingResponse(
                 request_id=request.request_id,
                 content="",
@@ -179,12 +168,12 @@ class GeminiClient:
                 error=str(e),
                 error_type=self._classify_error(e)
             )
-        
+
         finally:
             # Release rate limit if configured
             if self.rate_limiter:
                 self.rate_limiter.release(request.request_id)
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=60),
@@ -195,14 +184,14 @@ class GeminiClient:
         try:
             # Prepare the prompt
             full_prompt = self._prepare_prompt(request)
-            
+
             # Generate content using Gemini
             response = await self._generate_content(full_prompt, request)
-            
+
             # Extract response content
             content = self._extract_content(response)
             tokens_used = self._count_tokens(content, request.prompt)
-            
+
             return ProcessingResponse(
                 request_id=request.request_id,
                 content=content,
@@ -211,7 +200,7 @@ class GeminiClient:
                 processing_time=0.0,  # Will be set by caller
                 model=self.config.model
             )
-            
+
         except Exception as e:
             logger.error(
                 "API request failed",
@@ -220,23 +209,23 @@ class GeminiClient:
                 prompt_length=len(request.prompt)
             )
             raise
-    
+
     def _prepare_prompt(self, request: ProcessingRequest) -> str:
         """Prepare the full prompt for the API request."""
         chunk_data = request.chunk.to_dict()
-        
+
         # Create context-aware prompt
         prompt_parts = [
             "You are an expert in analyzing IFC (Industry Foundation Classes) building data.",
             f"Please analyze the following IFC JSON chunk:\n\n{chunk_data}\n",
             f"Task: {request.prompt}",
         ]
-        
+
         if request.chunk.chunk_type:
             prompt_parts.insert(1, f"This chunk contains {request.chunk.chunk_type.value} data.")
-        
+
         return "\n\n".join(prompt_parts)
-    
+
     async def _generate_content(self, prompt: str, request: ProcessingRequest) -> Any:
         """Generate content using the Gemini model."""
         try:
@@ -245,16 +234,16 @@ class GeminiClient:
                 "temperature": request.temperature,
                 "max_output_tokens": request.max_tokens or self.config.max_tokens,
             }
-            
+
             # Generate content
             response = await asyncio.to_thread(
                 self._model.generate_content,
                 prompt,
                 generation_config=generation_config
             )
-            
+
             return response
-            
+
         except Exception as e:
             logger.error(
                 "Content generation failed",
@@ -262,7 +251,7 @@ class GeminiClient:
                 error=str(e)
             )
             raise
-    
+
     def _extract_content(self, response: Any) -> str:
         """Extract text content from Gemini response."""
         try:
@@ -273,10 +262,10 @@ class GeminiClient:
                 if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
                     parts = candidate.content.parts
                     return ''.join(part.text for part in parts if hasattr(part, 'text'))
-            
+
             # Fallback to string representation
             return str(response)
-            
+
         except Exception as e:
             logger.warning(
                 "Failed to extract content from response",
@@ -284,20 +273,20 @@ class GeminiClient:
                 response_type=type(response).__name__
             )
             return ""
-    
+
     def _count_tokens(self, content: str, prompt: str) -> int:
         """Estimate token usage for the request and response."""
         # Simple estimation based on character count
         # In production, you might want to use the actual Gemini token counting API
         total_chars = len(prompt) + len(content)
         estimated_tokens = total_chars // 4  # Rough estimate: 4 chars per token
-        
+
         return estimated_tokens
-    
+
     def _classify_error(self, error: Exception) -> ErrorType:
         """Classify the type of error for better handling."""
         error_str = str(error).lower()
-        
+
         if "rate limit" in error_str or "quota" in error_str:
             return ErrorType.RATE_LIMIT
         elif "timeout" in error_str:
@@ -308,7 +297,7 @@ class GeminiClient:
             return ErrorType.VALIDATION_ERROR
         else:
             return ErrorType.UNKNOWN
-    
+
     async def process_batch(
         self,
         requests: List[ProcessingRequest],
@@ -326,23 +315,23 @@ class GeminiClient:
         """
         if not self._initialized:
             await self.initialize()
-        
+
         max_concurrent = max_concurrent or self.config.max_concurrent
         semaphore = asyncio.Semaphore(max_concurrent)
-        
+
         async def process_with_semaphore(request: ProcessingRequest) -> ProcessingResponse:
             async with semaphore:
                 return await self.process_request(request)
-        
+
         logger.info(
             "Processing batch requests",
             total_requests=len(requests),
             max_concurrent=max_concurrent
         )
-        
+
         tasks = [process_with_semaphore(req) for req in requests]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         # Convert exceptions to error responses
         processed_responses = []
         for i, response in enumerate(responses):
@@ -360,18 +349,18 @@ class GeminiClient:
                 processed_responses.append(error_response)
             else:
                 processed_responses.append(response)
-        
+
         success_count = sum(1 for r in processed_responses if r.status == ProcessingStatus.COMPLETED)
-        
+
         logger.info(
             "Batch processing completed",
             total_requests=len(requests),
             successful=success_count,
             failed=len(requests) - success_count
         )
-        
+
         return processed_responses
-    
+
     async def health_check(self) -> bool:
         """
         Perform a health check on the Gemini API.
@@ -382,25 +371,25 @@ class GeminiClient:
         try:
             if not self._initialized:
                 await self.initialize()
-            
+
             # Create a simple test request
             test_request = ProcessingRequest(
                 chunk=None,  # Will use a simple test prompt instead
                 prompt="Hello, respond with 'OK' to confirm you're working.",
                 request_id=f"health_check_{uuid.uuid4().hex[:8]}"
             )
-            
+
             # Override the prompt preparation for health check
             original_prepare = self._prepare_prompt
             self._prepare_prompt = lambda req: req.prompt
-            
+
             try:
                 response = await self._make_api_request(test_request)
                 return response.status == ProcessingStatus.COMPLETED
             finally:
                 # Restore original method
                 self._prepare_prompt = original_prepare
-            
+
         except Exception as e:
             logger.warning(
                 "Health check failed",

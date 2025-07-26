@@ -1,6 +1,6 @@
 /**
  * Query state management store using Zustand.
- * Enhanced with WebSocket integration for real-time query status updates.
+ * Enhanced with WebSocket integration for real-time query status updates and history management.
  */
 
 import { create } from 'zustand';
@@ -8,6 +8,7 @@ import type {
   QueryResponse,
   QueryStatusResponse,
   QueryResultResponse,
+  QueryListResponse,
   ProgressMessage,
   ErrorMessage,
   CompletionMessage,
@@ -21,6 +22,22 @@ export interface CurrentQuery {
   maxConcurrent: number;
   timeoutSeconds: number;
   cacheResults: boolean;
+}
+
+export interface QueryHistoryState {
+  queries: QueryStatusResponse[];
+  loading: boolean;
+  error: string | null;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+  };
+  filters: {
+    search: string;
+    status: string | null;
+    dateRange: { start: Date; end: Date } | null;
+  };
 }
 
 interface QueryStore {
@@ -37,6 +54,9 @@ interface QueryStore {
   connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
   lastProgressUpdate: ProgressMessage | null;
   useWebSocket: boolean;
+  
+  // Query history state
+  history: QueryHistoryState;
   
   // UI state
   isSubmitting: boolean;
@@ -61,6 +81,13 @@ interface QueryStore {
   disconnectWebSocket: () => void;
   setConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
   startPolling: (queryId: string) => Promise<void>;
+  
+  // History actions
+  loadQueryHistory: (params?: { page?: number; limit?: number; status?: string; search?: string }) => Promise<void>;
+  updateHistoryFilters: (filters: Partial<QueryHistoryState['filters']>) => void;
+  updateHistoryPagination: (pagination: Partial<QueryHistoryState['pagination']>) => void;
+  deleteQuery: (queryId: string) => Promise<void>;
+  rerunQuery: (queryId: string) => void;
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
   setIsConnected: (connected: boolean) => void;
@@ -75,6 +102,22 @@ const defaultCurrentQuery: CurrentQuery = {
   cacheResults: true,
 };
 
+const defaultHistoryState: QueryHistoryState = {
+  queries: [],
+  loading: false,
+  error: null,
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+  },
+  filters: {
+    search: '',
+    status: null,
+    dateRange: null,
+  },
+};
+
 export const useQueryStore = create<QueryStore>((set, get) => ({
   // Initial state
   currentQuery: defaultCurrentQuery,
@@ -87,6 +130,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   connectionStatus: 'disconnected',
   lastProgressUpdate: null,
   useWebSocket: true, // Enable WebSocket by default, fallback to polling on error
+  
+  // History state
+  history: defaultHistoryState,
   
   // UI state
   isSubmitting: false,
@@ -315,6 +361,116 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     // Start polling
     poll();
   },
+
+  // History actions
+  loadQueryHistory: async (params = {}) => {
+    const { history } = get();
+    const { page = history.pagination.page, limit = history.pagination.limit, status, search } = params;
+    
+    set((state) => ({
+      history: { ...state.history, loading: true, error: null }
+    }));
+
+    try {
+      const { apiService } = await import('@/services/api');
+      
+      // Convert page to offset for API call
+      const offset = (page - 1) * limit;
+      
+      const response = await apiService.listQueries({
+        offset,
+        limit,
+        status,
+        // Note: search parameter may not be supported by backend yet
+      });
+
+      set((state) => ({
+        history: {
+          ...state.history,
+          queries: response.queries,
+          loading: false,
+          pagination: {
+            page,
+            limit,
+            total: response.total,
+          },
+        }
+      }));
+
+    } catch (error: any) {
+      console.error('Error loading query history:', error);
+      set((state) => ({
+        history: {
+          ...state.history,
+          loading: false,
+          error: error.message || 'Failed to load query history',
+        }
+      }));
+    }
+  },
+
+  updateHistoryFilters: (filters) => {
+    set((state) => ({
+      history: {
+        ...state.history,
+        filters: { ...state.history.filters, ...filters },
+        pagination: { ...state.history.pagination, page: 1 }, // Reset to first page
+      }
+    }));
+  },
+
+  updateHistoryPagination: (pagination) => {
+    set((state) => ({
+      history: {
+        ...state.history,
+        pagination: { ...state.history.pagination, ...pagination },
+      }
+    }));
+  },
+
+  deleteQuery: async (queryId: string) => {
+    try {
+      const { apiService } = await import('@/services/api');
+      await apiService.cancelQuery(queryId); // Using cancel as delete
+      
+      // Remove from local state
+      set((state) => ({
+        history: {
+          ...state.history,
+          queries: state.history.queries.filter(q => q.query_id !== queryId),
+        }
+      }));
+
+    } catch (error: any) {
+      console.error('Error deleting query:', error);
+      set((state) => ({
+        history: {
+          ...state.history,
+          error: error.message || 'Failed to delete query',
+        }
+      }));
+    }
+  },
+
+  rerunQuery: (queryId: string) => {
+    // Find the query in history
+    const { history } = get();
+    const query = history.queries.find(q => q.query_id === queryId);
+    
+    if (query && query.original_query) {
+      // Update current query with the previous query text
+      set((state) => ({
+        currentQuery: {
+          ...state.currentQuery,
+          text: query.original_query || '',
+        }
+      }));
+      
+      // Navigate to query page - we'll handle this in the component
+      // For now, just set the query text
+      console.log('Rerunning query:', query.original_query);
+    }
+  },
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),
@@ -328,9 +484,7 @@ export const useActiveQueries = () => useQueryStore((state) => {
   return { [state.activeQuery.query_id]: state.activeQuery };
 });
 
-export const useQueryHistory = () => useQueryStore((state) => 
-  state.queryResult ? [state.queryResult] : []
-);
+export const useQueryHistory = () => useQueryStore((state) => state.history);
 
 export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery);
 
@@ -362,6 +516,14 @@ export const useWebSocketStatus = () => useQueryStore((state) => ({
   isConnected: state.isConnected,
   useWebSocket: state.useWebSocket,
   lastProgressUpdate: state.lastProgressUpdate,
+}));
+
+export const useQueryHistoryActions = () => useQueryStore((state) => ({
+  loadQueryHistory: state.loadQueryHistory,
+  updateHistoryFilters: state.updateHistoryFilters,
+  updateHistoryPagination: state.updateHistoryPagination,
+  deleteQuery: state.deleteQuery,
+  rerunQuery: state.rerunQuery,
 }));
 
 // Export store for direct access

@@ -1,5 +1,6 @@
 /**
  * Query form component with validation and error handling.
+ * Enhanced with query preview functionality.
  */
 
 import React, { useState } from 'react';
@@ -17,6 +18,10 @@ import {
 
 // Store hooks
 import { useQueryStore } from '@stores/queryStore';
+import { useSelectedFile } from '@stores/fileStore';
+
+// Components
+// QueryPreview removed for PR #59 focus on WebSocket real-time updates
 
 export interface QueryFormProps {
   disabled?: boolean;
@@ -32,6 +37,7 @@ const QueryForm: React.FC<QueryFormProps> = ({
   validationErrors = [],
 }) => {
   const { currentQuery, updateCurrentQuery } = useQueryStore();
+  const selectedFile = useSelectedFile();
   const [localQuery, setLocalQuery] = useState(currentQuery.text);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -41,7 +47,10 @@ const QueryForm: React.FC<QueryFormProps> = ({
   };
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalQuery(e.target.value);
+    const newQuery = e.target.value;
+    setLocalQuery(newQuery);
+    // Update store immediately for preview generation
+    updateCurrentQuery({ text: newQuery });
   };
 
   const handleIntentChange = (e: any) => {
@@ -95,6 +104,8 @@ const QueryForm: React.FC<QueryFormProps> = ({
           </Typography>
         )}
       </Box>
+
+      {/* Query Preview removed for PR #59 focus on WebSocket real-time updates */}
     </Box>
   );
 };

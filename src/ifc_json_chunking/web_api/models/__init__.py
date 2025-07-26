@@ -2,18 +2,18 @@
 
 from .requests import QueryRequest
 from .responses import (
+    FileStatusResponse,
     FileUploadResponse,
-    FileStatusResponse, 
     QueryResponse,
+    QueryResultResponse,
     QueryStatusResponse,
-    QueryResultResponse
 )
 
 __all__ = [
     "QueryRequest",
     "FileUploadResponse",
     "FileStatusResponse",
-    "QueryResponse", 
+    "QueryResponse",
     "QueryStatusResponse",
     "QueryResultResponse"
 ]
