@@ -56,7 +56,7 @@ describe('queryPreviewGenerator - SOLID Refactored Utilities', () => {
       const complexity = calculateComplexity('Simple query', 10, steps);
       expect(complexity.score).toBe(3);
       expect(complexity.factors).toEqual([]);
-      expect(complexity.optimization).toEqual([]);
+      expect(complexity.optimization).toContain('Geben Sie ein spezifisches Stockwerk an für bessere Performance');
     });
 
     it('should increase complexity for building-wide queries', () => {

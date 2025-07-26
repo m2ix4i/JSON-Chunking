@@ -101,6 +101,18 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     }
   };
 
+  /**
+   * Get validation summary text - Single Responsibility: Validation display logic
+   * Fixes Law of Demeter violation by encapsulating validation_result access
+   */
+  const getValidationSummary = (file: UploadedFile): string | null => {
+    if (!file.validation_result) return null;
+    
+    return file.validation_result.is_valid 
+      ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
+      : 'Validierung fehlgeschlagen';
+  };
+
   // Delete handlers
   const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
     e.stopPropagation(); // Prevent file selection when clicking delete
@@ -328,13 +340,10 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   secondary={
                     <Typography variant="body2" color="text.secondary">
                       {formatFileSize(file.size)} • Hochgeladen: {formatTimestamp(file.upload_timestamp)}
-                      {file.validation_result && (
+                      {getValidationSummary(file) && (
                         <span>
                           {' • '}
-                          {file.validation_result.is_valid 
-                            ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
-                            : 'Validierung fehlgeschlagen'
-                          }
+                          {getValidationSummary(file)}
                         </span>
                       )}
                     </Typography>
