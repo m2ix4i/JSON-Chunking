@@ -14,13 +14,15 @@ export default defineConfig({
       '@utils': resolve(__dirname, './src/utils'),
       '@hooks': resolve(__dirname, './src/hooks'),
       '@stores': resolve(__dirname, './src/stores'),
-      '@pages': resolve(__dirname, './src/pages')
+      '@pages': resolve(__dirname, './src/pages'),
+      '@data': resolve(__dirname, './src/data')
     }
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     globals: true,
-    css: true
+    css: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/src/tests/**', '**/test-results/**']
   }
 })

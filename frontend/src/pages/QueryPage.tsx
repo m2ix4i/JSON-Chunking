@@ -8,18 +8,13 @@ import {
   Box,
   Typography,
   Grid,
+  Alert,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 // Components
 import QuerySuggestions from '@components/query/QuerySuggestions';
-<<<<<<< HEAD
-import QueryInterface from '@components/query/QueryInterface';
-import FileSelectionPrompt from '@components/query/FileSelectionPrompt';
-import FileSelector from '@components/files/FileSelector';
-
-// Hooks
-import { useQueryPage } from '@/hooks/useQueryPage';
-=======
+import QueryForm from '@components/query/QueryForm';
 import QueryProgress from '@components/query/QueryProgress';
 import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 import FileSelector from '@components/files/FileSelector';
@@ -27,23 +22,11 @@ import FileSelector from '@components/files/FileSelector';
 // Store hooks
 import { useSelectedFile, useFileStore } from '@stores/fileStore';
 import { useQueryStore } from '@stores/queryStore';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 // Types
 import type { GermanQuerySuggestion } from '@/types/app';
 
 const QueryPage: React.FC = () => {
-<<<<<<< HEAD
-  const {
-    selectedFile,
-    isSubmitting,
-    error,
-    activeQuery,
-    handleSuggestionSelect,
-    handleQuerySubmit,
-    navigateToUpload,
-  } = useQueryPage();
-=======
   const navigate = useNavigate();
   const selectedFile = useSelectedFile();
   const { updateCurrentQuery, submitQuery, isSubmitting, error } = useQueryStore();
@@ -61,7 +44,6 @@ const QueryPage: React.FC = () => {
       intentHint: suggestion.category,
     });
   };
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
   const handleQuerySubmit = async () => {
     if (!selectedFile) {
@@ -112,15 +94,6 @@ const QueryPage: React.FC = () => {
         {/* Main query interface - only show when file is selected */}
         {selectedFile ? (
           <>
-<<<<<<< HEAD
-            <QueryInterface
-              activeQuery={activeQuery}
-              isSubmitting={isSubmitting}
-              error={error}
-              onSubmit={handleQuerySubmit}
-              onRetry={handleQuerySubmit}
-            />
-=======
             {/* Query form */}
             <Grid item xs={12} lg={8}>
               <QueryForm 
@@ -156,7 +129,6 @@ const QueryPage: React.FC = () => {
                 </Alert>
               )}
             </Grid>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
             {/* Query suggestions sidebar */}
             <Grid item xs={12} lg={4}>
@@ -167,9 +139,6 @@ const QueryPage: React.FC = () => {
             </Grid>
           </>
         ) : (
-<<<<<<< HEAD
-          <FileSelectionPrompt onNavigateToUpload={navigateToUpload} />
-=======
           <Grid item xs={12}>
             <Alert severity="info" sx={{ mt: 2 }}>
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -189,7 +158,6 @@ const QueryPage: React.FC = () => {
               </Typography>
             </Alert>
           </Grid>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
         )}
       </Grid>
     </Box>
