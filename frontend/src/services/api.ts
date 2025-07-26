@@ -41,7 +41,7 @@ class APIService {
     this.client.interceptors.request.use(
       (config) => {
         // Add request timestamp for performance monitoring
-        config.metadata = { startTime: performance.now() };
+        (config as any).metadata = { startTime: performance.now() };
         return config;
       },
       (error) => Promise.reject(error)
@@ -52,8 +52,8 @@ class APIService {
       (response) => {
         // Calculate response time
         const endTime = performance.now();
-        const startTime = response.config.metadata?.startTime || endTime;
-        response.responseTime = endTime - startTime;
+        const startTime = (response.config as any).metadata?.startTime || endTime;
+        (response as any).responseTime = endTime - startTime;
         
         return response;
       },
@@ -177,7 +177,7 @@ class APIService {
 
   // Response time tracking
   getLastResponseTime(): number | null {
-    return this.client.defaults.metadata?.lastResponseTime || null;
+    return (this.client.defaults as any).metadata?.lastResponseTime || null;
   }
 
   // Network status

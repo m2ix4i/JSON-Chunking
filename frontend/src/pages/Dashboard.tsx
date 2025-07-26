@@ -50,8 +50,8 @@ const Dashboard: React.FC = () => {
   const stats = {
     totalFiles: files.length,
     activeQueries: Object.keys(activeQueries).length,
-    completedQueries: queryHistory.filter(q => q.status === 'completed').length,
-    failedQueries: queryHistory.filter(q => q.status === 'failed').length,
+    completedQueries: queryHistory.filter(q => q.confidence_score > 0.5).length,
+    failedQueries: queryHistory.filter(q => q.confidence_score <= 0.5).length,
   };
 
   // Get recent queries for display
@@ -282,18 +282,18 @@ const Dashboard: React.FC = () => {
                       divider={index < recentQueries.length - 1}
                     >
                       <ListItemIcon>
-                        {query.status === 'completed' ? (
+                        {query.confidence_score > 0.5 ? (
                           <CompletedIcon color="success" />
                         ) : (
                           <ErrorIcon color="error" />
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={query.query || 'Keine Abfrage verfügbar'}
+                        primary={query.original_query || 'Keine Abfrage verfügbar'}
                         secondary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" color="text.secondary">
-                              {query.file_id || 'Unbekannte Datei'} • {new Date().toLocaleString('de-DE')}
+                              Query {query.query_id.slice(0, 8)}... • {new Date().toLocaleString('de-DE')}
                             </Typography>
                             {query.confidence_score && (
                               <Chip

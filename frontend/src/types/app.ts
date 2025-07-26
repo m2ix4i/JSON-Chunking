@@ -119,6 +119,7 @@ export interface QueryTemplate {
   tags: string[];
   createdAt: Date;
   usageCount: number;
+  popularity?: number;
 }
 
 export interface QueryVariable {

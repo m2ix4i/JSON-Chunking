@@ -1,7 +1,10 @@
 /**
  * Query interface component - handles the main query form and progress tracking.
  * Focused component following Single Responsibility Principle.
+<<<<<<< HEAD
  * Updated to work with enhanced components from main branch.
+=======
+>>>>>>> 2487d42c20845effc574409a994d5aaf6a8d412b
  */
 
 import React from 'react';
@@ -13,7 +16,11 @@ import {
 
 // Components
 import QueryForm from './QueryForm';
+<<<<<<< HEAD
 import QueryProgress from './QueryProgress';
+=======
+import QueryProgressTracker from '@components/progress/QueryProgressTracker';
+>>>>>>> 2487d42c20845effc574409a994d5aaf6a8d412b
 import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 
 interface QueryInterfaceProps {
@@ -39,6 +46,7 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
         disabled={false}
       />
       
+<<<<<<< HEAD
       {/* Connection error handling */}
       {activeQuery && (
         <Box sx={{ mt: 3 }}>
@@ -49,10 +57,19 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
               // Refresh the page or restart the query
               window.location.reload();
             }}
+=======
+      {/* Real-time query progress display */}
+      {activeQuery && (
+        <Box sx={{ mt: 3 }}>
+          <QueryProgressTracker 
+            queryId={activeQuery.query_id}
+            compact={false}
+>>>>>>> 2487d42c20845effc574409a994d5aaf6a8d412b
           />
         </Box>
       )}
       
+<<<<<<< HEAD
       {/* Real-time query progress display */}
       {activeQuery && (
         <Box sx={{ mt: 2 }}>
@@ -60,6 +77,20 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
         </Box>
       )}
       
+=======
+      {/* Connection error handling */}
+      {activeQuery && (
+        <Box sx={{ mt: 2 }}>
+          <ConnectionErrorHandler 
+            queryId={activeQuery.query_id}
+            showDetails={true}
+            onRetry={onRetry}
+          />
+        </Box>
+      )}
+      
+      {/* General error display */}
+>>>>>>> 2487d42c20845effc574409a994d5aaf6a8d412b
       {error && (
         <Alert severity="error" sx={{ mt: 2 }}>
           {error}

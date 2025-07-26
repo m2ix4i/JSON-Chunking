@@ -2,10 +2,12 @@
 Response models for API endpoints.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class FileStatus(str, Enum):
     """File processing status."""
@@ -27,14 +29,14 @@ class QueryStatus(str, Enum):
 
 class FileUploadResponse(BaseModel):
     """Response model for file upload."""
-    
+
     file_id: str = Field(..., description="Unique file identifier")
     filename: str = Field(..., description="Original filename")
     size: int = Field(..., description="File size in bytes")
     content_type: str = Field(..., description="MIME content type")
     status: FileStatus = Field(..., description="Upload status")
     processing_time: float = Field(..., description="Upload processing time in seconds")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -49,7 +51,7 @@ class FileUploadResponse(BaseModel):
 
 class FileStatusResponse(BaseModel):
     """Response model for file status."""
-    
+
     file_id: str = Field(..., description="Unique file identifier")
     filename: str = Field(..., description="Original filename")
     size: int = Field(..., description="File size in bytes")
@@ -60,11 +62,11 @@ class FileStatusResponse(BaseModel):
 
 class QueryResponse(BaseModel):
     """Response model for query submission."""
-    
+
     query_id: str = Field(..., description="Unique query identifier")
     status: QueryStatus = Field(..., description="Query status")
     message: str = Field(..., description="Status message")
-    
+
     class Config:
         schema_extra = {
             "example": {
@@ -76,7 +78,7 @@ class QueryResponse(BaseModel):
 
 class QueryStatusResponse(BaseModel):
     """Response model for query status."""
-    
+
     query_id: str = Field(..., description="Unique query identifier")
     status: QueryStatus = Field(..., description="Current processing status")
     progress_percentage: float = Field(..., ge=0, le=100, description="Progress percentage")
@@ -89,7 +91,7 @@ class QueryStatusResponse(BaseModel):
 
 class ChunkResultResponse(BaseModel):
     """Response model for individual chunk results."""
-    
+
     chunk_id: str = Field(..., description="Chunk identifier")
     content: str = Field(..., description="Processed content")
     status: str = Field(..., description="Processing status")
@@ -100,7 +102,7 @@ class ChunkResultResponse(BaseModel):
 
 class ProcessingStatsResponse(BaseModel):
     """Response model for processing statistics."""
-    
+
     total_chunks: int = Field(..., description="Total chunks processed")
     successful_chunks: int = Field(..., description="Successfully processed chunks")
     failed_chunks: int = Field(..., description="Failed chunks")
@@ -111,7 +113,7 @@ class ProcessingStatsResponse(BaseModel):
 
 class QueryResultResponse(BaseModel):
     """Response model for complete query results."""
-    
+
     query_id: str = Field(..., description="Unique query identifier")
     original_query: str = Field(..., description="Original query text")
     intent: str = Field(..., description="Detected query intent")
@@ -124,7 +126,7 @@ class QueryResultResponse(BaseModel):
     aggregated_data: Dict[str, Any] = Field(..., description="Aggregated analysis data")
     processing_stats: ProcessingStatsResponse = Field(..., description="Processing statistics")
     created_at: Optional[datetime] = Field(None, description="Result creation time")
-    
+
     class Config:
         schema_extra = {
             "example": {
