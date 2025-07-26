@@ -103,6 +103,31 @@ export interface GermanQuerySuggestion {
   example: string;
 }
 
+// Query template system
+export interface QueryTemplate {
+  id: string;
+  name: string;
+  description: string;
+  template: string;
+  category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  variables: QueryVariable[];
+  examples: string[];
+  tags: string[];
+  popularity?: number;
+}
+
+export interface QueryVariable {
+  name: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'boolean';
+  options?: string[];
+  defaultValue?: string;
+  required?: boolean;
+  placeholder?: string;
+  description?: string;
+}
+
 // Notification system
 export interface AppNotification {
   id: string;
