@@ -263,7 +263,6 @@ const QueryProgress: React.FC<QueryProgressProps> = ({
                           <LinearProgress 
                             variant="determinate" 
                             value={step.progress} 
-                            size="small"
                             sx={{ height: 3 }}
                           />
                         </Box>

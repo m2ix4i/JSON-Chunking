@@ -13,13 +13,14 @@ import { useQueryStore } from '@stores/queryStore';
 
 // Types
 import type { GermanQuerySuggestion } from '@/types/app';
+import type { QueryResponse } from '@/types/api';
 
 interface UseQueryPageResult {
   // State
   selectedFile: ReturnType<typeof useSelectedFile>;
   isSubmitting: boolean;
   error: string | null;
-  activeQuery: ReturnType<typeof useQueryStore>['activeQuery'];
+  activeQuery: QueryResponse | null;
   
   // Actions
   handleSuggestionSelect: (suggestion: GermanQuerySuggestion) => void;
@@ -57,8 +58,8 @@ export const useQueryPage = (): UseQueryPageResult => {
       // Navigate to results page after successful submission
       // If we have an active query with ID, navigate to specific result page
       const { activeQuery } = useQueryStore.getState();
-      if (activeQuery?.query_id) {
-        navigate(`/results/${activeQuery.query_id}`);
+      if (activeQuery?.id) {
+        navigate(`/results/${activeQuery.id}`);
       } else {
         navigate('/results');
       }
