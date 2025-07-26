@@ -30,6 +30,7 @@ import { showErrorNotification, showSuccessNotification } from '@stores/appStore
 
 // Components
 import QueryResultDisplay from '@components/results/QueryResultDisplay';
+import QueryProgress from '@components/query/QueryProgress';
 
 // Utils
 import { exportQueryResult, shareQueryResult } from '@utils/export';
@@ -40,12 +41,13 @@ const ResultsPage: React.FC = () => {
   const navigate = useNavigate();
   
   // Query store state
-  const {
-    queryResult,
-    queryStatus,
-    activeQuery,
-    error,
-    isSubmitting,
+  const { 
+    error, 
+    isSubmitting, 
+    activeQuery, 
+    queryStatus, 
+    queryResult, 
+    isConnected: isWebSocketConnected 
   } = useQueryStore();
   
   // Local state
@@ -133,56 +135,25 @@ const ResultsPage: React.FC = () => {
           >
             Zurück zur Abfrage
           </Button>
-          <Typography variant="h4" component="h1">
-            Verarbeitung läuft...
-          </Typography>
+          <Box>
+            <Typography variant="h4" component="h1">
+              Verarbeitung läuft...
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+              <Chip 
+                label={isWebSocketConnected ? 'Live-Updates' : 'Standard-Polling'} 
+                color={isWebSocketConnected ? 'success' : 'info'}
+                size="small"
+                variant="outlined"
+              />
+            </Box>
+          </Box>
         </Box>
 
-        <Card sx={{ maxWidth: 800, mx: 'auto' }}>
-          <CardContent sx={{ textAlign: 'center', py: 6 }}>
-            <CircularProgress size={64} sx={{ mb: 3 }} />
-            
-            <Typography variant="h6" gutterBottom>
-              {queryStatus?.message || 'Abfrage wird verarbeitet...'}
-            </Typography>
-            
-            {queryStatus && (
-              <Box sx={{ mt: 3, maxWidth: 400, mx: 'auto' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Fortschritt
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {Math.round(queryStatus.progress_percentage)}%
-                  </Typography>
-                </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={queryStatus.progress_percentage} 
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 2 }}>
-                  <TimerIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    Schritt {queryStatus.current_step} von {queryStatus.total_steps}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-
-            {activeQuery && (
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Abfrage
-                </Typography>
-                <Typography variant="body1" sx={{ fontStyle: 'italic' }}>
-                  "{activeQuery.query_id.slice(0, 8)}..."
-                </Typography>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
+        {/* Real-time query progress display */}
+        <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+          <QueryProgress compact={false} />
+        </Box>
       </Box>
     );
   }
@@ -291,6 +262,14 @@ const ResultsPage: React.FC = () => {
                   color={isCompleted ? 'success' : 'primary'}
                   size="small"
                 />
+                {isProcessing && (
+                  <Chip 
+                    label={isWebSocketConnected ? 'Live-Updates' : 'Polling'} 
+                    color={isWebSocketConnected ? 'success' : 'info'}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
                 {queryResult.processing_time && (
                   <Typography variant="body2" color="text.secondary">
                     • {formatDuration(queryResult.processing_time)}
@@ -304,11 +283,19 @@ const ResultsPage: React.FC = () => {
 
       {/* Processing status banner (if still processing) */}
       {isProcessing && hasResult && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            Die Abfrage wird noch verarbeitet. Die Ergebnisse werden automatisch aktualisiert.
-          </Typography>
-        </Alert>
+        <Box sx={{ mb: 3 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Die Abfrage wird noch verarbeitet. 
+              {isWebSocketConnected 
+                ? ' Die Ergebnisse werden in Echtzeit aktualisiert.' 
+                : ' Die Ergebnisse werden regelmäßig aktualisiert.'}
+            </Typography>
+          </Alert>
+          
+          {/* Compact progress indicator */}
+          <QueryProgress compact={true} />
+        </Box>
       )}
 
       {/* Results display */}

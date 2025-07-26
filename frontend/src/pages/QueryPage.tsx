@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 // Components
 import QueryForm from '@components/query/QueryForm';
 import QuerySuggestions from '@components/query/QuerySuggestions';
+import QueryProgress from '@components/query/QueryProgress';
+import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 import FileSelector from '@components/files/FileSelector';
 
 // Store hooks
@@ -27,6 +29,7 @@ const QueryPage: React.FC = () => {
   const navigate = useNavigate();
   const selectedFile = useSelectedFile();
   const { updateCurrentQuery, submitQuery, isSubmitting, error } = useQueryStore();
+  const { activeQuery } = useQueryStore();
   const refreshFiles = useFileStore((state) => state.refreshFiles);
 
   // Load files on page mount
@@ -96,6 +99,27 @@ const QueryPage: React.FC = () => {
                 isSubmitting={isSubmitting}
                 disabled={!selectedFile}
               />
+              
+              {/* Connection error handling */}
+              {activeQuery && (
+                <Box sx={{ mt: 3 }}>
+                  <ConnectionErrorHandler 
+                    queryId={activeQuery.query_id}
+                    showDetails={true}
+                    onRetry={() => {
+                      // Refresh the page or restart the query
+                      window.location.reload();
+                    }}
+                  />
+                </Box>
+              )}
+              
+              {/* Real-time query progress display */}
+              {activeQuery && (
+                <Box sx={{ mt: 2 }}>
+                  <QueryProgress compact={false} />
+                </Box>
+              )}
               
               {error && (
                 <Alert severity="error" sx={{ mt: 2 }}>
