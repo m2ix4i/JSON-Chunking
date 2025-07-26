@@ -88,7 +88,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const getFileStatus = (file: UploadedFile) => {
     if (file.status === 'uploaded') {
       return { icon: <SuccessIcon color="success" />, label: 'Bereit', color: 'success' as const };
-    } else if (file.status === 'failed') {
+    } else if (file.status === 'error') {
       return { icon: <ErrorIcon color="error" />, label: 'Fehler', color: 'error' as const };
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
@@ -96,40 +96,18 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   };
 
   /**
-   * Get validation summary text - Single Responsibility: Validation display logic
-   * Fixes Law of Demeter violation by encapsulating validation_result access
+   * Get validation summary for a file (following Sandi Metz principles)
    */
-  const getValidationSummary = (file: UploadedFile): string | null => {
-    if (!file.validation_result) return null;
-    
-    return file.validation_result.is_valid 
-      ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
-      : 'Validierung fehlgeschlagen';
-  };
-
-  // Delete handlers
-  const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
-    e.stopPropagation(); // Prevent file selection when clicking delete
-    setFileToDelete(file);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (fileToDelete) {
-      try {
-        await deleteFile(fileToDelete.file_id);
-        setDeleteConfirmOpen(false);
-        setFileToDelete(null);
-      } catch (error) {
-        // Error handling is done in the store
-        console.error('Delete failed:', error);
-      }
+  const getValidationSummary = (file: UploadedFile): string => {
+    if (!file.validation_result) {
+      return 'Nicht validiert';
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteConfirmOpen(false);
-    setFileToDelete(null);
+    
+    if (file.validation_result.is_valid) {
+      return `${file.validation_result.estimated_chunks} Chunks geschätzt`;
+    }
+    
+    return 'Validierung fehlgeschlagen';
   };
   // Show empty state if no files
   if (files.length === 0) {

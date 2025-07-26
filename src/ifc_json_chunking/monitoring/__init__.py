@@ -8,8 +8,8 @@ This package provides comprehensive monitoring capabilities including:
 - Health monitoring and alerting
 """
 
-from .metrics_collector import MetricsCollector
 from .memory_profiler import MemoryProfiler
+from .metrics_collector import MetricsCollector
 
 __all__ = [
     "MetricsCollector",

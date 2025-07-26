@@ -313,7 +313,7 @@ class ConnectionManager {
         current_step: status.current_step,
         total_steps: status.total_steps,
         step_name: status.message,
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       };
 
       this.handleMessage(queryId, message);
@@ -325,7 +325,7 @@ class ConnectionManager {
           type: 'completion',
           query_id: queryId,
           result,
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
         this.handleMessage(queryId, completionMessage);
       } else if (status.status === 'failed') {
@@ -334,7 +334,7 @@ class ConnectionManager {
           query_id: queryId,
           message: status.error_message || 'Query failed',
           error_details: status.error_message,
-          timestamp: new Date().toISOString(),
+          timestamp: Date.now(),
         };
         this.handleMessage(queryId, errorMessage);
       }

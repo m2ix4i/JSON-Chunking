@@ -2,17 +2,16 @@
 File upload and management endpoints.
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from typing import Dict, Any, List
-import uuid
 import time
-import aiofiles
+import uuid
+from typing import Any, Dict
+
 import structlog
-from pathlib import Path
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from ...config import Config
+from ..models.responses import FileStatusResponse, FileUploadResponse
 from ..services.file_service import FileService
-from ..models.responses import FileUploadResponse, FileStatusResponse
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -21,7 +20,7 @@ router = APIRouter()
 config = Config()
 file_service = FileService(config)
 
-@router.post("/files/upload", 
+@router.post("/files/upload",
     response_model=FileUploadResponse,
     summary="Upload IFC or JSON file for processing"
 )
@@ -39,22 +38,22 @@ async def upload_file(
     Returns file ID for tracking and processing.
     """
     start_time = time.time()
-    
+
     try:
         # Validate file
         await file_service.validate_upload_file(file)
-        
+
         # Generate unique file ID
         file_id = str(uuid.uuid4())
-        
+
         # Save file
         file_path = await file_service.save_upload_file(file, file_id)
-        
+
         # Get file info
         file_info = await file_service.get_file_info(file_path)
-        
+
         processing_time = time.time() - start_time
-        
+
         logger.info(
             "File uploaded successfully",
             file_id=file_id,
@@ -62,7 +61,7 @@ async def upload_file(
             size=file_info["size"],
             processing_time=processing_time
         )
-        
+
         return FileUploadResponse(
             file_id=file_id,
             filename=file.filename,
@@ -71,7 +70,7 @@ async def upload_file(
             status="uploaded",
             processing_time=processing_time
         )
-        
+
     except ValueError as e:
         logger.warning("File validation failed", error=str(e), filename=file.filename)
         raise HTTPException(status_code=400, detail=str(e))
@@ -91,7 +90,7 @@ async def get_file_status(file_id: str) -> FileStatusResponse:
     """
     try:
         file_info = await file_service.get_file_status(file_id)
-        
+
         return FileStatusResponse(
             file_id=file_id,
             filename=file_info["filename"],
@@ -101,7 +100,7 @@ async def get_file_status(file_id: str) -> FileStatusResponse:
             upload_time=file_info["upload_time"],
             expires_at=file_info.get("expires_at")
         )
-        
+
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
@@ -119,15 +118,15 @@ async def delete_file(file_id: str) -> Dict[str, str]:
     """
     try:
         await file_service.delete_file(file_id)
-        
+
         logger.info("File deleted successfully", file_id=file_id)
-        
+
         return {
             "file_id": file_id,
             "status": "deleted",
             "message": "File deleted successfully"
         }
-        
+
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
@@ -145,14 +144,14 @@ async def list_files(limit: int = 50, offset: int = 0) -> Dict[str, Any]:
     """
     try:
         files = await file_service.list_files(limit=limit, offset=offset)
-        
+
         return {
             "files": files,
             "total": len(files),
             "limit": limit,
             "offset": offset
         }
-        
+
     except Exception as e:
         logger.error("Error listing files", error=str(e))
         raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")

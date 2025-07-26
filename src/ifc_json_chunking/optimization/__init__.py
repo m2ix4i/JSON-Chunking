@@ -6,18 +6,18 @@ and resource pooling for high-performance operations.
 """
 
 from .memory_efficient_structures import (
-    ObjectPool,
+    ChunkBuffer,
     CompressedBuffer,
     MemoryMappedCache,
-    ChunkBuffer,
+    ObjectPool,
+    PoolStats,
     ResourceManager,
     get_resource_manager,
-    PoolStats
 )
 
 __all__ = [
     "ObjectPool",
-    "CompressedBuffer", 
+    "CompressedBuffer",
     "MemoryMappedCache",
     "ChunkBuffer",
     "ResourceManager",

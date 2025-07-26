@@ -6,14 +6,16 @@ accuracy, completeness, consistency, and reliability scoring
 for aggregated IFC data analysis results.
 """
 
-from typing import List, Dict, Any, Optional
-import statistics
-from collections import Counter
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from ...types.aggregation_types import (
-    ExtractedData, QualityMetrics, Conflict, ConflictResolution,
-    QualityWeights
+    Conflict,
+    ConflictResolution,
+    ExtractedData,
+    QualityMetrics,
+    QualityWeights,
 )
 
 logger = structlog.get_logger(__name__)
@@ -27,7 +29,7 @@ class QualityScorer:
     completeness, consistency, reliability, and overall quality
     using configurable weighting schemes.
     """
-    
+
     def __init__(self, weights: Optional[QualityWeights] = None):
         """
         Initialize quality scorer.
@@ -36,7 +38,7 @@ class QualityScorer:
             weights: Custom quality scoring weights
         """
         self.weights = weights or QualityWeights()
-        
+
         logger.debug(
             "QualityScorer initialized",
             confidence_weight=self.weights.CONFIDENCE,
@@ -45,7 +47,7 @@ class QualityScorer:
             reliability_weight=self.weights.RELIABILITY,
             extraction_weight=self.weights.EXTRACTION
         )
-    
+
     def calculate_quality_metrics(
         self,
         extracted_data_list: List[ExtractedData],
@@ -71,7 +73,7 @@ class QualityScorer:
             conflicts_detected=len(conflicts),
             conflicts_resolved=len(resolutions)
         )
-        
+
         # Individual quality scores
         confidence_score = self._calculate_confidence_score(extracted_data_list)
         completeness_score = self._calculate_completeness_score(
@@ -82,24 +84,24 @@ class QualityScorer:
         )
         reliability_score = self._calculate_reliability_score(extracted_data_list)
         extraction_quality = self._calculate_extraction_quality(extracted_data_list)
-        
+
         # Additional metrics
         data_coverage = self._calculate_data_coverage(extracted_data_list)
         uncertainty_level = self._calculate_uncertainty_level(conflicts, resolutions)
         validation_passed = self._determine_validation_status(
-            confidence_score, completeness_score, consistency_score, 
+            confidence_score, completeness_score, consistency_score,
             reliability_score, conflicts
         )
         conflict_resolution_rate = (
             len(resolutions) / len(conflicts) if conflicts else 1.0
         )
-        
+
         # Overall quality score (weighted combination)
         overall_quality = self._calculate_overall_quality(
             confidence_score, completeness_score, consistency_score,
             reliability_score, extraction_quality
         )
-        
+
         quality_metrics = QualityMetrics(
             confidence_score=confidence_score,
             completeness_score=completeness_score,
@@ -112,7 +114,7 @@ class QualityScorer:
             conflict_resolution_rate=conflict_resolution_rate,
             calculation_method="comprehensive_quality_scoring"
         )
-        
+
         logger.info(
             "Quality metrics calculation completed",
             overall_quality=overall_quality,
@@ -122,34 +124,34 @@ class QualityScorer:
             reliability=reliability_score,
             validation_passed=validation_passed
         )
-        
+
         return quality_metrics
-    
+
     def _calculate_confidence_score(self, data_list: List[ExtractedData]) -> float:
         """Calculate confidence score based on extraction reliability."""
         if not data_list:
             return 0.0
-        
+
         # Base confidence from extraction scores
         extraction_confidences = [
             d.extraction_confidence for d in data_list if d.extraction_confidence > 0
         ]
-        
+
         if not extraction_confidences:
             return 0.0
-        
+
         avg_confidence = sum(extraction_confidences) / len(extraction_confidences)
-        
+
         # Adjust for data quality distribution
         high_quality_ratio = len([
             d for d in data_list if d.data_quality == 'high'
         ]) / len(data_list)
-        
+
         # Boost confidence with more high-quality sources
         quality_boost = high_quality_ratio * 0.2
-        
+
         return min(avg_confidence + quality_boost, 1.0)
-    
+
     def _calculate_completeness_score(
         self,
         data_list: List[ExtractedData],
@@ -158,28 +160,28 @@ class QualityScorer:
         """Calculate completeness score based on data richness."""
         if not data_list:
             return 0.0
-        
+
         completeness_factors = []
-        
+
         # Entity completeness
         entity_completeness = self._assess_entity_completeness(data_list)
         completeness_factors.append(entity_completeness)
-        
+
         # Quantity completeness
         quantity_completeness = self._assess_quantity_completeness(data_list)
         completeness_factors.append(quantity_completeness)
-        
+
         # Property completeness
         property_completeness = self._assess_property_completeness(data_list)
         completeness_factors.append(property_completeness)
-        
+
         # Relationship completeness
         relationship_completeness = self._assess_relationship_completeness(data_list)
         completeness_factors.append(relationship_completeness)
-        
+
         # Overall completeness
         base_completeness = sum(completeness_factors) / len(completeness_factors)
-        
+
         # Boost for comprehensive aggregated data
         aggregation_boost = 0.0
         if aggregated_data:
@@ -187,73 +189,73 @@ class QualityScorer:
                 'quantitative', 'entities', 'properties', 'relationships'
             ] if category in aggregated_data and aggregated_data[category])
             aggregation_boost = categories_present * 0.05
-        
+
         return min(base_completeness + aggregation_boost, 1.0)
-    
+
     def _assess_entity_completeness(self, data_list: List[ExtractedData]) -> float:
         """Assess completeness of entity data."""
         if not data_list:
             return 0.0
-        
+
         entity_counts = [len(d.entities) for d in data_list]
-        
+
         # Sources with entities
         sources_with_entities = len([count for count in entity_counts if count > 0])
         entity_presence_ratio = sources_with_entities / len(data_list)
-        
+
         # Average entity richness
         avg_entities = sum(entity_counts) / len(entity_counts)
         entity_richness = min(avg_entities / 5.0, 1.0)  # Normalize to 5 entities
-        
+
         return (entity_presence_ratio * 0.6 + entity_richness * 0.4)
-    
+
     def _assess_quantity_completeness(self, data_list: List[ExtractedData]) -> float:
         """Assess completeness of quantitative data."""
         if not data_list:
             return 0.0
-        
+
         quantity_counts = [len(d.quantities) for d in data_list]
-        
+
         # Sources with quantities
         sources_with_quantities = len([count for count in quantity_counts if count > 0])
         quantity_presence_ratio = sources_with_quantities / len(data_list)
-        
+
         # Average quantity richness
         avg_quantities = sum(quantity_counts) / len(quantity_counts)
         quantity_richness = min(avg_quantities / 3.0, 1.0)  # Normalize to 3 quantities
-        
+
         return (quantity_presence_ratio * 0.7 + quantity_richness * 0.3)
-    
+
     def _assess_property_completeness(self, data_list: List[ExtractedData]) -> float:
         """Assess completeness of property data."""
         if not data_list:
             return 0.0
-        
+
         property_counts = [len(d.properties) for d in data_list]
-        
+
         # Sources with properties
         sources_with_properties = len([count for count in property_counts if count > 0])
         property_presence_ratio = sources_with_properties / len(data_list)
-        
+
         return property_presence_ratio
-    
+
     def _assess_relationship_completeness(self, data_list: List[ExtractedData]) -> float:
         """Assess completeness of relationship data."""
         if not data_list:
             return 0.0
-        
+
         relationship_counts = [len(d.relationships) for d in data_list]
-        
+
         # Sources with relationships
         sources_with_relationships = len([count for count in relationship_counts if count > 0])
-        
+
         if len(data_list) == 0:
             return 0.0
-        
+
         relationship_presence_ratio = sources_with_relationships / len(data_list)
-        
+
         return relationship_presence_ratio
-    
+
     def _calculate_consistency_score(
         self,
         data_list: List[ExtractedData],
@@ -263,83 +265,83 @@ class QualityScorer:
         """Calculate consistency score based on conflicts and resolutions."""
         if not data_list:
             return 0.0
-        
+
         # Base consistency (no conflicts = perfect consistency)
         base_consistency = 1.0
-        
+
         # Reduce consistency based on unresolved conflicts
         unresolved_conflicts = len(conflicts) - len(resolutions)
         conflict_penalty = min(unresolved_conflicts * 0.1, 0.6)
-        
+
         consistency_score = base_consistency - conflict_penalty
-        
+
         # Adjust for conflict severity
         high_severity_conflicts = len([
             c for c in conflicts if c.severity > 0.7
         ])
         severity_penalty = min(high_severity_conflicts * 0.05, 0.2)
-        
+
         final_consistency = max(consistency_score - severity_penalty, 0.0)
-        
+
         return final_consistency
-    
+
     def _calculate_reliability_score(self, data_list: List[ExtractedData]) -> float:
         """Calculate reliability score based on data quality indicators."""
         if not data_list:
             return 0.0
-        
+
         reliability_factors = []
-        
+
         # Quality distribution
         quality_scores = {
             'high': 1.0,
             'medium': 0.7,
             'low': 0.3
         }
-        
+
         for data in data_list:
             quality_score = quality_scores.get(data.data_quality, 0.5)
             reliability_factors.append(quality_score)
-        
+
         # Average reliability
         avg_reliability = sum(reliability_factors) / len(reliability_factors)
-        
+
         # Boost for processing success
         processing_success_rate = len([
             d for d in data_list if not d.processing_errors
         ]) / len(data_list)
-        
+
         return min(avg_reliability * processing_success_rate + 0.1, 1.0)
-    
+
     def _calculate_extraction_quality(self, data_list: List[ExtractedData]) -> float:
         """Calculate extraction quality score."""
         if not data_list:
             return 0.0
-        
+
         # Average extraction confidence
         extraction_scores = [
             d.extraction_confidence for d in data_list if d.extraction_confidence > 0
         ]
-        
+
         if not extraction_scores:
             return 0.0
-        
+
         return sum(extraction_scores) / len(extraction_scores)
-    
+
     def _calculate_data_coverage(self, data_list: List[ExtractedData]) -> float:
         """Calculate data coverage score."""
         if not data_list:
             return 0.0
-        
+
         # Calculate how many sources provide useful data
         useful_sources = len([
-            d for d in data_list 
-            if (d.entities or d.quantities or d.properties) 
+            d for d in data_list
+            if (d.entities or d.quantities or d.properties)
             and d.extraction_confidence > 0.3
         ])
-        
+
         return useful_sources / len(data_list)
-    
+
     def _calculate_uncertainty_level(
         self,
         conflicts: List[Conflict],
@@ -347,18 +349,18 @@ class QualityScorer:
     ) -> float:
         """Calculate uncertainty level based on conflicts."""
         unresolved_conflicts = len(conflicts) - len(resolutions)
-        
+
         # Base uncertainty from unresolved conflicts
         base_uncertainty = min(unresolved_conflicts * 0.05, 0.3)
-        
+
         # Add uncertainty from high-severity conflicts
         high_severity_conflicts = len([
             c for c in conflicts if c.severity > 0.8
         ])
         severity_uncertainty = min(high_severity_conflicts * 0.1, 0.2)
-        
+
         return min(base_uncertainty + severity_uncertainty, 0.5)
-    
+
     def _determine_validation_status(
         self,
         confidence: float,
@@ -374,12 +376,12 @@ class QualityScorer:
         min_consistency = 0.6
         min_reliability = 0.5
         max_critical_conflicts = 1
-        
+
         # Count critical conflicts
         critical_conflicts = len([
             c for c in conflicts if c.severity > 0.9
         ])
-        
+
         return (
             confidence >= min_confidence and
             completeness >= min_completeness and
@@ -387,7 +389,7 @@ class QualityScorer:
             reliability >= min_reliability and
             critical_conflicts <= max_critical_conflicts
         )
-    
+
     def _calculate_overall_quality(
         self,
         confidence: float,
@@ -404,7 +406,7 @@ class QualityScorer:
             reliability * self.weights.RELIABILITY +
             extraction * self.weights.EXTRACTION
         )
-    
+
     def generate_quality_report(
         self,
         quality_metrics: QualityMetrics,
@@ -444,13 +446,13 @@ class QualityScorer:
                 quality_metrics, conflicts
             )
         }
-        
+
         return report
-    
+
     def _assess_overall_quality(self, metrics: QualityMetrics) -> str:
         """Assess overall quality level."""
         overall_score = metrics.overall_quality
-        
+
         if overall_score >= 0.8:
             return "excellent"
         elif overall_score >= 0.6:
@@ -459,7 +461,7 @@ class QualityScorer:
             return "fair"
         else:
             return "poor"
-    
+
     def _generate_quality_recommendations(
         self,
         metrics: QualityMetrics,
@@ -467,35 +469,35 @@ class QualityScorer:
     ) -> List[str]:
         """Generate recommendations for quality improvement."""
         recommendations = []
-        
+
         if metrics.confidence_score < 0.6:
             recommendations.append(
                 "Consider additional data sources to improve confidence"
             )
-        
+
         if metrics.completeness_score < 0.5:
             recommendations.append(
                 "Enhance data extraction to capture more information"
             )
-        
+
         if metrics.consistency_score < 0.7:
             recommendations.append(
                 "Review and resolve data conflicts for better consistency"
             )
-        
+
         if metrics.reliability_score < 0.6:
             recommendations.append(
                 "Improve data quality control measures"
             )
-        
+
         if len(conflicts) > 3:
             recommendations.append(
                 "Investigate root causes of data conflicts"
             )
-        
+
         if not metrics.validation_passed:
             recommendations.append(
                 "Address validation failures before using results"
             )
-        
+
         return recommendations

@@ -7,15 +7,15 @@ core concepts in the IFC JSON chunking domain.
 
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
 from enum import Enum
+from typing import Any, Dict, Optional
 
 
 class ChunkType(Enum):
     """Types of chunks that can be created."""
     IFC_OBJECT = "ifc_object"
     HEADER = "header"
-    GEOMETRY = "geometry" 
+    GEOMETRY = "geometry"
     GENERAL = "general"
     SEMANTIC = "semantic"
 
@@ -28,7 +28,7 @@ class Chunk:
     This is the primary domain object for chunked data, replacing
     primitive dictionaries with a proper typed object.
     """
-    
+
     chunk_id: str
     sequence_number: int
     json_path: str
@@ -36,20 +36,20 @@ class Chunk:
     data: Any
     size_bytes: int
     created_timestamp: float
-    
+
     # Optional fields for specific chunk types
     object_id: Optional[str] = None
     geometry_id: Optional[str] = None
-    
+
     # Token optimization fields
     token_count: Optional[int] = None
     target_model: Optional[str] = None
-    
+
     @classmethod
     def create_from_element(
-        cls, 
-        json_path: str, 
-        value: Any, 
+        cls,
+        json_path: str,
+        value: Any,
         sequence_number: int
     ) -> 'Chunk':
         """
@@ -72,7 +72,7 @@ class Chunk:
             size_bytes=cls._calculate_size(value),
             created_timestamp=time.time()
         )
-    
+
     @classmethod
     def create_ifc_object(
         cls,
@@ -99,7 +99,7 @@ class Chunk:
             created_timestamp=time.time(),
             object_id=object_id
         )
-    
+
     @classmethod
     def create_header(cls, header_data: Dict[str, Any]) -> 'Chunk':
         """
@@ -120,7 +120,7 @@ class Chunk:
             size_bytes=cls._calculate_size(header_data),
             created_timestamp=time.time()
         )
-    
+
     @classmethod
     def create_geometry(
         cls,
@@ -147,7 +147,7 @@ class Chunk:
             created_timestamp=time.time(),
             geometry_id=geometry_id
         )
-    
+
     @staticmethod
     def _determine_chunk_type(json_path: str) -> ChunkType:
         """Determine chunk type based on JSON path."""
@@ -159,12 +159,12 @@ class Chunk:
             return ChunkType.GEOMETRY
         else:
             return ChunkType.GENERAL
-    
+
     @staticmethod
     def _calculate_size(data: Any) -> int:
         """Calculate the size of data in bytes."""
         return len(str(data))
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert chunk to dictionary for serialization.
@@ -181,7 +181,7 @@ class Chunk:
             "size_bytes": self.size_bytes,
             "created_timestamp": self.created_timestamp
         }
-        
+
         # Add optional fields if present
         if self.object_id:
             result["object_id"] = self.object_id
@@ -191,9 +191,9 @@ class Chunk:
             result["token_count"] = self.token_count
         if self.target_model:
             result["target_model"] = self.target_model
-            
+
         return result
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Chunk':
         """
@@ -218,7 +218,7 @@ class Chunk:
             token_count=data.get("token_count"),
             target_model=data.get("target_model")
         )
-    
+
     def calculate_token_count(self, model_name: str = "gemini-2.5-pro") -> int:
         """
         Calculate and set token count for this chunk.
@@ -231,13 +231,13 @@ class Chunk:
         """
         # Import here to avoid circular dependencies
         from .token_counter import create_token_counter
-        
+
         counter = create_token_counter(model_name)
         self.token_count = counter.count_tokens(self.data)
         self.target_model = model_name
-        
+
         return self.token_count
-    
+
     def is_token_optimized(self, model_name: str = "gemini-2.5-pro") -> bool:
         """
         Check if chunk is optimally sized for target model.
@@ -249,13 +249,13 @@ class Chunk:
             True if chunk is within optimal token limits
         """
         from .token_counter import create_token_counter
-        
+
         counter = create_token_counter(model_name)
         if self.token_count is None:
             self.calculate_token_count(model_name)
-        
+
         return self.token_count <= counter.get_optimal_chunk_size()
-    
+
     def __str__(self) -> str:
         """String representation of chunk."""
         token_info = f", tokens={self.token_count}" if self.token_count else ""
@@ -270,24 +270,24 @@ class ProcessingResult:
     Encapsulates the outcome of a processing operation
     to improve code organization and testability.
     """
-    
+
     chunks: list[Chunk]
     processed_objects: int
     validation_errors: int
     elapsed_seconds: float
-    
+
     @property
     def chunks_created(self) -> int:
         """Get the number of chunks created."""
         return len(self.chunks)
-    
+
     @property
     def processing_rate_objects_per_sec(self) -> float:
         """Get processing rate in objects per second."""
         if self.elapsed_seconds <= 0:
             return 0.0
         return self.processed_objects / self.elapsed_seconds
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -308,37 +308,37 @@ class ValidationResult:
     Encapsulates validation outcomes to support the
     "Tell, Don't Ask" pattern.
     """
-    
+
     is_valid: bool
     errors: list[str]
     warnings: list[str]
-    
+
     def has_errors(self) -> bool:
         """Check if there are validation errors."""
         return len(self.errors) > 0
-    
+
     def has_warnings(self) -> bool:
         """Check if there are validation warnings."""
         return len(self.warnings) > 0
-    
+
     def error_count(self) -> int:
         """Get number of errors."""
         return len(self.errors)
-    
+
     def add_error(self, error: str) -> None:
         """Add a validation error."""
         self.errors.append(error)
         self.is_valid = False
-    
+
     def add_warning(self, warning: str) -> None:
         """Add a validation warning."""
         self.warnings.append(warning)
-    
+
     @classmethod
     def valid(cls) -> 'ValidationResult':
         """Create a valid result with no errors."""
         return cls(is_valid=True, errors=[], warnings=[])
-    
+
     @classmethod
     def invalid(cls, error: str) -> 'ValidationResult':
         """Create an invalid result with an error."""
@@ -353,20 +353,20 @@ class ChunkingDecision:
     Supports the "Tell, Don't Ask" pattern by encapsulating
     the decision logic and chunk creation.
     """
-    
+
     should_chunk: bool
     reason: str
     suggested_chunk_type: Optional[ChunkType] = None
-    
+
     def should_create_chunk(self) -> bool:
         """Check if a chunk should be created."""
         return self.should_chunk
-    
+
     @classmethod
     def yes(cls, reason: str, chunk_type: Optional[ChunkType] = None) -> 'ChunkingDecision':
         """Create a positive chunking decision."""
         return cls(should_chunk=True, reason=reason, suggested_chunk_type=chunk_type)
-    
+
     @classmethod
     def no(cls, reason: str) -> 'ChunkingDecision':
         """Create a negative chunking decision."""
@@ -381,20 +381,20 @@ class StreamingProcessingContext:
     Encapsulates all state needed during file processing to reduce
     parameter passing and improve method cohesion.
     """
-    
+
     file_path: 'Path'
     file_size: int
     chunks: list['Chunk']
     processed_objects: int = 0
     validation_errors: int = 0
-    
+
     @classmethod
     def create_for_file(cls, file_path: 'Path') -> 'StreamingProcessingContext':
         """Create processing context for a file."""
         from pathlib import Path
         if isinstance(file_path, str):
             file_path = Path(file_path)
-            
+
         return cls(
             file_path=file_path,
             file_size=file_path.stat().st_size,
@@ -402,19 +402,19 @@ class StreamingProcessingContext:
             processed_objects=0,
             validation_errors=0
         )
-    
+
     def add_chunk(self, chunk: 'Chunk') -> None:
         """Add a chunk to the context."""
         self.chunks.append(chunk)
-    
+
     def increment_objects(self) -> None:
         """Increment processed objects counter."""
         self.processed_objects += 1
-    
+
     def increment_validation_errors(self) -> None:
         """Increment validation errors counter."""
         self.validation_errors += 1
-    
+
     def to_processing_result(self, elapsed_seconds: float = 0) -> ProcessingResult:
         """Convert context to ProcessingResult."""
         return ProcessingResult(
