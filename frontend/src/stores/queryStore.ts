@@ -471,7 +471,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       console.log('Rerunning query:', query.original_query);
     }
   },
-
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),
@@ -491,9 +490,7 @@ export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery
 
 export const useGermanSuggestions = () => []; // Placeholder - implement as needed
 
-export const useWebSocketConnected = () => useQueryStore((state) => 
-  state.connectionStatus === 'connected'
-);
+export const useWebSocketConnected = () => useQueryStore((state) => state.isConnected);
 
 export const useQuerySubmission = () => useQueryStore((state) => ({
   isSubmitting: state.isSubmitting,
