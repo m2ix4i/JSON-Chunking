@@ -318,11 +318,11 @@ class TestQueryOptimizer:
             Chunk(
                 chunk_id=f"chunk_{i:03d}",
                 sequence_number=i,
-                json_path=f"test.data[{i}]",
-                chunk_type=ChunkType.GENERAL,
+                json_path=f"$.data[{i}]",
+                chunk_type=ChunkType.SEMANTIC,
                 data={"test": f"data_{i}"},
-                size_bytes=50,
-                created_timestamp=1640995200.0
+                size_bytes=100 + i,
+                created_timestamp=1640995200.0 + i
             )
             for i in range(10)
         ]

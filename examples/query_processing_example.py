@@ -164,7 +164,7 @@ async def main():
     
     print(f"✅ Created {len(chunks)} chunks")
     for i, chunk in enumerate(chunks):
-        print(f"   Chunk {i+1}: {chunk.chunk_type.value} - {len(str(chunk.content))} chars")
+        print(f"   Chunk {i+1}: {chunk.chunk_type.value} - {len(str(chunk.data))} chars")
     print()
     
     # Define test queries in German (building industry focused)
