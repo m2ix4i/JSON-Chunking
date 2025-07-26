@@ -1,28 +1,14 @@
 /**
-<<<<<<< HEAD
- * File selector component for choosing files for queries.
-=======
  * File selector component for choosing uploaded files.
  * Provides radio-button selection interface with file details.
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
  */
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
-<<<<<<< HEAD
-  Alert,
-  Button,
-} from '@mui/material';
-import { CloudUpload as UploadIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-
-// Store hooks
-import { useSelectedFile } from '@stores/fileStore';
-=======
   List,
   ListItem,
   ListItemIcon,
@@ -31,69 +17,78 @@ import { useSelectedFile } from '@stores/fileStore';
   Chip,
   Alert,
   Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Checkbox,
+  Toolbar,
+  Divider,
 } from '@mui/material';
 import {
   Description as FileIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
+  Delete as DeleteIcon,
+  SelectAll as SelectAllIcon,
+  ClearAll as ClearAllIcon,
+  DeleteSweep as BulkDeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
-import { useFileSelection } from '@stores/fileStore';
+import { useFileSelection, useFileStore } from '@stores/fileStore';
+
+// Utils
+import { formatFileSize, formatTimestamp } from '@utils/time';
 
 // Types
 import type { UploadedFile } from '@/types/app';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
 interface FileSelectorProps {
   title?: string;
   showUploadPrompt?: boolean;
-<<<<<<< HEAD
-=======
   compact?: boolean;
   onFileSelected?: (file: UploadedFile | null) => void;
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
+  enableBulkSelection?: boolean;
 }
 
 const FileSelector: React.FC<FileSelectorProps> = ({
   title = "Datei auswählen",
   showUploadPrompt = true,
-<<<<<<< HEAD
-}) => {
-  const navigate = useNavigate();
-  const selectedFile = useSelectedFile();
-=======
   compact = false,
   onFileSelected,
+  enableBulkSelection = false,
 }) => {
   const navigate = useNavigate();
   const { files, selectedFileId, selectFile } = useFileSelection();
+  const deleteFile = useFileStore((state) => state.deleteFile);
+
+  // Delete confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<UploadedFile | null>(null);
+  
+  // Bulk selection state
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
+  // Memoize the selected file to avoid unnecessary lookups
+  const selectedFile = useMemo(() => 
+    selectedFileId ? files.find(f => f.file_id === selectedFileId) || null : null,
+    [selectedFileId, files]
+  );
 
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
     
     // Call callback if provided
     if (onFileSelected) {
-      const selectedFile = fileId ? files.find(f => f.file_id === fileId) || null : null;
-      onFileSelected(selectedFile);
+      const file = fileId ? files.find(f => f.file_id === fileId) || null : null;
+      onFileSelected(file);
     }
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    const mb = bytes / (1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
-  };
-
-  const formatUploadTime = (timestamp: string): string => {
-    return new Date(timestamp).toLocaleString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const getFileStatus = (file: UploadedFile) => {
@@ -104,6 +99,69 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
     }
+  };
+
+  // Delete handlers
+  const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
+    e.stopPropagation(); // Prevent file selection when clicking delete
+    setFileToDelete(file);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (fileToDelete) {
+      try {
+        await deleteFile(fileToDelete.file_id);
+        setDeleteConfirmOpen(false);
+        setFileToDelete(null);
+      } catch (error) {
+        // Error handling is done in the store
+        console.error('Delete failed:', error);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+    setFileToDelete(null);
+  };
+
+  // Bulk selection handlers
+  const handleBulkSelect = (fileId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedFiles(prev => [...prev, fileId]);
+    } else {
+      setSelectedFiles(prev => prev.filter(id => id !== fileId));
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelectedFiles(files.map(f => f.file_id));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFiles([]);
+  };
+
+  const handleBulkDelete = () => {
+    setBulkDeleteOpen(true);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    try {
+      // Delete files one by one (could be optimized with bulk API later)
+      for (const fileId of selectedFiles) {
+        await deleteFile(fileId);
+      }
+      setSelectedFiles([]);
+      setBulkDeleteOpen(false);
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+    }
+  };
+
+  const handleBulkDeleteCancel = () => {
+    setBulkDeleteOpen(false);
   };
 
   // Show empty state if no files
@@ -142,7 +200,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
       </Card>
     );
   }
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
   return (
     <Card>
@@ -150,40 +207,46 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
-        
-<<<<<<< HEAD
-        {selectedFile ? (
-          <Alert severity="success">
-            <Typography variant="body2">
-              <strong>Ausgewählte Datei:</strong> {selectedFile.filename}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Größe: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-            </Typography>
-          </Alert>
-        ) : (
-          <>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                Keine Datei ausgewählt. Wählen Sie eine Datei aus oder laden Sie eine neue hoch.
-              </Typography>
-            </Alert>
-            
-            {showUploadPrompt && (
-              <Button
-                variant="contained"
-                startIcon={<UploadIcon />}
-                onClick={() => navigate('/upload')}
-                fullWidth
-              >
-                Datei hochladen
-              </Button>
-            )}
-          </>
-=======
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
+
+        {/* Bulk action toolbar */}
+        {enableBulkSelection && files.length > 0 && (
+          <>
+            <Toolbar variant="dense" sx={{ pl: 0, pr: 0, minHeight: 48 }}>
+              <Button
+                size="small"
+                startIcon={<SelectAllIcon />}
+                onClick={handleSelectAll}
+                disabled={selectedFiles.length === files.length}
+              >
+                Alle auswählen
+              </Button>
+              <Button
+                size="small"
+                startIcon={<ClearAllIcon />}
+                onClick={handleClearSelection}
+                disabled={selectedFiles.length === 0}
+                sx={{ ml: 1 }}
+              >
+                Auswahl aufheben
+              </Button>
+              <Box sx={{ flexGrow: 1 }} />
+              {selectedFiles.length > 0 && (
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<BulkDeleteIcon />}
+                  onClick={handleBulkDelete}
+                >
+                  {selectedFiles.length} löschen
+                </Button>
+              )}
+            </Toolbar>
+            <Divider sx={{ mb: 1 }} />
+          </>
+        )}
 
         <List dense={compact}>
           {/* Option to deselect */}
@@ -214,12 +277,13 @@ const FileSelector: React.FC<FileSelectorProps> = ({
           {files.map((file) => {
             const status = getFileStatus(file);
             const isSelected = selectedFileId === file.file_id;
+            const isBulkSelected = selectedFiles.includes(file.file_id);
 
             return (
               <ListItem
                 key={file.file_id}
                 button
-                onClick={() => handleFileSelect(file.file_id)}
+                onClick={() => enableBulkSelection ? undefined : handleFileSelect(file.file_id)}
                 sx={{ 
                   borderRadius: 1,
                   mb: 1,
@@ -227,12 +291,20 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                 }}
               >
                 <ListItemIcon>
-                  <Radio
-                    checked={isSelected}
-                    onChange={() => handleFileSelect(file.file_id)}
-                    value={file.file_id}
-                    name="file-selector"
-                  />
+                  {enableBulkSelection ? (
+                    <Checkbox
+                      checked={isBulkSelected}
+                      onChange={(e) => handleBulkSelect(file.file_id, e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Radio
+                      checked={isSelected}
+                      onChange={() => handleFileSelect(file.file_id)}
+                      value={file.file_id}
+                      name="file-selector"
+                    />
+                  )}
                 </ListItemIcon>
 
                 <ListItemIcon>
@@ -255,7 +327,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   }
                   secondary={
                     <Typography variant="body2" color="text.secondary">
-                      {formatFileSize(file.size)} • Hochgeladen: {formatUploadTime(file.upload_timestamp)}
+                      {formatFileSize(file.size)} • Hochgeladen: {formatTimestamp(file.upload_timestamp)}
                       {file.validation_result && (
                         <span>
                           {' • '}
@@ -268,16 +340,29 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                     </Typography>
                   }
                 />
+
+                {/* Delete button - only show in single-selection mode */}
+                {!enableBulkSelection && (
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={(e) => handleDeleteClick(e, file)}
+                    size="small"
+                    sx={{ ml: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                )}
               </ListItem>
             );
           })}
         </List>
 
         {/* Selected file summary */}
-        {selectedFileId && (
+        {selectedFile && (
           <Alert severity="success" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Ausgewählt:</strong> {files.find(f => f.file_id === selectedFileId)?.filename}
+              <strong>Ausgewählt:</strong> {selectedFile.filename}
             </Typography>
           </Alert>
         )}
@@ -294,8 +379,59 @@ const FileSelector: React.FC<FileSelectorProps> = ({
               Weitere Dateien hochladen
             </Button>
           </Box>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
         )}
+
+        {/* Delete confirmation dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Datei löschen
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Möchten Sie die Datei "{fileToDelete?.filename}" wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary">
+              Abbrechen
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Löschen
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Bulk delete confirmation dialog */}
+        <Dialog
+          open={bulkDeleteOpen}
+          onClose={handleBulkDeleteCancel}
+          aria-labelledby="bulk-delete-dialog-title"
+          aria-describedby="bulk-delete-dialog-description"
+        >
+          <DialogTitle id="bulk-delete-dialog-title">
+            Mehrere Dateien löschen
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="bulk-delete-dialog-description">
+              Möchten Sie {selectedFiles.length} ausgewählte Datei(en) wirklich löschen?
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleBulkDeleteCancel} color="primary">
+              Abbrechen
+            </Button>
+            <Button onClick={handleBulkDeleteConfirm} color="error" variant="contained">
+              {selectedFiles.length} Dateien löschen
+            </Button>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   );
