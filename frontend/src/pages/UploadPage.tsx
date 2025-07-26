@@ -25,13 +25,14 @@ import { useNavigate } from 'react-router-dom';
 
 // Components
 import FileDropzone from '@components/upload/FileDropzone';
+import FileSelector from '@components/files/FileSelector';
 
 // Store hooks
 import { useFiles } from '@stores/fileStore';
 import { showSuccessNotification } from '@stores/appStore';
 
 // Types
-import type { UploadedFile } from '@types/app';
+import type { UploadedFile } from '@/types/app';
 
 const UploadPage: React.FC = () => {
   const navigate = useNavigate();
@@ -83,6 +84,17 @@ const UploadPage: React.FC = () => {
             maxSizeMB={100}
           />
         </Grid>
+
+        {/* File selection - show when files are available */}
+        {files.length > 0 && (
+          <Grid item xs={12} lg={8}>
+            <FileSelector 
+              title="Hochgeladene Dateien verwalten"
+              showUploadPrompt={false}
+              compact={true}
+            />
+          </Grid>
+        )}
 
         {/* Information sidebar */}
         <Grid item xs={12} lg={4}>

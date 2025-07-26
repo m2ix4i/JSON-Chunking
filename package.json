@@ -1,8 +1,13 @@
 {
+<<<<<<< HEAD
   "dependencies": {
     "playwright": "^1.54.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1"
+=======
+  "devDependencies": {
+    "puppeteer": "^24.15.0"
+>>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
   }
 }

@@ -208,7 +208,7 @@ class ChunkingEngine:
             "file_path": str(file_path),
             "file_size_bytes": file_size,
             "file_size_mb": file_size / (1024 * 1024),
-            "status": "processed",
+            "status": "completed",
             "chunks_created": result.chunks_created,
             "processed_objects": result.processed_objects,
             "validation_errors": result.validation_errors,
@@ -267,18 +267,20 @@ class ChunkingEngine:
         logger.info("Creating chunks from in-memory data", 
                    data_size_bytes=len(str(data)))
         
+        # Validate input data
+        if not isinstance(data, dict):
+            raise IFCChunkingError(f"Invalid data type: expected dict, got {type(data).__name__}")
+        
         chunks = []
         
         try:
-            # For in-memory data, process it as a structured object
-            if isinstance(data, dict):
-                # Handle IFC JSON structure
-                if 'objects' in data:
-                    chunks.extend(await self._chunk_ifc_objects(data['objects']))
-                if 'header' in data:
-                    chunks.append(await self._create_header_chunk(data['header']))
-                if 'geometry' in data:
-                    chunks.extend(await self._chunk_geometry_data(data['geometry']))
+            # Handle IFC JSON structure
+            if 'objects' in data:
+                chunks.extend(await self._chunk_ifc_objects(data['objects']))
+            if 'header' in data:
+                chunks.append(await self._create_header_chunk(data['header']))
+            if 'geometry' in data:
+                chunks.extend(await self._chunk_geometry_data(data['geometry']))
             
             self.chunks_created = len(chunks)
             

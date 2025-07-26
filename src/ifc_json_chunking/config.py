@@ -119,7 +119,26 @@ class Config:
     request_timeout: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REQUEST_TIMEOUT", 30))
     rate_limit_rpm: int = field(default_factory=lambda: ConfigurationParser.get_int_env("RATE_LIMIT_RPM", 60))
     enable_caching: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_CACHING", True))
+    
+    # Redis Configuration
     redis_url: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_URL", ""))
+    redis_host: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_HOST", "localhost"))
+    redis_port: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_PORT", 6379))
+    redis_db: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_DB", 0))
+    redis_password: str = field(default_factory=lambda: ConfigurationParser.get_str_env("REDIS_PASSWORD", ""))
+    redis_pool_max_connections: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_POOL_MAX_CONNECTIONS", 50))
+    redis_pool_retry_on_timeout: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("REDIS_POOL_RETRY_ON_TIMEOUT", True))
+    redis_socket_connect_timeout: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_SOCKET_CONNECT_TIMEOUT", 5))
+    redis_socket_timeout: int = field(default_factory=lambda: ConfigurationParser.get_int_env("REDIS_SOCKET_TIMEOUT", 5))
+    
+    # Cache Configuration
+    cache_default_ttl_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("CACHE_DEFAULT_TTL_SECONDS", 3600))
+    cache_query_result_ttl_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("CACHE_QUERY_RESULT_TTL_SECONDS", 7200))
+    cache_chunk_result_ttl_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("CACHE_CHUNK_RESULT_TTL_SECONDS", 1800))
+    cache_similarity_threshold: float = field(default_factory=lambda: ConfigurationParser.get_float_env("CACHE_SIMILARITY_THRESHOLD", 0.85))
+    cache_max_memory_mb: int = field(default_factory=lambda: ConfigurationParser.get_int_env("CACHE_MAX_MEMORY_MB", 512))
+    cache_eviction_policy: str = field(default_factory=lambda: ConfigurationParser.get_str_env("CACHE_EVICTION_POLICY", "lru"))
+    cache_compression_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("CACHE_COMPRESSION_ENABLED", True))
     
     # Processing settings
     max_workers: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_WORKERS", 4))
@@ -132,6 +151,40 @@ class Config:
     # Logging settings
     log_level: str = field(default_factory=lambda: ConfigurationParser.get_str_env("LOG_LEVEL", "INFO"))
     log_format: str = field(default_factory=lambda: ConfigurationParser.get_str_env("LOG_FORMAT", "json"))
+    
+    # Performance Monitoring Configuration
+    performance_monitoring_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("PERFORMANCE_MONITORING_ENABLED", True))
+    metrics_collection_interval_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("METRICS_COLLECTION_INTERVAL_SECONDS", 30))
+    memory_profiling_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("MEMORY_PROFILING_ENABLED", False))
+    memory_monitoring_interval_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MEMORY_MONITORING_INTERVAL_SECONDS", 60))
+    memory_threshold_warning_mb: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MEMORY_THRESHOLD_WARNING_MB", 800))
+    memory_threshold_critical_mb: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MEMORY_THRESHOLD_CRITICAL_MB", 1000))
+    
+    # APM Configuration
+    apm_service_name: str = field(default_factory=lambda: ConfigurationParser.get_str_env("APM_SERVICE_NAME", "ifc-json-chunking"))
+    apm_service_version: str = field(default_factory=lambda: ConfigurationParser.get_str_env("APM_SERVICE_VERSION", "0.1.0"))
+    apm_environment: str = field(default_factory=lambda: ConfigurationParser.get_str_env("APM_ENVIRONMENT", "development"))
+    enable_request_tracing: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_REQUEST_TRACING", True))
+    trace_sampling_rate: float = field(default_factory=lambda: ConfigurationParser.get_float_env("TRACE_SAMPLING_RATE", 0.1))
+    
+    # Health Check Configuration
+    health_check_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("HEALTH_CHECK_ENABLED", True))
+    health_check_interval_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("HEALTH_CHECK_INTERVAL_SECONDS", 30))
+    health_check_timeout_seconds: int = field(default_factory=lambda: ConfigurationParser.get_int_env("HEALTH_CHECK_TIMEOUT_SECONDS", 10))
+    
+    # Security Configuration
+    enable_security_headers: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_SECURITY_HEADERS", True))
+    enable_rate_limiting: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_RATE_LIMITING", True))
+    rate_limit_requests_per_minute: int = field(default_factory=lambda: ConfigurationParser.get_int_env("RATE_LIMIT_REQUESTS_PER_MINUTE", 100))
+    rate_limit_burst_size: int = field(default_factory=lambda: ConfigurationParser.get_int_env("RATE_LIMIT_BURST_SIZE", 20))
+    cors_origins: str = field(default_factory=lambda: ConfigurationParser.get_str_env("CORS_ORIGINS", "*"))
+    
+    # Production Readiness Configuration
+    max_file_size_mb: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_FILE_SIZE_MB", 1000))
+    max_query_length: int = field(default_factory=lambda: ConfigurationParser.get_int_env("MAX_QUERY_LENGTH", 10000))
+    enable_compression: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("ENABLE_COMPRESSION", True))
+    backup_enabled: bool = field(default_factory=lambda: ConfigurationParser.get_bool_env("BACKUP_ENABLED", False))
+    backup_interval_hours: int = field(default_factory=lambda: ConfigurationParser.get_int_env("BACKUP_INTERVAL_HOURS", 24))
     
     # Environment
     environment: str = field(default_factory=lambda: ConfigurationParser.get_str_env("ENVIRONMENT", "development"))

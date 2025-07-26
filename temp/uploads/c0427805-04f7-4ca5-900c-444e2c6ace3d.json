@@ -1,0 +1,38 @@
+{
+  "test_workflow": "Complete upload to query integration test",
+  "building_data": {
+    "project": "Testgebäude München",
+    "components": [
+      {
+        "id": "holzbalken_001",
+        "type": "Holzbalken",
+        "material": "Fichte",
+        "dimensions": {
+          "length": 400,
+          "width": 20,
+          "height": 15
+        },
+        "location": "Erdgeschoss",
+        "load_capacity": "250kg"
+      },
+      {
+        "id": "holzbalken_002", 
+        "type": "Holzbalken",
+        "material": "Kiefer",
+        "dimensions": {
+          "length": 350,
+          "width": 18,
+          "height": 15
+        },
+        "location": "Obergeschoss",
+        "load_capacity": "200kg"
+      }
+    ]
+  },
+  "metadata": {
+    "created": "2025-01-26",
+    "source": "workflow_test",
+    "format": "IFC_JSON_TEST",
+    "components_count": 2
+  }
+}

@@ -1,11 +1,12 @@
 """
-Query service for handling query processing integration.
+Query service for handling query processing integration with performance monitoring.
 """
 
 import asyncio
 import time
 import json
 import uuid
+import hashlib
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 import structlog
@@ -15,18 +16,32 @@ from ...core import ChunkingEngine
 from ...orchestration.query_processor import QueryProcessor
 from ...query.types import QueryRequest as CoreQueryRequest, QueryResult, QueryStatus, QueryIntent
 from ...llm.types import LLMConfig, RateLimitConfig
+from ...monitoring.metrics_collector import MetricsCollector
+from ...monitoring.memory_profiler import MemoryProfiler
+from ...storage.redis_cache import RedisCache
 from ..models.requests import QueryRequest as APIQueryRequest
 from .file_service import FileService
 
 logger = structlog.get_logger(__name__)
 
 class QueryService:
-    """Service for query processing operations."""
+    """Service for query processing operations with performance monitoring."""
     
-    def __init__(self, config: Config):
-        """Initialize query service with configuration."""
+    def __init__(
+        self, 
+        config: Config,
+        metrics_collector: Optional[MetricsCollector] = None,
+        memory_profiler: Optional[MemoryProfiler] = None,
+        redis_cache: Optional[RedisCache] = None
+    ):
+        """Initialize query service with configuration and monitoring components."""
         self.config = config
         self.file_service = FileService(config)
+        
+        # Performance monitoring components
+        self.metrics_collector = metrics_collector
+        self.memory_profiler = memory_profiler
+        self.redis_cache = redis_cache
         
         # Initialize query processor
         llm_config = LLMConfig(
@@ -98,11 +113,40 @@ class QueryService:
     
     async def process_query_background(self, query_id: str, request: APIQueryRequest) -> None:
         """
-        Process query in background task.
+        Process query in background task with performance monitoring and caching.
         
         This method handles the complete query processing pipeline.
         """
+        start_time = time.time()
+        
+        # Track memory usage if profiler is available
+        if self.memory_profiler:
+            await self.memory_profiler.record_operation_start(f"query_{query_id}")
+        
         try:
+            # Generate cache key for the query
+            cache_key = self._generate_cache_key(request)
+            
+            # Check cache first if enabled
+            cached_result = None
+            if request.cache_results and self.redis_cache:
+                cached_result = await self.redis_cache.get_query_result(cache_key)
+                if cached_result:
+                    logger.info("Query result found in cache", query_id=query_id, cache_key=cache_key)
+                    self._query_results[query_id] = cached_result
+                    await self._update_query_status(query_id, "completed", 4, "Query completed from cache")
+                    
+                    # Record cache hit metric
+                    if self.metrics_collector:
+                        await self.metrics_collector.record_metric("query_cache_hits", 1)
+                        await self.metrics_collector.record_metric("query_response_time", time.time() - start_time)
+                    
+                    return
+            
+            # Record cache miss if not found
+            if request.cache_results and self.metrics_collector:
+                await self.metrics_collector.record_metric("query_cache_misses", 1)
+            
             await self._update_query_status(query_id, "preprocessing", 0, "Loading and chunking file")
             
             # Load file and create chunks
@@ -147,22 +191,56 @@ class QueryService:
             
             await self._update_query_status(query_id, "completed", 4, "Query processing completed")
             
-            # Store result
+            # Store result in memory
             self._query_results[query_id] = result
+            
+            # Cache result if enabled
+            if request.cache_results and self.redis_cache:
+                await self.redis_cache.cache_query_result(cache_key, result)
+                logger.info("Query result cached", query_id=query_id, cache_key=cache_key)
+            
+            # Record metrics
+            processing_time = time.time() - start_time
+            if self.metrics_collector:
+                await self.metrics_collector.record_metric("query_response_time", processing_time)
+                await self.metrics_collector.record_metric("query_success_count", 1)
+                await self.metrics_collector.record_metric("chunks_processed", len(chunks))
             
             logger.info(
                 "Query processing completed successfully",
                 query_id=query_id,
                 intent=result.intent.value,
                 confidence=result.confidence_score,
-                processing_time=result.processing_time
+                processing_time=processing_time
             )
             
         except Exception as e:
+            # Record failure metrics
+            if self.metrics_collector:
+                await self.metrics_collector.record_metric("query_error_count", 1)
+                await self.metrics_collector.record_metric("query_response_time", time.time() - start_time)
+            
             logger.error("Query processing failed", query_id=query_id, error=str(e))
             await self._update_query_status(
                 query_id, "failed", 0, f"Processing failed: {str(e)}", error_message=str(e)
             )
+        finally:
+            # Record memory usage if profiler is available
+            if self.memory_profiler:
+                await self.memory_profiler.record_operation_end(f"query_{query_id}")
+    
+    def _generate_cache_key(self, request: APIQueryRequest) -> str:
+        """Generate a cache key for the query request."""
+        # Create a hash based on the query content and file
+        cache_data = {
+            "query": request.query,
+            "file_id": request.file_id,
+            "intent_hint": request.intent_hint.value if request.intent_hint else None,
+            "max_concurrent": request.max_concurrent,
+        }
+        
+        cache_string = json.dumps(cache_data, sort_keys=True)
+        return hashlib.md5(cache_string.encode()).hexdigest()
     
     async def _update_query_status(
         self,
