@@ -16,9 +16,9 @@ import type {
   ConfidenceScoreData,
   PerformanceMetrics,
   TimeRange,
-  CHART_COLORS,
 } from '@/types/analytics';
-import type { UploadedFile, QueryHistory } from '@/types/app';
+import { CHART_COLORS } from '@/types/analytics';
+import type { UploadedFile, QueryHistoryItem } from '@/types/app';
 
 export class AnalyticsService {
   /**
@@ -107,7 +107,7 @@ export class AnalyticsService {
   /**
    * Transform query data into volume analytics
    */
-  static transformQueryVolumeData(queries: QueryHistory[], timeRange: TimeRange = '7d'): QueryVolumeData[] {
+  static transformQueryVolumeData(queries: QueryHistoryItem[], timeRange: TimeRange = '7d'): QueryVolumeData[] {
     const days = this.getTimeRangeDays(timeRange);
     const now = new Date();
     const startDate = subDays(now, days);
@@ -123,14 +123,14 @@ export class AnalyticsService {
       const dayEnd = addDays(dayStart, 1);
 
       const dayQueries = queries.filter(query => {
-        if (!query.query_timestamp) return false;
-        const queryDate = new Date(query.query_timestamp);
+        if (!query.timestamp) return false;
+        const queryDate = new Date(query.timestamp);
         return queryDate >= dayStart && queryDate < dayEnd;
       });
 
-      const completed = dayQueries.filter(q => q.confidence_score > 0.5).length;
-      const failed = dayQueries.filter(q => q.confidence_score <= 0.5).length;
-      const active = 0; // Historical data doesn't have active queries
+      const completed = dayQueries.filter(q => q.status === 'completed').length;
+      const failed = dayQueries.filter(q => q.status === 'failed').length;
+      const active = dayQueries.filter(q => q.status === 'cancelled').length; // Using cancelled as active
 
       return {
         date: format(date, 'MMM dd'),
@@ -145,25 +145,32 @@ export class AnalyticsService {
   /**
    * Calculate query status distribution
    */
-  static calculateQueryStatusDistribution(queries: QueryHistory[]): QueryStatusDistribution[] {
+  static calculateQueryStatusDistribution(queries: QueryHistoryItem[]): QueryStatusDistribution[] {
     const total = queries.length;
     if (total === 0) return [];
 
-    const completed = queries.filter(q => q.confidence_score > 0.5).length;
-    const failed = queries.filter(q => q.confidence_score <= 0.5).length;
+    const completed = queries.filter(q => q.status === 'completed').length;
+    const failed = queries.filter(q => q.status === 'failed').length;
+    const cancelled = queries.filter(q => q.status === 'cancelled').length;
 
     return [
       {
-        status: 'completed',
+        status: 'completed' as const,
         count: completed,
         percentage: Math.round((completed / total) * 100),
         color: CHART_COLORS.success,
       },
       {
-        status: 'failed',
+        status: 'failed' as const,
         count: failed,
         percentage: Math.round((failed / total) * 100),
         color: CHART_COLORS.error,
+      },
+      {
+        status: 'active' as const, // Using cancelled as active for now
+        count: cancelled,
+        percentage: Math.round((cancelled / total) * 100),
+        color: CHART_COLORS.warning,
       },
     ].filter(item => item.count > 0);
   }
@@ -171,7 +178,7 @@ export class AnalyticsService {
   /**
    * Transform processing time data
    */
-  static transformProcessingTimeData(queries: QueryHistory[], timeRange: TimeRange = '7d'): ProcessingTimeData[] {
+  static transformProcessingTimeData(queries: QueryHistoryItem[], timeRange: TimeRange = '7d'): ProcessingTimeData[] {
     const days = this.getTimeRangeDays(timeRange);
     const now = new Date();
     const startDate = subDays(now, days);
@@ -187,12 +194,12 @@ export class AnalyticsService {
       const dayEnd = addDays(dayStart, 1);
 
       const dayQueries = queries.filter(query => {
-        if (!query.query_timestamp || !query.processing_time) return false;
-        const queryDate = new Date(query.query_timestamp);
+        if (!query.timestamp || !query.processingTime) return false;
+        const queryDate = new Date(query.timestamp);
         return queryDate >= dayStart && queryDate < dayEnd;
       });
 
-      const processingTimes = dayQueries.map(q => q.processing_time!);
+      const processingTimes = dayQueries.map(q => q.processingTime!);
       
       return {
         date: format(date, 'MMM dd'),
@@ -209,7 +216,7 @@ export class AnalyticsService {
   /**
    * Calculate confidence score distribution
    */
-  static calculateConfidenceScoreDistribution(queries: QueryHistory[]): ConfidenceScoreData[] {
+  static calculateConfidenceScoreDistribution(queries: QueryHistoryItem[]): ConfidenceScoreData[] {
     const ranges = [
       { min: 0, max: 0.2, label: '0-20%' },
       { min: 0.2, max: 0.4, label: '20-40%' },
@@ -218,13 +225,13 @@ export class AnalyticsService {
       { min: 0.8, max: 1.0, label: '80-100%' },
     ];
 
-    const total = queries.filter(q => q.confidence_score != null).length;
+    const total = queries.filter(q => q.confidenceScore != null).length;
     
     return ranges.map(range => {
       const count = queries.filter(query => 
-        query.confidence_score != null &&
-        query.confidence_score >= range.min && 
-        query.confidence_score < range.max
+        query.confidenceScore != null &&
+        query.confidenceScore >= range.min && 
+        query.confidenceScore < range.max
       ).length;
 
       return {
@@ -240,21 +247,21 @@ export class AnalyticsService {
    */
   static calculatePerformanceMetrics(
     files: UploadedFile[], 
-    queries: QueryHistory[]
+    queries: QueryHistoryItem[]
   ): PerformanceMetrics {
-    const validQueries = queries.filter(q => q.processing_time != null);
+    const validQueries = queries.filter(q => q.processingTime != null);
     const averageProcessingTime = validQueries.length > 0
-      ? validQueries.reduce((sum, q) => sum + q.processing_time!, 0) / validQueries.length
+      ? validQueries.reduce((sum, q) => sum + q.processingTime!, 0) / validQueries.length
       : 0;
 
-    const successfulQueries = queries.filter(q => q.confidence_score > 0.5);
+    const successfulQueries = queries.filter(q => q.status === 'completed');
     const successRate = queries.length > 0 
       ? (successfulQueries.length / queries.length) * 100 
       : 0;
 
     const confidenceScores = queries
-      .filter(q => q.confidence_score != null)
-      .map(q => q.confidence_score!);
+      .filter(q => q.confidenceScore != null)
+      .map(q => q.confidenceScore!);
     const averageConfidenceScore = confidenceScores.length > 0
       ? confidenceScores.reduce((sum, score) => sum + score, 0) / confidenceScores.length
       : 0;
@@ -267,7 +274,7 @@ export class AnalyticsService {
       averageConfidenceScore,
       trendsGrowth: {
         files: this.calculateGrowthTrend(files.map(f => f.upload_timestamp)),
-        queries: this.calculateGrowthTrend(queries.map(q => q.query_timestamp).filter(Boolean)),
+        queries: this.calculateGrowthTrend(queries.map(q => q.timestamp.toISOString())),
         performance: averageProcessingTime > 0 ? -5 : 0, // Mock performance improvement
       },
     };
@@ -278,7 +285,7 @@ export class AnalyticsService {
    */
   static generateAnalyticsData(
     files: UploadedFile[],
-    queries: QueryHistory[],
+    queries: QueryHistoryItem[],
     timeRange: TimeRange = '7d'
   ): AnalyticsDashboardData {
     return {
@@ -370,12 +377,14 @@ export class AnalyticsService {
         file_id: `mock-file-${i}`,
         filename: `building-${i + 1}.ifc.json`,
         size,
+        content_type: 'application/json',
         upload_timestamp: format(subDays(now, daysAgo), "yyyy-MM-dd'T'HH:mm:ss"),
         status: Math.random() > 0.1 ? 'uploaded' : 'error',
         validation_result: {
           is_valid: Math.random() > 0.1,
+          json_structure_valid: true,
           estimated_chunks: Math.floor(Math.random() * 1000) + 100,
-          validation_errors: [],
+          issues: [],
         },
       });
     }
@@ -383,8 +392,8 @@ export class AnalyticsService {
     return files;
   }
 
-  private static generateMockQueries(): QueryHistory[] {
-    const queries: QueryHistory[] = [];
+  private static generateMockQueries(): QueryHistoryItem[] {
+    const queries: QueryHistoryItem[] = [];
     const now = new Date();
     
     for (let i = 0; i < 50; i++) {
@@ -393,13 +402,13 @@ export class AnalyticsService {
       const confidenceScore = Math.random();
       
       queries.push({
-        query_id: `mock-query-${i}`,
-        original_query: `Mock query ${i + 1}`,
-        confidence_score: confidenceScore,
-        processing_time: processingTime,
-        query_timestamp: format(subDays(now, daysAgo), "yyyy-MM-dd'T'HH:mm:ss"),
-        file_id: `mock-file-${Math.floor(Math.random() * 20)}`,
-        result_chunks: Math.floor(Math.random() * 100),
+        queryId: `mock-query-${i}`,
+        query: `Mock query ${i + 1}`,
+        fileName: `building-${Math.floor(Math.random() * 20) + 1}.ifc.json`,
+        timestamp: subDays(now, daysAgo),
+        status: confidenceScore > 0.5 ? 'completed' : (Math.random() > 0.8 ? 'cancelled' : 'failed'),
+        processingTime: processingTime,
+        confidenceScore: confidenceScore,
       });
     }
     
