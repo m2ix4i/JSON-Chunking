@@ -4,7 +4,7 @@ Tests for custom exception classes.
 
 import pytest
 
-from ifc_json_chunking.exceptions import (
+from src.ifc_json_chunking.exceptions import (
     IFCChunkingError,
     ConfigurationError,
     ProcessingError,

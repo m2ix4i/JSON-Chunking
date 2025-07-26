@@ -37,7 +37,7 @@ import { useGermanSuggestions } from '@stores/queryStore';
 import { showSuccessNotification } from '@stores/appStore';
 
 // Types
-import type { QueryIntentHint, GermanQuerySuggestion } from '@types/app';
+import type { QueryIntentHint, GermanQuerySuggestion } from '@/types/app';
 
 interface QuerySuggestionsProps {
   onSuggestionSelect?: (suggestion: GermanQuerySuggestion) => void;

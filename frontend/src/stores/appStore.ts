@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { AppState, AppPage, AppNotification, AppError } from '@types/app';
+import type { AppState, AppPage, AppNotification, AppError } from '@/types/app';
 
 interface AppStoreState extends AppState {
   // Actions
@@ -202,6 +202,7 @@ export const useError = () => useAppStore((state) => state.error);
 export const useDarkMode = () => useAppStore((state) => state.darkMode);
 export const useSidebarOpen = () => useAppStore((state) => state.sidebarOpen);
 export const useNotifications = () => useAppStore((state) => state.notifications);
+export const useErrorState = () => useAppStore((state) => state.errors);
 
 // Utility functions
 export const showSuccessNotification = (message: string, title = 'Erfolg') => {

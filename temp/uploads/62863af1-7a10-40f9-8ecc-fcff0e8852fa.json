@@ -1,0 +1,156 @@
+{
+  "header": {
+    "file_description": [
+      "ViewDefinition [CoordinationView]"
+    ],
+    "file_name": "Test_Building.ifc",
+    "time_stamp": "2024-01-15T10:30:00",
+    "author": [
+      "Test Engineer"
+    ],
+    "organization": [
+      "Test Company"
+    ],
+    "preprocessor_version": "IFC Exporter v2.0",
+    "originating_system": "Test CAD",
+    "authorization": "Test Authorization"
+  },
+  "data": {
+    "IfcProject": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNqy",
+        "name": "Test Building Project",
+        "description": "Ein Testgebäude für die Analyse",
+        "object_type": null,
+        "long_name": "Testgebäude München"
+      }
+    ],
+    "IfcBuilding": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr1",
+        "name": "Hauptgebäude",
+        "description": "Das Hauptgebäude mit 3 Stockwerken",
+        "object_type": "Building",
+        "elevation_of_ref_height": 0,
+        "address": {
+          "postal_box": null,
+          "town": "München",
+          "region": "Bayern",
+          "postal_code": "80331",
+          "country": "Deutschland"
+        }
+      }
+    ],
+    "IfcBuildingStorey": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr2",
+        "name": "Erdgeschoss",
+        "description": "Erdgeschoss des Gebäudes",
+        "elevation": 0
+      },
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr3",
+        "name": "1. Obergeschoss",
+        "description": "Erstes Obergeschoss",
+        "elevation": 3
+      }
+    ],
+    "IfcWall": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr4",
+        "name": "Außenwand_Nord",
+        "description": "Außenwand aus Ziegel",
+        "object_type": "Wall",
+        "predefined_type": "STANDARD",
+        "material": "Ziegel",
+        "thickness": 0.365,
+        "length": 12.5,
+        "height": 3,
+        "thermal_transmittance": 0.24,
+        "storey": "Erdgeschoss"
+      },
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr5",
+        "name": "Innenwand_01",
+        "description": "Innenwand aus Kalksandstein",
+        "object_type": "Wall",
+        "predefined_type": "STANDARD",
+        "material": "Kalksandstein",
+        "thickness": 0.175,
+        "length": 8,
+        "height": 3,
+        "storey": "Erdgeschoss"
+      }
+    ],
+    "IfcBeam": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr6",
+        "name": "Stahlträger_HEA_200",
+        "description": "Stahlträger aus S355",
+        "object_type": "Beam",
+        "material": "Stahl S355",
+        "profile": "HEA 200",
+        "length": 6,
+        "weight": 252,
+        "storey": "Erdgeschoss"
+      },
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr7",
+        "name": "Holzbalken_01",
+        "description": "Holzbalken aus Fichte",
+        "object_type": "Beam",
+        "material": "Fichte C24",
+        "cross_section": "120x240mm",
+        "length": 4.5,
+        "storey": "1. Obergeschoss"
+      }
+    ],
+    "IfcSlab": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr8",
+        "name": "Bodenplatte",
+        "description": "Stahlbetonbodenplatte",
+        "object_type": "Slab",
+        "material": "Stahlbeton C25/30",
+        "thickness": 0.2,
+        "area": 150,
+        "storey": "Erdgeschoss"
+      }
+    ],
+    "IfcDoor": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr9",
+        "name": "Eingangstür",
+        "description": "Haupteingangstür aus Holz",
+        "object_type": "Door",
+        "material": "Holz",
+        "width": 1,
+        "height": 2.1,
+        "fire_rating": "T30",
+        "storey": "Erdgeschoss"
+      }
+    ],
+    "IfcSpace": [
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr10",
+        "name": "Büro_101",
+        "description": "Büroraum im Erdgeschoss",
+        "object_type": "Space",
+        "area": 25.5,
+        "volume": 76.5,
+        "storey": "Erdgeschoss",
+        "usage": "Büro"
+      },
+      {
+        "id": "2O2Fr$t4X7Zf8NOew3FNr11",
+        "name": "Konferenzraum_201",
+        "description": "Konferenzraum im 1. OG",
+        "object_type": "Space",
+        "area": 35,
+        "volume": 105,
+        "storey": "1. Obergeschoss",
+        "usage": "Besprechung"
+      }
+    ]
+  }
+}

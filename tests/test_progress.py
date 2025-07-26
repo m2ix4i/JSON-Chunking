@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from ifc_json_chunking.progress import (
+from src.ifc_json_chunking.progress import (
     ProgressTracker,
     FileProgressTracker, 
     ProgressSnapshot,

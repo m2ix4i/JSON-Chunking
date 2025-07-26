@@ -1,0 +1,313 @@
+{
+  "header": {
+    "file_description": [
+      "ViewDefinition [CoordinationView]",
+      "IFC4X3"
+    ],
+    "file_name": "Complex_Building_Munich.ifc",
+    "time_stamp": "2024-01-15T10:30:00",
+    "author": [
+      "Max Mustermann",
+      "Building Engineer"
+    ],
+    "organization": [
+      "Mustermann GmbH",
+      "Munich Engineering"
+    ],
+    "preprocessor_version": "IFC Exporter v3.2",
+    "originating_system": "ArchiCAD 26",
+    "authorization": "Public",
+    "schema_identifiers": [
+      "IFC4X3"
+    ]
+  },
+  "data": {
+    "IfcProject": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX1",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX1",
+        "name": "Bürogebäude München Zentrum",
+        "description": "Ein modernes Bürogebäude mit nachhaltigen Materialien",
+        "object_type": "Commercial Building",
+        "long_name": "Nachhaltiges Bürozentrum München",
+        "phase": "Neubau",
+        "location": {
+          "address": {
+            "postal_box": null,
+            "town": "München",
+            "region": "Bayern",
+            "postal_code": "80331",
+            "country": "Deutschland",
+            "street": "Maximilianstraße 12"
+          },
+          "latitude": 48.1391,
+          "longitude": 11.5802
+        }
+      }
+    ],
+    "IfcSite": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX2",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX2",
+        "name": "Grundstück München",
+        "description": "Baugrundstück in der Münchener Innenstadt",
+        "composition_type": "ELEMENT",
+        "ref_latitude": [
+          48,
+          8,
+          20,
+          760000
+        ],
+        "ref_longitude": [
+          11,
+          34,
+          48,
+          720000
+        ],
+        "ref_elevation": 519,
+        "land_title_number": "GB-Blatt 1234",
+        "site_address": {
+          "purpose": "OFFICE",
+          "postal_box": null,
+          "town": "München",
+          "region": "Bayern",
+          "postal_code": "80331",
+          "country": "Deutschland"
+        }
+      }
+    ],
+    "IfcBuilding": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX3",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX3",
+        "name": "Hauptgebäude",
+        "description": "Sechsgeschossiges Bürogebäude mit Tiefgarage",
+        "object_type": "Office Building",
+        "composition_type": "ELEMENT",
+        "elevation_of_ref_height": 0,
+        "elevation_of_terrain": -2.5,
+        "building_address": {
+          "purpose": "OFFICE",
+          "postal_box": null,
+          "town": "München",
+          "region": "Bayern",
+          "postal_code": "80331",
+          "country": "Deutschland",
+          "street": "Maximilianstraße 12"
+        }
+      }
+    ],
+    "IfcBuildingStorey": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX4",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX4",
+        "name": "Untergeschoss",
+        "description": "Tiefgarage und Technikräume",
+        "object_type": "Basement",
+        "composition_type": "ELEMENT",
+        "elevation": -2.5,
+        "usage": "Parking and Technical"
+      },
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX5",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX5",
+        "name": "Erdgeschoss",
+        "description": "Eingangshalle und Büros",
+        "object_type": "Ground Floor",
+        "composition_type": "ELEMENT",
+        "elevation": 0,
+        "usage": "Office and Reception"
+      },
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX6",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX6",
+        "name": "1. Obergeschoss",
+        "description": "Büroräume und Besprechungsräume",
+        "object_type": "Upper Floor",
+        "composition_type": "ELEMENT",
+        "elevation": 3.5,
+        "usage": "Office and Meeting"
+      }
+    ],
+    "IfcWall": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX7",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX7",
+        "name": "Außenwand_Nord_EG",
+        "description": "Nordwand Erdgeschoss aus Kalksandstein mit WDVS",
+        "object_type": "Wall",
+        "predefined_type": "EXTERNAL",
+        "material": {
+          "name": "Kalksandstein + WDVS",
+          "description": "KS-Verblendstein 17,5cm + WDVS 16cm",
+          "category": "Masonry"
+        },
+        "physical_properties": {
+          "thickness": 0.335,
+          "length": 15.75,
+          "height": 3.5,
+          "area": 55.125,
+          "volume": 18.467,
+          "thermal_transmittance": 0.18,
+          "fire_resistance": "REI 90"
+        },
+        "storey": "Erdgeschoss",
+        "structural_usage": "LOADBEARING"
+      },
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX8",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX8",
+        "name": "Trennwand_Büro_101",
+        "description": "Innenwand zwischen Büroräumen aus Gipskarton",
+        "object_type": "Wall",
+        "predefined_type": "INTERNAL",
+        "material": {
+          "name": "Trockenbau",
+          "description": "Gipskartonwand 2x12,5mm auf CW-Profil 100mm",
+          "category": "Drywall"
+        },
+        "physical_properties": {
+          "thickness": 0.125,
+          "length": 4.2,
+          "height": 3,
+          "area": 12.6,
+          "volume": 1.575,
+          "sound_reduction": 45,
+          "fire_resistance": "EI 60"
+        },
+        "storey": "Erdgeschoss",
+        "structural_usage": "NONLOADBEARING"
+      }
+    ],
+    "IfcBeam": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX9",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX9",
+        "name": "Hauptträger_HEB_300",
+        "description": "Hauptträger aus Stahl S355 im Erdgeschoss",
+        "object_type": "Beam",
+        "predefined_type": "BEAM",
+        "material": {
+          "name": "Stahl S355",
+          "description": "Baustahl S355JR warmgewalzt",
+          "category": "Steel",
+          "strength_class": "S355",
+          "density": 7850
+        },
+        "cross_section": {
+          "profile": "HEB 300",
+          "height": 0.3,
+          "width": 0.3,
+          "web_thickness": 0.011,
+          "flange_thickness": 0.019,
+          "area": 0.0149,
+          "moment_of_inertia_y": 0.00025129,
+          "moment_of_inertia_z": 0.00008563
+        },
+        "physical_properties": {
+          "length": 8.5,
+          "weight": 996.225,
+          "volume": 0.1267
+        },
+        "structural_properties": {
+          "loading": {
+            "max_bending_moment": 850.5,
+            "max_shear_force": 425.2,
+            "utilization": 0.68
+          }
+        },
+        "storey": "Erdgeschoss",
+        "position": {
+          "x": 4.25,
+          "y": 7.5,
+          "z": 3.5,
+          "rotation": 0
+        }
+      },
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX10",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX10",
+        "name": "Holzbalken_BSH_GL24h",
+        "description": "Brettschichtholzträger im 1. OG",
+        "object_type": "Beam",
+        "predefined_type": "BEAM",
+        "material": {
+          "name": "Brettschichtholz GL24h",
+          "description": "Fichte Brettschichtholz GL24h",
+          "category": "Timber",
+          "strength_class": "GL24h",
+          "density": 385,
+          "moisture_content": 12
+        },
+        "cross_section": {
+          "profile": "Rechteck 160x320",
+          "height": 0.32,
+          "width": 0.16,
+          "area": 0.0512,
+          "moment_of_inertia_y": 0.000439,
+          "moment_of_inertia_z": 0.0000109
+        },
+        "physical_properties": {
+          "length": 6,
+          "weight": 118.3,
+          "volume": 0.307
+        },
+        "structural_properties": {
+          "loading": {
+            "max_bending_moment": 45.2,
+            "max_shear_force": 15.1,
+            "utilization": 0.52
+          }
+        },
+        "storey": "1. Obergeschoss",
+        "position": {
+          "x": 3,
+          "y": 4.5,
+          "z": 7,
+          "rotation": 0
+        },
+        "sustainability": {
+          "carbon_footprint": 45.2,
+          "renewable": true,
+          "recycled_content": 0
+        }
+      }
+    ],
+    "IfcSpace": [
+      {
+        "id": "3vB2Fx9K51Aeb$1QHLgOX11",
+        "global_id": "3vB2Fx9K51Aeb$1QHLgOX11",
+        "name": "Büro_101",
+        "description": "Einzelbüro für Projektleitung",
+        "object_type": "Space",
+        "predefined_type": "INTERNAL",
+        "composition_type": "ELEMENT",
+        "internal_or_external": "INTERNAL",
+        "physical_properties": {
+          "area": 18.5,
+          "perimeter": 18.2,
+          "volume": 55.5,
+          "height": 3
+        },
+        "thermal_properties": {
+          "heating_load": 1250,
+          "cooling_load": 950,
+          "occupancy": 1,
+          "lighting_load": 11.5
+        },
+        "usage": {
+          "space_type": "Office",
+          "function": "Single Office",
+          "occupancy_type": "Work",
+          "max_occupancy": 2
+        },
+        "storey": "Erdgeschoss",
+        "location": {
+          "x": 12.5,
+          "y": 5.5,
+          "z": 0
+        }
+      }
+    ]
+  }
+}

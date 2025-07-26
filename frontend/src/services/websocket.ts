@@ -8,7 +8,7 @@ import type {
   ProgressMessage,
   ErrorMessage,
   CompletionMessage,
-} from '@types/api';
+} from '@/types/api';
 
 export type WebSocketEventHandler = (message: WebSocketMessage) => void;
 

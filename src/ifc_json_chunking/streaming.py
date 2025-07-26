@@ -147,6 +147,14 @@ class StreamingJSONParser:
             prefix=prefix
         )
         
+        # Handle empty files gracefully
+        if file_size == 0:
+            logger.info(
+                "Empty file detected, returning no results",
+                file_path=str(file_path)
+            )
+            return
+        
         try:
             with self._open_file(file_path) as file_handle:
                 parser = ijson.parse(file_handle, multiple_values=True)
