@@ -490,7 +490,9 @@ export const useCurrentQuery = () => useQueryStore((state) => state.currentQuery
 
 export const useGermanSuggestions = () => []; // Placeholder - implement as needed
 
-export const useWebSocketConnected = () => useQueryStore((state) => state.isConnected);
+export const useWebSocketConnected = () => useQueryStore((state) => 
+  state.connectionStatus === 'connected'
+);
 
 export const useQuerySubmission = () => useQueryStore((state) => ({
   isSubmitting: state.isSubmitting,

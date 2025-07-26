@@ -4,7 +4,6 @@
  */
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -30,8 +29,7 @@ import type { GermanQuerySuggestion } from '@/types/app';
 const QueryPage: React.FC = () => {
   const navigate = useNavigate();
   const selectedFile = useSelectedFile();
-  const { updateCurrentQuery, submitQuery, isSubmitting, error } = useQueryStore();
-  const { activeQuery } = useQueryStore();
+  const { updateCurrentQuery, submitQuery, isSubmitting, error, activeQuery } = useQueryStore();
   const refreshFiles = useFileStore((state) => state.refreshFiles);
 
   // Load files on page mount

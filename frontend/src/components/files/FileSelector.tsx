@@ -86,10 +86,11 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     
     // Call callback if provided
     if (onFileSelected) {
-      const file = fileId ? files.find(f => f.file_id === fileId) || null : null;
-      onFileSelected(file);
+      const selectedFile = fileId ? files.find(f => f.file_id === fileId) || null : null;
+      onFileSelected(selectedFile);
     }
   };
+
 
   const getFileStatus = (file: UploadedFile) => {
     if (file.status === 'uploaded') {
@@ -223,43 +224,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
 
-        {/* Bulk action toolbar */}
-        {enableBulkSelection && files.length > 0 && (
-          <>
-            <Toolbar variant="dense" sx={{ pl: 0, pr: 0, minHeight: 48 }}>
-              <Button
-                size="small"
-                startIcon={<SelectAllIcon />}
-                onClick={handleSelectAll}
-                disabled={selectedFiles.length === files.length}
-              >
-                Alle auswählen
-              </Button>
-              <Button
-                size="small"
-                startIcon={<ClearAllIcon />}
-                onClick={handleClearSelection}
-                disabled={selectedFiles.length === 0}
-                sx={{ ml: 1 }}
-              >
-                Auswahl aufheben
-              </Button>
-              <Box sx={{ flexGrow: 1 }} />
-              {selectedFiles.length > 0 && (
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<BulkDeleteIcon />}
-                  onClick={handleBulkDelete}
-                >
-                  {selectedFiles.length} löschen
-                </Button>
-              )}
-            </Toolbar>
-            <Divider sx={{ mb: 1 }} />
-          </>
-        )}
-
         <List dense={compact}>
           {/* Option to deselect */}
           <ListItem
@@ -289,13 +253,12 @@ const FileSelector: React.FC<FileSelectorProps> = ({
           {files.map((file) => {
             const status = getFileStatus(file);
             const isSelected = selectedFileId === file.file_id;
-            const isBulkSelected = selectedFiles.includes(file.file_id);
 
             return (
               <ListItem
                 key={file.file_id}
                 button
-                onClick={() => enableBulkSelection ? undefined : handleFileSelect(file.file_id)}
+                onClick={() => handleFileSelect(file.file_id)}
                 sx={{ 
                   borderRadius: 1,
                   mb: 1,
@@ -303,20 +266,12 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                 }}
               >
                 <ListItemIcon>
-                  {enableBulkSelection ? (
-                    <Checkbox
-                      checked={isBulkSelected}
-                      onChange={(e) => handleBulkSelect(file.file_id, e.target.checked)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <Radio
-                      checked={isSelected}
-                      onChange={() => handleFileSelect(file.file_id)}
-                      value={file.file_id}
-                      name="file-selector"
-                    />
-                  )}
+                  <Radio
+                    checked={isSelected}
+                    onChange={() => handleFileSelect(file.file_id)}
+                    value={file.file_id}
+                    name="file-selector"
+                  />
                 </ListItemIcon>
 
                 <ListItemIcon>
@@ -368,10 +323,10 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         </List>
 
         {/* Selected file summary */}
-        {selectedFile && (
+        {selectedFileId && (
           <Alert severity="success" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Ausgewählt:</strong> {selectedFile.filename}
+              <strong>Ausgewählt:</strong> {files.find(f => f.file_id === selectedFileId)?.filename}
             </Typography>
           </Alert>
         )}
