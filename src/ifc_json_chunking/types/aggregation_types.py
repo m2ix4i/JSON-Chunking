@@ -5,13 +5,13 @@ This module contains core type definitions and data structures used
 throughout the aggregation pipeline for type safety and clarity.
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union, Callable, Tuple
-from enum import Enum
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from ..query.types import QueryResult, ChunkResult, QueryContext, QueryIntent
+from ..query.types import QueryContext, QueryIntent, QueryResult
 
 
 # Configuration constants for validation and quality calculations
@@ -77,32 +77,32 @@ class ValidationLevel(Enum):
 @dataclass
 class ExtractedData:
     """Structured data extracted from a chunk result."""
-    
+
     # Core data
     entities: List[Dict[str, Any]] = field(default_factory=list)
     quantities: Dict[str, Union[float, int, str]] = field(default_factory=dict)
     properties: Dict[str, Any] = field(default_factory=dict)
     relationships: List[Dict[str, Any]] = field(default_factory=list)
-    
+
     # Metadata
     chunk_id: str = ""
     extraction_confidence: float = 0.0
     data_quality: str = "unknown"  # high, medium, low, unknown
     processing_errors: List[str] = field(default_factory=list)
-    
+
     # Context information
     spatial_context: Dict[str, Any] = field(default_factory=dict)
     temporal_context: Dict[str, Any] = field(default_factory=dict)
     semantic_context: Dict[str, Any] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         """Validate fields after initialization."""
         if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.extraction_confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
             raise ValueError(f"Extraction confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
-        
+
         if self.data_quality not in ['high', 'medium', 'low', 'unknown']:
             raise ValueError("Data quality must be one of: high, medium, low, unknown")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -120,25 +120,25 @@ class ExtractedData:
         }
 
 
-@dataclass 
+@dataclass
 class Evidence:
     """Evidence supporting a particular piece of information."""
-    
+
     source_chunk_id: str
     content: str
     confidence: float
     quality_score: float
     supporting_data: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         """Validate fields after initialization."""
         if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
             raise ValueError(f"Confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
-        
+
         if not ValidationThresholds.MIN_QUALITY_SCORE <= self.quality_score <= ValidationThresholds.MAX_QUALITY_SCORE:
             raise ValueError(f"Quality score must be between {ValidationThresholds.MIN_QUALITY_SCORE} and {ValidationThresholds.MAX_QUALITY_SCORE}")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -154,31 +154,31 @@ class Evidence:
 @dataclass
 class Conflict:
     """Detected conflict between chunk results."""
-    
+
     conflict_type: ConflictType
     description: str
     conflicting_chunks: List[str]
     conflicting_values: List[Any]
     severity: float  # 0.0 to 1.0
-    
+
     # Evidence for each conflicting value
     evidence: List[Evidence] = field(default_factory=list)
-    
+
     # Context information
     context: Dict[str, Any] = field(default_factory=dict)
     detected_at: float = field(default_factory=time.time)
-    
+
     def __post_init__(self):
         """Validate fields after initialization."""
         if not ValidationThresholds.MIN_SEVERITY <= self.severity <= ValidationThresholds.MAX_SEVERITY:
             raise ValueError(f"Severity must be between {ValidationThresholds.MIN_SEVERITY} and {ValidationThresholds.MAX_SEVERITY}")
-        
+
         if len(self.conflicting_chunks) < 2:
             raise ValueError("Conflict must involve at least 2 conflicting chunks")
-        
+
         if len(self.conflicting_values) < 2:
             raise ValueError("Conflict must involve at least 2 conflicting values")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -196,26 +196,26 @@ class Conflict:
 @dataclass
 class ConflictResolution:
     """Resolution of a detected conflict."""
-    
+
     conflict: Conflict
     strategy: ConflictStrategy
     resolved_value: Any
     confidence: float
     reasoning: str
-    
+
     # Resolution details
     evidence_used: List[Evidence] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     resolved_at: float = field(default_factory=time.time)
-    
+
     def __post_init__(self):
         """Validate fields after initialization."""
         if not ValidationThresholds.MIN_CONFIDENCE_SCORE <= self.confidence <= ValidationThresholds.MAX_CONFIDENCE_SCORE:
             raise ValueError(f"Confidence must be between {ValidationThresholds.MIN_CONFIDENCE_SCORE} and {ValidationThresholds.MAX_CONFIDENCE_SCORE}")
-        
+
         if not self.reasoning.strip():
             raise ValueError("Reasoning cannot be empty")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -233,27 +233,27 @@ class ConflictResolution:
 @dataclass
 class QualityMetrics:
     """Comprehensive quality metrics for aggregated results."""
-    
+
     # Core quality scores (0.0 to 1.0)
     confidence_score: float = 0.0
     completeness_score: float = 0.0
     consistency_score: float = 0.0
     reliability_score: float = 0.0
-    
+
     # Uncertainty and validation
     uncertainty_level: float = 0.0
     validation_passed: bool = False
     validation_issues: List[str] = field(default_factory=list)
-    
+
     # Processing metrics
     data_coverage: float = 0.0  # Percentage of chunks contributing data
     extraction_quality: float = 0.0  # Average extraction quality
     conflict_resolution_rate: float = 0.0  # Percentage of conflicts resolved
-    
+
     # Metadata
     calculated_at: float = field(default_factory=time.time)
     calculation_method: str = "standard"
-    
+
     def __post_init__(self):
         """Validate quality scores after initialization."""
         score_fields = [
@@ -266,11 +266,11 @@ class QualityMetrics:
             ('extraction_quality', self.extraction_quality),
             ('conflict_resolution_rate', self.conflict_resolution_rate)
         ]
-        
+
         for field_name, value in score_fields:
             if not ValidationThresholds.MIN_QUALITY_SCORE <= value <= ValidationThresholds.MAX_QUALITY_SCORE:
                 raise ValueError(f"{field_name} must be between {ValidationThresholds.MIN_QUALITY_SCORE} and {ValidationThresholds.MAX_QUALITY_SCORE}, got {value}")
-    
+
     @property
     def overall_quality(self) -> float:
         """Calculate overall quality score using configurable weights."""
@@ -281,7 +281,7 @@ class QualityMetrics:
             QualityWeights.RELIABILITY * self.reliability_score +
             QualityWeights.EXTRACTION * self.extraction_quality
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -304,26 +304,26 @@ class QualityMetrics:
 @dataclass
 class AggregationMetadata:
     """Metadata about the aggregation process."""
-    
+
     strategy_used: AggregationStrategy
     chunks_processed: int
     chunks_successful: int
     conflicts_detected: int
     conflicts_resolved: int
-    
+
     # Processing details
     processing_time: float = 0.0
     memory_used: Optional[int] = None
     extraction_errors: List[str] = field(default_factory=list)
-    
+
     # Algorithm information
     algorithms_used: List[str] = field(default_factory=list)
     parameters: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Quality information
     quality_checks_performed: List[str] = field(default_factory=list)
     validation_level: ValidationLevel = ValidationLevel.STANDARD
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -345,26 +345,26 @@ class AggregationMetadata:
 @dataclass
 class EnhancedQueryResult(QueryResult):
     """Enhanced query result with advanced aggregation information."""
-    
+
     # Enhanced aggregation data
     extracted_data: List[ExtractedData] = field(default_factory=list)
     conflicts_detected: List[Conflict] = field(default_factory=list)
     conflicts_resolved: List[ConflictResolution] = field(default_factory=list)
     quality_metrics: Optional[QualityMetrics] = None
-    
+
     # Structured output
     structured_output: Dict[str, Any] = field(default_factory=dict)
     aggregation_metadata: Optional[AggregationMetadata] = None
-    
+
     # Additional analysis
     data_insights: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
     uncertainty_factors: List[str] = field(default_factory=list)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         base_dict = super().to_dict()
-        
+
         enhanced_dict = {
             "extracted_data": [d.to_dict() for d in self.extracted_data],
             "conflicts_detected": [c.to_dict() for c in self.conflicts_detected],
@@ -376,7 +376,7 @@ class EnhancedQueryResult(QueryResult):
             "recommendations": self.recommendations,
             "uncertainty_factors": self.uncertainty_factors
         }
-        
+
         return {**base_dict, **enhanced_dict}
 
 
@@ -384,7 +384,7 @@ class EnhancedQueryResult(QueryResult):
 
 class AggregationStrategyBase(ABC):
     """Abstract base class for aggregation strategies."""
-    
+
     @abstractmethod
     async def aggregate(
         self,
@@ -393,7 +393,7 @@ class AggregationStrategyBase(ABC):
     ) -> Dict[str, Any]:
         """Aggregate extracted data using this strategy."""
         pass
-    
+
     @abstractmethod
     def get_supported_intents(self) -> List[QueryIntent]:
         """Get list of query intents this strategy supports."""
@@ -402,7 +402,7 @@ class AggregationStrategyBase(ABC):
 
 class ConflictResolverBase(ABC):
     """Abstract base class for conflict resolvers."""
-    
+
     @abstractmethod
     async def resolve_conflict(
         self,
@@ -411,7 +411,7 @@ class ConflictResolverBase(ABC):
     ) -> ConflictResolution:
         """Resolve a detected conflict."""
         pass
-    
+
     @abstractmethod
     def get_supported_conflict_types(self) -> List[ConflictType]:
         """Get list of conflict types this resolver can handle."""
@@ -420,7 +420,7 @@ class ConflictResolverBase(ABC):
 
 class QualityCalculatorBase(ABC):
     """Abstract base class for quality calculators."""
-    
+
     @abstractmethod
     async def calculate_quality(
         self,
@@ -446,7 +446,7 @@ class EntityData:
     entity_type: str
     name: Optional[str] = None
     properties: Dict[str, Union[str, float, int, bool]] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "entity_id": self.entity_id,
@@ -462,7 +462,7 @@ class RelationshipData:
     from_entity: str
     to_entity: str
     properties: Dict[str, Union[str, float, int, bool]] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "type": self.relationship_type,
@@ -479,7 +479,7 @@ class SpatialContext:
     room_id: Optional[str] = None
     zone_id: Optional[str] = None
     coordinates: Optional[Tuple[float, float, float]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "building_id": self.building_id,
@@ -496,7 +496,7 @@ class TemporalContext:
     modified_date: Optional[str] = None
     version: Optional[str] = None
     lifecycle_phase: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "created_date": self.created_date,

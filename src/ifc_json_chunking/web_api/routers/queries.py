@@ -2,15 +2,14 @@
 Query processing endpoints for IFC data analysis with performance monitoring.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
-from typing import Dict, Any, Optional
-import structlog
+from typing import Any, Dict, Optional
 
-from ...orchestration.query_processor import QueryProcessor
-from ...config import Config
-from ..services.query_service import QueryService
+import structlog
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+
 from ..models.requests import QueryRequest as APIQueryRequest
-from ..models.responses import QueryResponse, QueryStatusResponse, QueryResultResponse
+from ..models.responses import QueryResponse, QueryResultResponse, QueryStatusResponse
+from ..services.query_service import QueryService
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -48,33 +47,33 @@ async def submit_query(
     try:
         # Get query service with monitoring components
         query_service = get_query_service(request)
-        
+
         # Validate file exists
         await query_service.validate_file_exists(query_request.file_id)
-        
+
         # Create query processing task
         query_id = await query_service.create_query(query_request)
-        
+
         # Start background processing
         background_tasks.add_task(
             query_service.process_query_background,
             query_id,
             query_request
         )
-        
+
         logger.info(
             "Query submitted for processing",
             query_id=query_id,
             file_id=request.file_id,
             query=request.query[:100]  # Log first 100 chars
         )
-        
+
         return QueryResponse(
             query_id=query_id,
             status="started",
             message="Query processing started"
         )
-        
+
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except ValueError as e:
@@ -97,10 +96,10 @@ async def get_query_status(query_id: str, request: Request) -> QueryStatusRespon
     try:
         query_service = get_query_service(request)
         status = await query_service.get_query_status(query_id)
-        
+
         if not status:
             raise HTTPException(status_code=404, detail="Query not found")
-        
+
         return QueryStatusResponse(
             query_id=query_id,
             status=status["status"],
@@ -112,7 +111,7 @@ async def get_query_status(query_id: str, request: Request) -> QueryStatusRespon
             updated_at=status.get("updated_at"),
             error_message=status.get("error_message")
         )
-        
+
     except Exception as e:
         logger.error("Error getting query status", query_id=query_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Error retrieving query status: {str(e)}")
@@ -134,17 +133,17 @@ async def get_query_results(query_id: str, request: Request) -> QueryResultRespo
     try:
         query_service = get_query_service(request)
         results = await query_service.get_query_results(query_id)
-        
+
         if not results:
             raise HTTPException(status_code=404, detail="Query results not found")
-        
+
         # Check if query is completed
         if results.status != "completed":
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Query not completed yet. Status: {results.status}"
             )
-        
+
         return QueryResultResponse(
             query_id=query_id,
             original_query=results.original_query,
@@ -178,7 +177,7 @@ async def get_query_results(query_id: str, request: Request) -> QueryResultRespo
             },
             created_at=results.created_at if hasattr(results, 'created_at') else None
         )
-        
+
     except Exception as e:
         logger.error("Error getting query results", query_id=query_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Error retrieving query results: {str(e)}")
@@ -195,18 +194,18 @@ async def cancel_query(query_id: str, request: Request) -> Dict[str, str]:
     try:
         query_service = get_query_service(request)
         cancelled = await query_service.cancel_query(query_id)
-        
+
         if not cancelled:
             raise HTTPException(status_code=404, detail="Query not found or cannot be cancelled")
-        
+
         logger.info("Query cancelled successfully", query_id=query_id)
-        
+
         return {
             "query_id": query_id,
             "status": "cancelled",
             "message": "Query processing cancelled"
         }
-        
+
     except Exception as e:
         logger.error("Error cancelling query", query_id=query_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Error cancelling query: {str(e)}")
@@ -232,7 +231,7 @@ async def list_queries(
             offset=offset,
             status_filter=status
         )
-        
+
         return {
             "queries": queries,
             "total": len(queries),
@@ -240,7 +239,7 @@ async def list_queries(
             "offset": offset,
             "status_filter": status
         }
-        
+
     except Exception as e:
         logger.error("Error listing queries", error=str(e))
         raise HTTPException(status_code=500, detail=f"Error listing queries: {str(e)}")

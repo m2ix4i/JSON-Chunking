@@ -86,6 +86,7 @@ const QueryPage: React.FC = () => {
     }
   };
 
+
   return (
     <Box>
       {/* Page header */}

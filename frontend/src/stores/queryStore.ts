@@ -88,7 +88,6 @@ interface QueryStore {
   updateHistoryPagination: (pagination: Partial<QueryHistoryState['pagination']>) => void;
   deleteQuery: (queryId: string) => Promise<void>;
   rerunQuery: (queryId: string) => void;
-  
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
   setIsConnected: (connected: boolean) => void;

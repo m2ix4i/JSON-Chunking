@@ -5,12 +5,12 @@ This module provides the core orchestration engine for managing
 the entire query processing pipeline from user input to final response.
 """
 
-from .query_processor import QueryProcessor, QueryProcessorError
 from .intent_classifier import IntentClassifier, IntentMatch
+from .query_processor import QueryProcessor, QueryProcessorError
 
 __all__ = [
     "QueryProcessor",
-    "QueryProcessorError", 
+    "QueryProcessorError",
     "IntentClassifier",
     "IntentMatch"
 ]

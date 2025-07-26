@@ -20,11 +20,13 @@ export interface FileUploadResponse {
   size: number;
   content_type: string;
   upload_timestamp: string;
-  status: 'uploaded' | 'processing' | 'error';
+  status: 'uploaded' | 'processing' | 'error' | 'completed';
   validation_result?: {
     is_valid: boolean;
     json_structure_valid: boolean;
     estimated_chunks: number;
+    estimated_tokens?: number;
+    processing_time?: number;
     issues?: string[];
   };
 }

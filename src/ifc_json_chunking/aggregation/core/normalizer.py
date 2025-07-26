@@ -7,8 +7,9 @@ for reliable aggregation and comparison.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
+from typing import Any, Dict, List, Optional, Union
+
 import structlog
 
 from ...types.aggregation_types import ExtractedData
@@ -23,17 +24,17 @@ class DataNormalizer:
     Handles unit conversion, entity name standardization,
     property value normalization, and data format consistency.
     """
-    
+
     def __init__(self):
         """Initialize data normalizer with conversion tables."""
         self._initialize_conversion_tables()
         self._initialize_standardization_maps()
-        
+
         logger.info("DataNormalizer initialized")
-    
+
     def _initialize_conversion_tables(self) -> None:
         """Initialize unit conversion tables."""
-        
+
         # Length conversions to meters
         self.length_conversions = {
             'm': 1.0,
@@ -55,7 +56,7 @@ class DataNormalizer:
             'inch': 0.0254,
             'inches': 0.0254
         }
-        
+
         # Area conversions to square meters
         self.area_conversions = {
             'm²': 1.0,
@@ -73,7 +74,7 @@ class DataNormalizer:
             'square_foot': 0.092903,
             'square_feet': 0.092903
         }
-        
+
         # Volume conversions to cubic meters
         self.volume_conversions = {
             'm³': 1.0,
@@ -91,7 +92,7 @@ class DataNormalizer:
             'cubic_foot': 0.0283168,
             'cubic_feet': 0.0283168
         }
-        
+
         # Weight conversions to kilograms
         self.weight_conversions = {
             'kg': 1.0,
@@ -109,7 +110,7 @@ class DataNormalizer:
             'pound': 0.453592,
             'pounds': 0.453592
         }
-        
+
         # Currency conversions (base: EUR)
         self.currency_conversions = {
             '€': 1.0,
@@ -125,52 +126,52 @@ class DataNormalizer:
             'pound': 1.15,
             'pounds': 1.15
         }
-    
+
     def _initialize_standardization_maps(self) -> None:
         """Initialize entity and property standardization maps."""
-        
+
         # IFC entity type mappings
         self.entity_type_map = {
             # Building elements
             'building': 'IfcBuilding',
             'gebäude': 'IfcBuilding',
             'ifcbuilding': 'IfcBuilding',
-            
+
             'wall': 'IfcWall',
             'wand': 'IfcWall',
             'mauer': 'IfcWall',
             'ifcwall': 'IfcWall',
-            
+
             'door': 'IfcDoor',
             'tür': 'IfcDoor',
             'ifcdoor': 'IfcDoor',
-            
+
             'window': 'IfcWindow',
             'fenster': 'IfcWindow',
             'ifcwindow': 'IfcWindow',
-            
+
             'floor': 'IfcSlab',
             'slab': 'IfcSlab',
             'decke': 'IfcSlab',
             'boden': 'IfcSlab',
             'ifcslab': 'IfcSlab',
-            
+
             'room': 'IfcSpace',
             'space': 'IfcSpace',
             'raum': 'IfcSpace',
             'ifcspace': 'IfcSpace',
-            
+
             'column': 'IfcColumn',
             'stütze': 'IfcColumn',
             'säule': 'IfcColumn',
             'ifccolumn': 'IfcColumn',
-            
+
             'beam': 'IfcBeam',
             'träger': 'IfcBeam',
             'balken': 'IfcBeam',
             'ifcbeam': 'IfcBeam'
         }
-        
+
         # Material standardization
         self.material_map = {
             'concrete': 'Concrete',
@@ -188,7 +189,7 @@ class DataNormalizer:
             'metal': 'Metal',
             'metall': 'Metal'
         }
-        
+
         # Property name standardization
         self.property_name_map = {
             'name': 'Name',
@@ -214,7 +215,7 @@ class DataNormalizer:
             'thickness': 'Thickness',
             'dicke': 'Thickness'
         }
-    
+
     async def normalize_data(self, extracted_data: ExtractedData) -> ExtractedData:
         """
         Normalize extracted data for consistent representation.
@@ -231,7 +232,7 @@ class DataNormalizer:
             entities_count=len(extracted_data.entities),
             quantities_count=len(extracted_data.quantities)
         )
-        
+
         try:
             # Create a copy to avoid modifying the original
             normalized_data = ExtractedData(
@@ -243,43 +244,43 @@ class DataNormalizer:
                 temporal_context=extracted_data.temporal_context.copy(),
                 semantic_context=extracted_data.semantic_context.copy()
             )
-            
+
             # Normalize different data types
             normalized_data.entities = await self._normalize_entities(extracted_data.entities)
             normalized_data.quantities = await self._normalize_quantities(extracted_data.quantities)
             normalized_data.properties = await self._normalize_properties(extracted_data.properties)
             normalized_data.relationships = await self._normalize_relationships(extracted_data.relationships)
-            
+
             # Normalize context information
             await self._normalize_contexts(normalized_data)
-            
+
             logger.debug(
                 "Data normalization completed",
                 chunk_id=normalized_data.chunk_id,
                 normalized_entities=len(normalized_data.entities),
                 normalized_quantities=len(normalized_data.quantities)
             )
-            
+
             return normalized_data
-            
+
         except Exception as e:
             logger.error(
                 "Data normalization failed",
                 chunk_id=extracted_data.chunk_id,
                 error=str(e)
             )
-            
+
             # Return original data with error annotation
             extracted_data.processing_errors.append(f"Normalization failed: {str(e)}")
             return extracted_data
-    
+
     async def _normalize_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Normalize entity data."""
         normalized_entities = []
-        
+
         for entity in entities:
             normalized_entity = entity.copy()
-            
+
             # Normalize entity type
             if 'type' in entity:
                 entity_type = str(entity['type']).lower().strip()
@@ -288,7 +289,7 @@ class DataNormalizer:
                 else:
                     # Capitalize the first letter if not in map
                     normalized_entity['type'] = entity_type.capitalize()
-            
+
             # Normalize entity ID format
             if 'entity_id' in entity and entity['entity_id']:
                 entity_id = str(entity['entity_id']).strip()
@@ -297,25 +298,25 @@ class DataNormalizer:
                     normalized_entity['entity_id'] = f"#{entity_id}"
                 else:
                     normalized_entity['entity_id'] = entity_id
-            
+
             # Normalize any embedded properties
             if 'properties' in entity and isinstance(entity['properties'], dict):
                 normalized_entity['properties'] = await self._normalize_properties(entity['properties'])
-            
+
             normalized_entities.append(normalized_entity)
-        
+
         return normalized_entities
-    
+
     async def _normalize_quantities(self, quantities: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize quantity data with unit conversion."""
         normalized_quantities = {}
-        
+
         for key, value in quantities.items():
             if key == 'raw_numbers':
                 # Keep raw numbers as-is but ensure they're numeric
                 normalized_quantities[key] = [self._to_numeric(num) for num in value if self._to_numeric(num) is not None]
                 continue
-            
+
             # Handle different quantity types
             if key in ['volume', 'area', 'length', 'weight', 'cost']:
                 normalized_value = await self._normalize_measurement(key, value)
@@ -328,14 +329,14 @@ class DataNormalizer:
                     normalized_quantities[key] = numeric_value
                 else:
                     normalized_quantities[key] = value
-        
+
         return normalized_quantities
-    
+
     async def _normalize_measurement(self, measurement_type: str, value: Any) -> Optional[Dict[str, Any]]:
         """Normalize a measurement value with unit conversion."""
         if value is None:
             return None
-        
+
         # Extract numeric value and unit if value is a string
         if isinstance(value, str):
             # Pattern to extract number and unit
@@ -355,11 +356,11 @@ class DataNormalizer:
             unit_part = None
             if numeric_part is None:
                 return None
-        
+
         # Select appropriate conversion table
         conversion_table = None
         standard_unit = None
-        
+
         if measurement_type == 'length':
             conversion_table = self.length_conversions
             standard_unit = 'm'
@@ -375,7 +376,7 @@ class DataNormalizer:
         elif measurement_type == 'cost':
             conversion_table = self.currency_conversions
             standard_unit = '€'
-        
+
         # Perform conversion if unit is specified and in conversion table
         if unit_part and conversion_table and unit_part in conversion_table:
             converted_value = numeric_part * conversion_table[unit_part]
@@ -383,7 +384,7 @@ class DataNormalizer:
             converted_value = numeric_part
             if not unit_part and standard_unit:
                 unit_part = standard_unit  # Assume standard unit if none specified
-        
+
         return {
             'value': converted_value,
             'unit': standard_unit,
@@ -391,11 +392,11 @@ class DataNormalizer:
             'original_unit': unit_part,
             'measurement_type': measurement_type
         }
-    
+
     async def _normalize_properties(self, properties: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize property data."""
         normalized_properties = {}
-        
+
         for key, value in properties.items():
             # Normalize property name
             normalized_key = key.lower().strip()
@@ -404,37 +405,37 @@ class DataNormalizer:
             else:
                 # Capitalize first letter
                 normalized_key = normalized_key.replace('_', ' ').title().replace(' ', '')
-            
+
             # Normalize property value
             if isinstance(value, str):
                 normalized_value = value.strip()
-                
+
                 # Special handling for material properties
                 if normalized_key.lower() == 'material':
                     material_lower = normalized_value.lower()
                     if material_lower in self.material_map:
                         normalized_value = self.material_map[material_lower]
-                
+
                 # Special handling for boolean-like values
                 if normalized_value.lower() in ['true', 'yes', 'ja', 'wahr']:
                     normalized_value = True
                 elif normalized_value.lower() in ['false', 'no', 'nein', 'falsch']:
                     normalized_value = False
-                
+
             else:
                 normalized_value = value
-            
+
             normalized_properties[normalized_key] = normalized_value
-        
+
         return normalized_properties
-    
+
     async def _normalize_relationships(self, relationships: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Normalize relationship data."""
         normalized_relationships = []
-        
+
         for relationship in relationships:
             normalized_rel = relationship.copy()
-            
+
             # Normalize relationship type
             if 'type' in relationship:
                 rel_type = str(relationship['type']).lower().strip()
@@ -449,9 +450,9 @@ class DataNormalizer:
                     'adjacent_to': 'AdjacentTo',
                     'angrenzend_an': 'AdjacentTo'
                 }
-                
+
                 normalized_rel['type'] = type_map.get(rel_type, rel_type.title())
-            
+
             # Normalize entity references
             for field in ['source', 'target']:
                 if field in relationship and relationship[field]:
@@ -461,58 +462,58 @@ class DataNormalizer:
                         normalized_rel[field] = f"#{entity_ref}"
                     else:
                         normalized_rel[field] = entity_ref
-            
+
             # Ensure confidence is a float
             if 'confidence' in relationship:
                 normalized_rel['confidence'] = self._to_numeric(relationship['confidence']) or 0.7
-            
+
             normalized_relationships.append(normalized_rel)
-        
+
         return normalized_relationships
-    
+
     async def _normalize_contexts(self, normalized_data: ExtractedData) -> None:
         """Normalize context information."""
-        
+
         # Normalize spatial context
         if normalized_data.spatial_context:
             spatial = normalized_data.spatial_context
-            
+
             # Normalize floor/level references
             if 'floor' in spatial:
                 spatial['floor'] = self._to_numeric(spatial['floor']) or spatial['floor']
-            
+
             # Normalize coordinates
             if 'coordinates' in spatial and isinstance(spatial['coordinates'], list):
                 spatial['coordinates'] = [
                     self._to_numeric(coord) for coord in spatial['coordinates']
                     if self._to_numeric(coord) is not None
                 ]
-        
+
         # Normalize semantic context
         if normalized_data.semantic_context:
             semantic = normalized_data.semantic_context
-            
+
             # Ensure language is standardized
             if 'language' in semantic:
                 lang = semantic['language'].lower().strip()
                 # Map common language codes
                 lang_map = {'de': 'de', 'german': 'de', 'en': 'en', 'english': 'en'}
                 semantic['language'] = lang_map.get(lang, lang)
-    
+
     def _to_numeric(self, value: Any) -> Optional[Union[int, float]]:
         """Convert a value to numeric type safely."""
         if value is None:
             return None
-        
+
         if isinstance(value, (int, float)):
             return value
-        
+
         if isinstance(value, str):
             # Remove common non-numeric characters
             cleaned = re.sub(r'[^\d\.\-\+]', '', value.strip())
             if not cleaned:
                 return None
-            
+
             try:
                 # Try integer first
                 if '.' not in cleaned:
@@ -521,13 +522,13 @@ class DataNormalizer:
                     return float(cleaned)
             except (ValueError, InvalidOperation):
                 return None
-        
+
         # Try direct conversion
         try:
             return float(value)
         except (ValueError, TypeError):
             return None
-    
+
     async def normalize_batch(self, extracted_data_list: List[ExtractedData]) -> List[ExtractedData]:
         """
         Normalize a batch of extracted data.
@@ -539,15 +540,15 @@ class DataNormalizer:
             List of normalized ExtractedData objects
         """
         normalized_list = []
-        
+
         for extracted_data in extracted_data_list:
             normalized_data = await self.normalize_data(extracted_data)
             normalized_list.append(normalized_data)
-        
+
         logger.info(
             "Batch normalization completed",
             total_items=len(extracted_data_list),
             successful_normalizations=len([d for d in normalized_list if not d.processing_errors])
         )
-        
+
         return normalized_list

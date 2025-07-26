@@ -88,38 +88,27 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const getFileStatus = (file: UploadedFile) => {
     if (file.status === 'uploaded') {
       return { icon: <SuccessIcon color="success" />, label: 'Bereit', color: 'success' as const };
-    } else if (file.status === 'failed') {
+    } else if (file.status === 'error') {
       return { icon: <ErrorIcon color="error" />, label: 'Fehler', color: 'error' as const };
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
     }
   };
 
-  // Delete handlers
-  const handleDeleteClick = (e: React.MouseEvent, file: UploadedFile) => {
-    e.stopPropagation(); // Prevent file selection when clicking delete
-    setFileToDelete(file);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (fileToDelete) {
-      try {
-        await deleteFile(fileToDelete.file_id);
-        setDeleteConfirmOpen(false);
-        setFileToDelete(null);
-      } catch (error) {
-        // Error handling is done in the store
-        console.error('Delete failed:', error);
-      }
+  /**
+   * Get validation summary for a file (following Sandi Metz principles)
+   */
+  const getValidationSummary = (file: UploadedFile): string => {
+    if (!file.validation_result) {
+      return 'Nicht validiert';
     }
+    
+    if (file.validation_result.is_valid) {
+      return `${file.validation_result.estimated_chunks} Chunks geschätzt`;
+    }
+    
+    return 'Validierung fehlgeschlagen';
   };
-
-  const handleDeleteCancel = () => {
-    setDeleteConfirmOpen(false);
-    setFileToDelete(null);
-  };
-
   // Show empty state if no files
   if (files.length === 0) {
     return (
@@ -163,6 +152,7 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
+        
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
@@ -238,13 +228,10 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   secondary={
                     <Typography variant="body2" color="text.secondary">
                       {formatFileSize(file.size)} • Hochgeladen: {formatUploadTime(file.upload_timestamp)}
-                      {file.validation_result && (
+                      {getValidationSummary(file) && (
                         <span>
                           {' • '}
-                          {file.validation_result.is_valid 
-                            ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
-                            : 'Validierung fehlgeschlagen'
-                          }
+                          {getValidationSummary(file)}
                         </span>
                       )}
                     </Typography>

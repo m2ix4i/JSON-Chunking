@@ -5,17 +5,16 @@ This module creates the FastAPI application with all routers, middleware,
 and configuration for the web API with performance monitoring.
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import structlog
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import Config
-from .routers import health, files, queries, websocket, demo
-from .middleware.logging import LoggingMiddleware
-from ..monitoring.metrics_collector import MetricsCollector
 from ..monitoring.memory_profiler import MemoryProfiler
+from ..monitoring.metrics_collector import MetricsCollector
 from ..storage.redis_cache import RedisCache
+from .middleware.logging import LoggingMiddleware
+from .routers import demo, files, health, queries, websocket
 
 logger = structlog.get_logger(__name__)
 
@@ -66,7 +65,7 @@ app.include_router(demo.router, prefix="/api", tags=["demo"])
 async def startup_event():
     """Initialize application on startup."""
     logger.info("Starting IFC JSON Chunking API", version=app.version)
-    
+
     # Initialize performance monitoring
     try:
         await redis_cache.connect()
@@ -80,7 +79,7 @@ async def startup_event():
 async def shutdown_event():
     """Clean up application on shutdown."""
     logger.info("Shutting down IFC JSON Chunking API")
-    
+
     # Cleanup performance monitoring
     try:
         memory_profiler.stop_monitoring()
