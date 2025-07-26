@@ -1,0 +1,43 @@
+
+> ifc-json-chunking-frontend@0.1.0 dev
+> vite
+
+
+  VITE v4.5.14  ready in 405 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+Error:   Failed to scan for dependencies from entries:
+  /Users/max/Downloads/JSON-Chunking/frontend/index.html
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "<<"[0m
+
+    src/pages/QueryPage.tsx:15:0:
+[37m      15 │ [32m<<[37m<<<<< HEAD
+         ╵ [32m~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "<<"[0m
+
+    src/pages/ResultsPage.tsx:34:0:
+[37m      34 │ [32m<<[37m<<<<< HEAD
+         ╵ [32m~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "<<"[0m
+
+    src/stores/queryStore.ts:7:0:
+[37m      7 │ [32m<<[37m<<<<< HEAD
+        ╵ [32m~~[0m
+
+
+    at failureErrorWithLog (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1649:15)
+    at /Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1058:25
+    at runOnEndCallbacks (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1484:45)
+    at buildResponseToResult (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1056:7)
+    at /Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1068:9
+    at new Promise (<anonymous>)
+    at requestCallbacks.on-end (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:1067:54)
+    at handleRequest (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:729:19)
+    at handleIncomingPacket (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:755:7)
+    at Socket.readFromStdout (/Users/max/Downloads/JSON-Chunking/frontend/node_modules/esbuild/lib/main.js:679:7)

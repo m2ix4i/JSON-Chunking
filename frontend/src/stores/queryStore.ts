@@ -375,11 +375,14 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     try {
       const { apiService } = await import('@/services/api');
       
+      // Convert page to offset for API call
+      const offset = (page - 1) * limit;
+      
       const response = await apiService.listQueries({
-        page,
+        offset,
         limit,
         status,
-        search,
+        // Note: search parameter may not be supported by backend yet
       });
 
       set((state) => ({
