@@ -240,8 +240,8 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
                     <ListItemText
                       primary={file.filename}
                       secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
+                        <span>
+                          <Typography component="span" variant="body2" color="text.secondary">
                             {formatFileSize(file.size)} • {status.message}
                           </Typography>
                           
@@ -249,12 +249,12 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
                             <LinearProgress
                               variant="determinate"
                               value={progress}
-                              sx={{ mt: 1, width: '100%' }}
+                              sx={{ mt: 1, width: '100%', display: 'block' }}
                             />
                           )}
                           
                           {file.validation_result && (
-                            <Box sx={{ mt: 1 }}>
+                            <span style={{ display: 'block', marginTop: '8px' }}>
                               {file.validation_result.is_valid ? (
                                 <Chip
                                   label={`${file.validation_result.estimated_chunks} Chunks geschätzt`}
@@ -270,9 +270,9 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
                                   variant="outlined"
                                 />
                               )}
-                            </Box>
+                            </span>
                           )}
-                        </Box>
+                        </span>
                       }
                     />
                     

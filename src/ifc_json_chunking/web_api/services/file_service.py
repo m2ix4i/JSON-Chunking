@@ -62,8 +62,8 @@ class FileService:
     async def _validate_json_content(self, file: UploadFile) -> None:
         """Validate JSON file content."""
         try:
-            # Read first chunk to validate JSON structure
-            content = await file.read(1024)  # Read first 1KB
+            # Read entire file content for validation
+            content = await file.read()
             await file.seek(0)  # Reset file pointer
             
             # Try to parse as JSON
@@ -74,6 +74,10 @@ class FileService:
             raise ValueError("Invalid JSON file format")
         except UnicodeDecodeError:
             raise ValueError("File encoding not supported")
+        except MemoryError:
+            # For extremely large files, skip content validation
+            logger.warning("File too large for JSON validation, skipping content check")
+            pass
     
     async def save_upload_file(self, file: UploadFile, file_id: str) -> Path:
         """

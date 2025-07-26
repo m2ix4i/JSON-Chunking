@@ -34,6 +34,9 @@ import { useNavigate } from 'react-router-dom';
 import { useFiles, useSelectedFile } from '@stores/fileStore';
 import { useActiveQueries, useQueryHistory } from '@stores/queryStore';
 
+// Components
+import FileSelector from '@components/files/FileSelector';
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   
@@ -69,9 +72,9 @@ const Dashboard: React.FC = () => {
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <FileIcon color="primary" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h4" component="div">
@@ -87,9 +90,9 @@ const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <PendingIcon color="warning" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h4" component="div">
@@ -105,9 +108,9 @@ const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <CompletedIcon color="success" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h4" component="div">
@@ -123,9 +126,9 @@ const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <ErrorIcon color="error" sx={{ mr: 2 }} />
                 <Box>
                   <Typography variant="h4" component="div">
@@ -171,18 +174,40 @@ const Dashboard: React.FC = () => {
                 >
                   {selectedFile ? 'Neue Abfrage erstellen' : 'Erst Datei auswählen'}
                 </Button>
-                
-                {selectedFile && (
-                  <Paper sx={{ p: 2, bgcolor: 'action.hover' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Ausgewählte Datei:
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {selectedFile.filename}
-                    </Typography>
-                  </Paper>
-                )}
               </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* File Selection */}
+        {files.length > 0 && (
+          <Grid item xs={12} md={6}>
+            <FileSelector 
+              title="Datei für Abfragen auswählen"
+              showUploadPrompt={false}
+              compact={true}
+            />
+          </Grid>
+        )}
+
+        {/* Active Queries */}
+        <Grid item xs={12} md={files.length > 0 ? 6 : 6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Schnellübersicht
+              </Typography>
+              
+              {selectedFile && (
+                <Paper sx={{ p: 2, bgcolor: 'action.hover', mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Ausgewählte Datei:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {selectedFile.filename}
+                  </Typography>
+                </Paper>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -202,31 +227,30 @@ const Dashboard: React.FC = () => {
               ) : (
                 <List dense>
                   {Object.values(activeQueries).map((query) => (
-                    <ListItem key={query.queryId} divider>
+                    <ListItem key={query.query_id} divider>
                       <ListItemIcon>
                         <QueryIcon />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`Abfrage ${query.queryId.slice(0, 8)}...`}
+                        primary={`Abfrage ${query.query_id?.slice(0, 8) || 'Unbekannt'}...`}
                         secondary={
                           <Box>
                             <Typography variant="body2" color="text.secondary">
-                              {query.status.message}
+                              {query.message || 'Wird verarbeitet...'}
                             </Typography>
                             <LinearProgress 
-                              variant="determinate" 
-                              value={query.status.progress_percentage}
+                              variant="indeterminate"
                               sx={{ mt: 1 }}
                             />
                           </Box>
                         }
                       />
                       <Chip
-                        label={query.status.status}
+                        label={query.status || 'processing'}
                         size="small"
                         color={
-                          query.status.status === 'completed' ? 'success' :
-                          query.status.status === 'failed' ? 'error' :
+                          query.status === 'completed' ? 'success' :
+                          query.status === 'failed' ? 'error' :
                           'primary'
                         }
                       />
@@ -254,7 +278,7 @@ const Dashboard: React.FC = () => {
                 <List>
                   {recentQueries.map((query, index) => (
                     <ListItem 
-                      key={query.queryId} 
+                      key={query.query_id || index} 
                       divider={index < recentQueries.length - 1}
                     >
                       <ListItemIcon>
@@ -265,15 +289,15 @@ const Dashboard: React.FC = () => {
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={query.query}
+                        primary={query.query || 'Keine Abfrage verfügbar'}
                         secondary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" color="text.secondary">
-                              {query.fileName} • {query.timestamp.toLocaleString('de-DE')}
+                              {query.file_id || 'Unbekannte Datei'} • {new Date().toLocaleString('de-DE')}
                             </Typography>
-                            {query.confidenceScore && (
+                            {query.confidence_score && (
                               <Chip
-                                label={`${Math.round(query.confidenceScore * 100)}% Vertrauen`}
+                                label={`${Math.round(query.confidence_score * 100)}% Vertrauen`}
                                 size="small"
                                 variant="outlined"
                               />
@@ -283,7 +307,7 @@ const Dashboard: React.FC = () => {
                       />
                       <Button
                         size="small"
-                        onClick={() => navigate(`/results/${query.queryId}`)}
+                        onClick={() => navigate(`/results/${query.query_id}`)}
                       >
                         Anzeigen
                       </Button>

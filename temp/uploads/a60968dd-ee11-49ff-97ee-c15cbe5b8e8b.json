@@ -1,0 +1,20 @@
+{
+  "test": "sample JSON file for upload testing",
+  "building_components": [
+    {
+      "id": "test-component-1",
+      "type": "Holzbalken",
+      "material": "Fichte",
+      "dimensions": {
+        "length": 300,
+        "width": 20,
+        "height": 15
+      }
+    }
+  ],
+  "metadata": {
+    "created": "2025-01-26",
+    "source": "test_file",
+    "format": "IFC_JSON"
+  }
+}

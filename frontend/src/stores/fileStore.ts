@@ -8,7 +8,7 @@ import { devtools } from 'zustand/middleware';
 import { apiService } from '@/services/api';
 import { showSuccessNotification, showErrorNotification } from './appStore';
 import type { FileState, UploadedFile } from '@/types/app';
-import type { FileUploadProgress } from '@/types/api';
+import type { FileUploadProgress, FileStatusResponse } from '@/types/api';
 
 interface FileStoreState extends FileState {
   // Actions
@@ -36,6 +36,25 @@ const initialState: FileState = {
   selectedFileId: null,
   uploadProgress: {},
   uploadErrors: {},
+};
+
+// Helper function to map backend FileStatusResponse to frontend UploadedFile
+const mapFileStatusToUploadedFile = (fileStatus: FileStatusResponse): UploadedFile => {
+  return {
+    file_id: fileStatus.file_id,
+    filename: fileStatus.filename,
+    size: fileStatus.size,
+    content_type: 'application/json', // Default for JSON files
+    upload_timestamp: fileStatus.upload_timestamp,
+    status: fileStatus.status,
+    validation_result: fileStatus.processing_metadata ? {
+      is_valid: true,
+      estimated_chunks: fileStatus.processing_metadata.chunk_count || 0,
+      estimated_tokens: fileStatus.processing_metadata.estimated_tokens || 0,
+      processing_time: fileStatus.processing_metadata.processing_time || 0,
+    } : undefined,
+    error_message: fileStatus.error_message,
+  };
 };
 
 export const useFileStore = create<FileStoreState>()(
@@ -74,7 +93,7 @@ export const useFileStore = create<FileStoreState>()(
             get().setUploadProgress(tempId, progress.percentage);
           });
 
-          // Replace temporary file with actual result
+          // Replace temporary file with actual result and auto-select
           set(
             (state) => ({
               ...state,
@@ -84,6 +103,7 @@ export const useFileStore = create<FileStoreState>()(
                   : f
               ),
               uploadProgress: { ...state.uploadProgress, [result.file_id]: 100 },
+              selectedFileId: result.file_id, // Auto-select newly uploaded file
             }),
             false,
             'uploadFile-complete'
@@ -102,7 +122,9 @@ export const useFileStore = create<FileStoreState>()(
             );
           }, 2000);
 
-          showSuccessNotification(`Datei "${file.name}" erfolgreich hochgeladen`);
+          showSuccessNotification(
+            `Datei "${file.name}" erfolgreich hochgeladen und automatisch ausgewählt. Sie können jetzt Abfragen erstellen.`
+          );
 
         } catch (error) {
           // Remove temporary file and show error
@@ -168,9 +190,10 @@ export const useFileStore = create<FileStoreState>()(
       // Refresh file list from server
       refreshFiles: async () => {
         try {
-          const files = await apiService.listFiles();
+          const backendFiles = await apiService.listFiles();
+          const mappedFiles = backendFiles.map(mapFileStatusToUploadedFile);
           set(
-            (state) => ({ ...state, files }),
+            (state) => ({ ...state, files: mappedFiles }),
             false,
             'refreshFiles'
           );
