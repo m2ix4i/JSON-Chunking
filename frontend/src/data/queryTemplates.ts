@@ -1,48 +1,9 @@
 /**
  * Query templates for German building industry IFC analysis.
- * Provides pre-built templates for common query use cases with repository pattern.
+ * Provides pre-built templates for common query use cases.
  */
 
 import type { QueryTemplate, QueryVariable } from '@/types/app';
-
-// Template categories for organization
-export const templateCategories = [
-  {
-    id: 'quantity',
-    name: 'Mengenanalyse',
-    description: 'Quantitative Analysen, Volumen, Flächen, Anzahlen',
-    icon: 'Calculate',
-    color: 'primary' as const,
-  },
-  {
-    id: 'material',
-    name: 'Materialien',
-    description: 'Materialien, Eigenschaften, Spezifikationen',
-    icon: 'Palette',
-    color: 'success' as const,
-  },
-  {
-    id: 'spatial',
-    name: 'Räumlich',
-    description: 'Räume, Stockwerke, räumliche Beziehungen',
-    icon: 'Place',
-    color: 'warning' as const,
-  },
-  {
-    id: 'component',
-    name: 'Bauteile',
-    description: 'Gebäudekomponenten, Elemente, Systeme',
-    icon: 'Build',
-    color: 'secondary' as const,
-  },
-  {
-    id: 'cost',
-    name: 'Kosten',
-    description: 'Kostenschätzungen, Budget, Wirtschaftlichkeit',
-    icon: 'AttachMoney',
-    color: 'error' as const,
-  },
-];
 
 // Common variables used across templates
 const commonVariables: Record<string, QueryVariable> = {
@@ -137,154 +98,8 @@ const commonVariables: Record<string, QueryVariable> = {
   },
 };
 
-// Sample query templates - combining both approaches
-export const queryTemplates: QueryTemplate[] = [
-  // Popular/Legacy templates from HEAD branch
-  {
-    id: 'quantity-concrete-volume',
-    name: 'Betonvolumen ermitteln',
-    description: 'Berechnet das Gesamtvolumen aller Betonbauteile im Gebäude',
-    template: 'Zeige mir das Gesamtvolumen aller Betonelemente in {material_type}',
-    category: 'quantity',
-    difficulty: 'beginner',
-    variables: [
-      {
-        name: 'material_type',
-        label: 'Materialtyp',
-        type: 'select',
-        options: ['Beton', 'Stahlbeton', 'Alle Betonarten'],
-        defaultValue: 'Beton',
-        required: true,
-        description: 'Wählen Sie den spezifischen Betontyp aus'
-      }
-    ],
-    examples: [
-      'Zeige mir das Gesamtvolumen aller Betonelemente in Beton',
-      'Zeige mir das Gesamtvolumen aller Betonelemente in Stahlbeton'
-    ],
-    tags: ['volumen', 'beton', 'mengen'],
-    popularity: 95,
-    createdAt: new Date('2024-01-01'),
-    usageCount: 95,
-  },
-  {
-    id: 'spatial-rooms-area',
-    name: 'Raumflächen analysieren',
-    description: 'Analysiert Raumflächen nach verschiedenen Kriterien',
-    template: 'Welche Räume haben eine Fläche größer als {min_area} m²?',
-    category: 'spatial',
-    difficulty: 'beginner',
-    variables: [
-      {
-        name: 'min_area',
-        label: 'Mindestfläche (m²)',
-        type: 'number',
-        defaultValue: '50',
-        required: true,
-        description: 'Geben Sie die Mindestfläche in Quadratmetern ein'
-      }
-    ],
-    examples: [
-      'Welche Räume haben eine Fläche größer als 50 m²?',
-      'Welche Räume haben eine Fläche größer als 100 m²?'
-    ],
-    tags: ['räume', 'fläche', 'spatial'],
-    popularity: 80,
-    createdAt: new Date('2024-01-01'),
-    usageCount: 80,
-  },
-  {
-    id: 'material-steel-analysis',
-    name: 'Stahlbauteile auflisten',
-    description: 'Listet alle Stahlbauteile mit ihren Eigenschaften auf',
-    template: 'Zeige alle Stahlbauteile mit {property_filter}',
-    category: 'material',
-    difficulty: 'intermediate',
-    variables: [
-      {
-        name: 'property_filter',
-        label: 'Eigenschaftsfilter',
-        type: 'select',
-        options: ['Abmessungen', 'Gewicht', 'Material-ID', 'Alle Eigenschaften'],
-        defaultValue: 'Alle Eigenschaften',
-        required: false,
-        description: 'Wählen Sie welche Eigenschaften angezeigt werden sollen'
-      }
-    ],
-    examples: [
-      'Zeige alle Stahlbauteile mit Abmessungen',
-      'Zeige alle Stahlbauteile mit Gewicht'
-    ],
-    tags: ['stahl', 'material', 'eigenschaften'],
-    popularity: 70,
-    createdAt: new Date('2024-01-01'),
-    usageCount: 70,
-  },
-  {
-    id: 'component-doors-windows',
-    name: 'Türen und Fenster zählen',
-    description: 'Zählt alle Türen und Fenster im Gebäude',
-    template: 'Wie viele {component_type} gibt es im Gebäude?',
-    category: 'component',
-    difficulty: 'beginner',
-    variables: [
-      {
-        name: 'component_type',
-        label: 'Bauteiltyp',
-        type: 'select',
-        options: ['Türen', 'Fenster', 'Türen und Fenster'],
-        defaultValue: 'Türen und Fenster',
-        required: true,
-        description: 'Wählen Sie den zu zählenden Bauteiltyp'
-      }
-    ],
-    examples: [
-      'Wie viele Türen gibt es im Gebäude?',
-      'Wie viele Fenster gibt es im Gebäude?'
-    ],
-    tags: ['türen', 'fenster', 'count'],
-    popularity: 85,
-    createdAt: new Date('2024-01-01'),
-    usageCount: 85,
-  },
-  {
-    id: 'cost-material-estimate',
-    name: 'Materialkosten schätzen',
-    description: 'Schätzt die Kosten für verschiedene Materialtypen',
-    template: 'Schätze die Kosten für {material} basierend auf {cost_basis}',
-    category: 'cost',
-    difficulty: 'advanced',
-    variables: [
-      {
-        name: 'material',
-        label: 'Material',
-        type: 'select',
-        options: ['Beton', 'Stahl', 'Holz', 'Alle Materialien'],
-        defaultValue: 'Alle Materialien',
-        required: true,
-        description: 'Wählen Sie das Material für die Kostenschätzung'
-      },
-      {
-        name: 'cost_basis',
-        label: 'Kostenbasis',
-        type: 'select',
-        options: ['Volumen', 'Gewicht', 'Stückzahl'],
-        defaultValue: 'Volumen',
-        required: true,
-        description: 'Basis für die Kostenschätzung'
-      }
-    ],
-    examples: [
-      'Schätze die Kosten für Beton basierend auf Volumen',
-      'Schätze die Kosten für Stahl basierend auf Gewicht'
-    ],
-    tags: ['kosten', 'schätzung', 'material'],
-    popularity: 60,
-    createdAt: new Date('2024-01-01'),
-    usageCount: 60,
-  },
-
-  // Enhanced templates from 057e15e5 branch
+// Quantity Analysis Templates
+const quantityTemplates: QueryTemplate[] = [
   {
     id: 'qty-count-components',
     name: 'Bauteile zählen',
@@ -301,7 +116,7 @@ export const queryTemplates: QueryTemplate[] = [
     expectedResult: 'Liste mit Anzahl und Details der gefundenen Bauteile',
     tags: ['zählen', 'anzahl', 'bauteile', 'inventar'],
     createdAt: new Date('2024-01-01'),
-    usageCount: 45,
+    usageCount: 0,
   },
   {
     id: 'qty-total-area',
@@ -319,8 +134,30 @@ export const queryTemplates: QueryTemplate[] = [
     expectedResult: 'Gesamtfläche mit Aufschlüsselung nach einzelnen Elementen',
     tags: ['fläche', 'berechnung', 'summe', 'messen'],
     createdAt: new Date('2024-01-01'),
-    usageCount: 38,
+    usageCount: 0,
   },
+  {
+    id: 'qty-volume-calculation',
+    name: 'Volumen berechnen',
+    category: 'quantity',
+    description: 'Berechnet das Volumen von Materialien oder Bauteilen',
+    template: 'Wie viel {unit || "m³"} {material} sind verbaut{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``}?',
+    variables: [commonVariables.material, commonVariables.floor, commonVariables.area, commonVariables.unit],
+    difficulty: 'intermediate',
+    examples: [
+      'Wie viel m³ Beton sind verbaut im Erdgeschoss?',
+      'Wie viel m³ Holz sind verbaut im Dachgeschoss?',
+      'Wie viel m³ Stahl sind verbaut im gesamten Gebäude?'
+    ],
+    expectedResult: 'Volumenberechnung mit Details zu verwendeten Materialien',
+    tags: ['volumen', 'material', 'kubikmeter', 'berechnung'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+];
+
+// Material Analysis Templates
+const materialTemplates: QueryTemplate[] = [
   {
     id: 'mat-find-by-type',
     name: 'Material suchen',
@@ -337,69 +174,295 @@ export const queryTemplates: QueryTemplate[] = [
     expectedResult: 'Liste aller Bauteile mit dem angegebenen Material und deren Eigenschaften',
     tags: ['material', 'suchen', 'eigenschaften', 'bauteile'],
     createdAt: new Date('2024-01-01'),
-    usageCount: 42,
-  }
+    usageCount: 0,
+  },
+  {
+    id: 'mat-list-all-materials',
+    name: 'Alle Materialien auflisten',
+    category: 'material',
+    description: 'Listet alle verwendeten Materialien in einem Bereich auf',
+    template: 'Liste alle verwendeten Materialien{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``} auf{includeProperties ? " mit Eigenschaften" : ""}.',
+    variables: [commonVariables.floor, commonVariables.area, commonVariables.includeProperties],
+    difficulty: 'beginner',
+    examples: [
+      'Liste alle verwendeten Materialien im Erdgeschoss auf.',
+      'Liste alle verwendeten Materialien im gesamten Gebäude mit Eigenschaften auf.',
+      'Liste alle verwendeten Materialien im 2. Obergeschoss im Bürobereich auf.'
+    ],
+    expectedResult: 'Vollständige Materialliste mit Mengenangaben und optionalen Eigenschaften',
+    tags: ['material', 'liste', 'inventar', 'übersicht'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'mat-properties-analysis',
+    name: 'Materialeigenschaften analysieren',
+    category: 'material',
+    description: 'Analysiert spezifische Eigenschaften von Materialien',
+    template: 'Analysiere die Eigenschaften von {material} in {component}{floor ? ` im ${floor}` : ``}.',
+    variables: [commonVariables.material, commonVariables.component, commonVariables.floor],
+    difficulty: 'intermediate',
+    examples: [
+      'Analysiere die Eigenschaften von Beton in Wänden im Erdgeschoss.',
+      'Analysiere die Eigenschaften von Stahl in Trägern im gesamten Gebäude.',
+      'Analysiere die Eigenschaften von Glas in Fenstern im 2. Obergeschoss.'
+    ],
+    expectedResult: 'Detailierte Analyse der Materialeigenschaften mit technischen Daten',
+    tags: ['analyse', 'eigenschaften', 'material', 'technisch'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
 ];
 
-// Template Repository Pattern implementation
-export interface TemplateRepository {
-  findAll(): QueryTemplate[];
-  findByCategory(category: string): QueryTemplate[];
-  findByDifficulty(difficulty: string): QueryTemplate[];
-  search(term: string): QueryTemplate[];
-  findPopular(limit: number): QueryTemplate[];
-}
+// Spatial Analysis Templates
+const spatialTemplates: QueryTemplate[] = [
+  {
+    id: 'spa-rooms-by-floor',
+    name: 'Räume nach Stockwerk',
+    category: 'spatial',
+    description: 'Zeigt alle Räume in einem bestimmten Stockwerk',
+    template: 'Zeige alle Räume {floor ? `im ${floor}` : "im gesamten Gebäude"}{area ? ` im Bereich ${area}` : ``}.',
+    variables: [commonVariables.floor, commonVariables.area],
+    difficulty: 'beginner',
+    examples: [
+      'Zeige alle Räume im Erdgeschoss.',
+      'Zeige alle Räume im 2. Obergeschoss im Bürobereich.',
+      'Zeige alle Räume im gesamten Gebäude.'
+    ],
+    expectedResult: 'Liste aller Räume mit Grundinformationen und Flächenangaben',
+    tags: ['räume', 'stockwerk', 'spatial', 'übersicht'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'spa-adjacent-rooms',
+    name: 'Benachbarte Räume finden',
+    category: 'spatial',
+    description: 'Findet Räume, die an einen bestimmten Raum angrenzen',
+    template: 'Finde benachbarte Räume zu {area}.',
+    variables: [commonVariables.area],
+    difficulty: 'intermediate',
+    examples: [
+      'Finde benachbarte Räume zu Büro 101.',
+      'Finde benachbarte Räume zu der Küche.',
+      'Finde benachbarte Räume zu dem Konferenzraum.'
+    ],
+    expectedResult: 'Liste der angrenzenden Räume mit räumlichen Beziehungen',
+    tags: ['nachbarschaft', 'räume', 'spatial', 'beziehungen'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'spa-room-dimensions',
+    name: 'Raumabmessungen',
+    category: 'spatial',
+    description: 'Misst Abmessungen und Fläche von Räumen',
+    template: 'Messe die Abmessungen{area ? ` von ${area}` : " aller Räume"}{floor ? ` im ${floor}` : ``}.',
+    variables: [commonVariables.area, commonVariables.floor],
+    difficulty: 'beginner',
+    examples: [
+      'Messe die Abmessungen von Büro 101.',
+      'Messe die Abmessungen aller Räume im Erdgeschoss.',
+      'Messe die Abmessungen des Konferenzraums im 2. Obergeschoss.'
+    ],
+    expectedResult: 'Detaillierte Abmessungen mit Länge, Breite, Höhe und Fläche',
+    tags: ['abmessungen', 'fläche', 'räume', 'messen'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+];
 
-class InMemoryTemplateRepository implements TemplateRepository {
-  constructor(private templates: QueryTemplate[]) {}
+// Component Analysis Templates
+const componentTemplates: QueryTemplate[] = [
+  {
+    id: 'com-analyze-type',
+    name: 'Bauteil-Typ analysieren',
+    category: 'component',
+    description: 'Analysiert alle Bauteile eines bestimmten Typs',
+    template: 'Analysiere alle {component}{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``}{includeProperties ? " mit Eigenschaften" : ""}.',
+    variables: [commonVariables.component, commonVariables.floor, commonVariables.area, commonVariables.includeProperties],
+    difficulty: 'intermediate',
+    examples: [
+      'Analysiere alle Fenster im 2. Obergeschoss mit Eigenschaften.',
+      'Analysiere alle Träger im gesamten Gebäude.',
+      'Analysiere alle Türen im Erdgeschoss im Eingangsbereich.'
+    ],
+    expectedResult: 'Detaillierte Analyse aller Bauteile des angegebenen Typs',
+    tags: ['analyse', 'bauteile', 'typ', 'eigenschaften'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'com-structural-elements',
+    name: 'Tragende Elemente finden',
+    category: 'component',
+    description: 'Findet alle tragenden Bauteile in einem Bereich',
+    template: 'Finde tragende {component}{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``}.',
+    variables: [commonVariables.component, commonVariables.floor, commonVariables.area],
+    difficulty: 'advanced',
+    examples: [
+      'Finde tragende Wände im Erdgeschoss.',
+      'Finde tragende Stützen im gesamten Gebäude.',
+      'Finde tragende Träger im 1. Obergeschoss.'
+    ],
+    expectedResult: 'Liste aller tragenden Elemente mit strukturellen Eigenschaften',
+    tags: ['tragend', 'struktur', 'bauteile', 'statik'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'com-size-filter',
+    name: 'Bauteile nach Größe filtern',
+    category: 'component',
+    description: 'Findet Bauteile basierend auf Größenkriterien',
+    template: 'Finde {component} mit einer Fläche zwischen {minValue || 0} und {maxValue || 1000} {unit || "m²"}{floor ? ` im ${floor}` : ``}.',
+    variables: [commonVariables.component, commonVariables.minValue, commonVariables.maxValue, commonVariables.unit, commonVariables.floor],
+    difficulty: 'intermediate',
+    examples: [
+      'Finde Fenster mit einer Fläche zwischen 1 und 5 m² im 2. Obergeschoss.',
+      'Finde Türen mit einer Fläche zwischen 2 und 4 m² im Erdgeschoss.',
+      'Finde Wände mit einer Fläche zwischen 10 und 50 m² im gesamten Gebäude.'
+    ],
+    expectedResult: 'Gefilterte Liste von Bauteilen mit Flächenangaben',
+    tags: ['filter', 'größe', 'fläche', 'bauteile'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+];
 
-  findAll(): QueryTemplate[] {
-    return [...this.templates]; // defensive copy
-  }
+// Cost Estimation Templates
+const costTemplates: QueryTemplate[] = [
+  {
+    id: 'cost-material-estimate',
+    name: 'Materialkosten schätzen',
+    category: 'cost',
+    description: 'Schätzt die Kosten für bestimmte Materialien',
+    template: 'Schätze Materialkosten für {material} in {component}{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``}.',
+    variables: [commonVariables.material, commonVariables.component, commonVariables.floor, commonVariables.area],
+    difficulty: 'advanced',
+    examples: [
+      'Schätze Materialkosten für Beton in Wänden im Erdgeschoss.',
+      'Schätze Materialkosten für Stahl in Trägern im gesamten Gebäude.',
+      'Schätze Materialkosten für Glas in Fenstern im 2. Obergeschoss.'
+    ],
+    expectedResult: 'Kostenschätzung basierend auf Materialmengen und aktuellen Marktpreisen',
+    tags: ['kosten', 'material', 'schätzung', 'budget'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'cost-area-calculation',
+    name: 'Flächenkosten berechnen',
+    category: 'cost',
+    description: 'Berechnet Kosten pro Flächeneinheit',
+    template: 'Berechne Flächenkosten pro {unit || "m²"} für {component}{floor ? ` im ${floor}` : ``}{area ? ` im Bereich ${area}` : ``}.',
+    variables: [commonVariables.component, commonVariables.unit, commonVariables.floor, commonVariables.area],
+    difficulty: 'intermediate',
+    examples: [
+      'Berechne Flächenkosten pro m² für Wände im Erdgeschoss.',
+      'Berechne Flächenkosten pro m² für Decken im gesamten Gebäude.',
+      'Berechne Flächenkosten pro m² für Böden im 2. Obergeschoss.'
+    ],
+    expectedResult: 'Kostenkalkulation pro Flächeneinheit mit Gesamtkosten',
+    tags: ['kosten', 'fläche', 'berechnung', 'einheit'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+  {
+    id: 'cost-total-project',
+    name: 'Gesamtprojektkosten',
+    category: 'cost',
+    description: 'Schätzt die Gesamtkosten für ein Bauprojekt oder einen Bereich',
+    template: 'Schätze Gesamtkosten{floor ? ` für ${floor}` : " für das gesamte Gebäude"}{area ? ` im Bereich ${area}` : ``}.',
+    variables: [commonVariables.floor, commonVariables.area],
+    difficulty: 'advanced',
+    examples: [
+      'Schätze Gesamtkosten für das Erdgeschoss.',
+      'Schätze Gesamtkosten für das gesamte Gebäude.',
+      'Schätze Gesamtkosten für das 2. Obergeschoss im Bürobereich.'
+    ],
+    expectedResult: 'Umfassende Kostenschätzung mit Aufschlüsselung nach Kategorien',
+    tags: ['kosten', 'gesamt', 'projekt', 'budget'],
+    createdAt: new Date('2024-01-01'),
+    usageCount: 0,
+  },
+];
 
-  findByCategory(category: string): QueryTemplate[] {
-    return this.templates.filter(template => template.category === category);
-  }
+// Combined template array
+export const queryTemplates: QueryTemplate[] = [
+  ...quantityTemplates,
+  ...materialTemplates,
+  ...spatialTemplates,
+  ...componentTemplates,
+  ...costTemplates,
+];
 
-  findByDifficulty(difficulty: string): QueryTemplate[] {
-    return this.templates.filter(template => template.difficulty === difficulty);
-  }
+// Helper functions
+export const getTemplatesByCategory = (category: string): QueryTemplate[] => {
+  return queryTemplates.filter(template => template.category === category);
+};
 
-  search(term: string): QueryTemplate[] {
-    const searchLower = term.toLowerCase();
-    return this.templates.filter(template => 
-      template.name.toLowerCase().includes(searchLower) ||
-      template.description.toLowerCase().includes(searchLower) ||
-      template.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
-      template.examples.some(example => example.toLowerCase().includes(searchLower))
-    );
-  }
-
-  findPopular(limit: number): QueryTemplate[] {
-    return [...this.templates]
-      .sort((a, b) => (b.usageCount || b.popularity || 0) - (a.usageCount || a.popularity || 0))
-      .slice(0, limit);
-  }
-}
-
-// Repository instance
-const templateRepository = new InMemoryTemplateRepository(queryTemplates);
-
-// Public API functions following Tell Don't Ask principle
-export const getTemplatesByCategory = (category: string): QueryTemplate[] => 
-  templateRepository.findByCategory(category);
-
-export const getTemplatesByDifficulty = (difficulty: string): QueryTemplate[] => 
-  templateRepository.findByDifficulty(difficulty);
+export const getTemplatesByDifficulty = (difficulty: string): QueryTemplate[] => {
+  return queryTemplates.filter(template => template.difficulty === difficulty);
+};
 
 export const getTemplateById = (id: string): QueryTemplate | undefined => {
   return queryTemplates.find(template => template.id === id);
 };
 
-export const searchTemplates = (term: string): QueryTemplate[] => 
-  templateRepository.search(term);
+export const searchTemplates = (searchTerm: string): QueryTemplate[] => {
+  const term = searchTerm.toLowerCase();
+  return queryTemplates.filter(template => 
+    template.name.toLowerCase().includes(term) ||
+    template.description.toLowerCase().includes(term) ||
+    template.tags.some(tag => tag.toLowerCase().includes(term)) ||
+    template.examples.some(example => example.toLowerCase().includes(term))
+  );
+};
 
-export const getPopularTemplates = (limit: number = 5): QueryTemplate[] => 
-  templateRepository.findPopular(limit);
+export const getPopularTemplates = (limit: number = 5): QueryTemplate[] => {
+  return [...queryTemplates]
+    .sort((a, b) => b.usageCount - a.usageCount)
+    .slice(0, limit);
+};
+
+// Template categories for UI
+export const templateCategories = [
+  {
+    id: 'quantity',
+    name: 'Mengenanalyse',
+    description: 'Quantitative Analysen, Volumen, Flächen, Anzahlen',
+    icon: 'Calculate',
+    color: 'primary' as const,
+  },
+  {
+    id: 'material',
+    name: 'Materialien',
+    description: 'Materialien, Eigenschaften, Spezifikationen',
+    icon: 'Palette',
+    color: 'success' as const,
+  },
+  {
+    id: 'spatial',
+    name: 'Räumlich',
+    description: 'Räume, Stockwerke, räumliche Beziehungen',
+    icon: 'Place',
+    color: 'warning' as const,
+  },
+  {
+    id: 'component',
+    name: 'Bauteile',
+    description: 'Gebäudekomponenten, Elemente, Systeme',
+    icon: 'Build',
+    color: 'secondary' as const,
+  },
+  {
+    id: 'cost',
+    name: 'Kosten',
+    description: 'Kostenschätzungen, Budget, Wirtschaftlichkeit',
+    icon: 'AttachMoney',
+    color: 'error' as const,
+  },
+];
 
 export default queryTemplates;

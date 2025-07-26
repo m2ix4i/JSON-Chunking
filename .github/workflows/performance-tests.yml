@@ -1,0 +1,166 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/performance-tests.yml'
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: |
+        npm ci
+        # Install performance testing dependencies
+        npm install --save-dev puppeteer jest
+
+    - name: Build frontend for production
+      working-directory: ./frontend
+      run: |
+        npm run build:prod
+        npm run perf:analyze
+
+    - name: Start frontend server
+      working-directory: ./frontend
+      run: |
+        npm run preview &
+        sleep 10
+        # Wait for server to be ready
+        npx wait-on http://localhost:4173 --timeout 30000
+
+    - name: Run performance tests
+      working-directory: ./frontend
+      run: |
+        # Set base URL for tests
+        export TEST_BASE_URL=http://localhost:4173
+        
+        # Run performance tests
+        npx jest tests/performance --verbose --testTimeout=60000
+      env:
+        CI: true
+        HEADLESS: true
+
+    - name: Upload bundle analysis
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bundle-analysis-${{ matrix.node-version }}
+        path: |
+          frontend/dist/stats.html
+          frontend/dist/stats.json
+        retention-days: 30
+
+    - name: Upload performance history
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-history-${{ matrix.node-version }}
+        path: frontend/tests/performance/performance-history.json
+        retention-days: 90
+
+    - name: Comment PR with performance results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            // Read performance history
+            const historyPath = path.join('frontend', 'tests', 'performance', 'performance-history.json');
+            if (fs.existsSync(historyPath)) {
+              const history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+              const latest = history[history.length - 1];
+              
+              if (latest) {
+                const comment = `## 📊 Performance Test Results
+                
+                **Latest Performance Metrics:**
+                - **Bundle Size**: ${(latest.bundleSize || 0 / 1024).toFixed(2)}KB
+                - **Load Time**: ${(latest.loadTime || 0).toFixed(0)}ms
+                - **Build**: Node.js ${{ matrix.node-version }}
+                - **Commit**: ${context.sha.substring(0, 7)}
+                
+                📈 [View detailed bundle analysis in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+                
+                Performance tests completed successfully! ✅`;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }
+          } catch (error) {
+            console.log('Could not post performance results:', error.message);
+          }
+
+  lighthouse-audit:
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build and start server
+      working-directory: ./frontend
+      run: |
+        npm run build:prod
+        npm run preview &
+        npx wait-on http://localhost:4173 --timeout 30000
+
+    - name: Run Lighthouse audit
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        urls: |
+          http://localhost:4173
+          http://localhost:4173/upload
+          http://localhost:4173/query
+        configPath: './frontend/.lighthouserc.json'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+
+    - name: Upload Lighthouse results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lighthouse-results
+        path: |
+          .lighthouseci/
+        retention-days: 30
