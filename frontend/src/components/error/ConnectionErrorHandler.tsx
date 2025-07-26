@@ -120,7 +120,7 @@ const ConnectionErrorHandler: React.FC<ConnectionErrorHandlerProps> = ({
             size="small"
             startIcon={<RefreshIcon />}
             onClick={handleRetry}
-            disabled={connectionStatus === 'connecting'}
+            disabled={connectionStatus === 'connecting' || connectionStatus === 'connected'}
           >
             Wiederholen
           </Button>

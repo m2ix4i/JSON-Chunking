@@ -17,7 +17,7 @@ import QueryProgress from './QueryProgress';
 import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 
 interface QueryInterfaceProps {
-  activeQuery: { id: string } | null;
+  activeQuery: { query_id: string } | null;
   isSubmitting: boolean;
   error: string | null;
   onSubmit: () => Promise<void>;
@@ -43,7 +43,7 @@ const QueryInterface: React.FC<QueryInterfaceProps> = ({
       {activeQuery && (
         <Box sx={{ mt: 3 }}>
           <ConnectionErrorHandler 
-            queryId={activeQuery.id}
+            queryId={activeQuery.query_id}
             showDetails={true}
             onRetry={() => {
               // Refresh the page or restart the query

@@ -58,8 +58,8 @@ export const useQueryPage = (): UseQueryPageResult => {
       // Navigate to results page after successful submission
       // If we have an active query with ID, navigate to specific result page
       const { activeQuery } = useQueryStore.getState();
-      if (activeQuery?.id) {
-        navigate(`/results/${activeQuery.id}`);
+      if (activeQuery?.query_id) {
+        navigate(`/results/${activeQuery.query_id}`);
       } else {
         navigate('/results');
       }
