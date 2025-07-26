@@ -70,6 +70,23 @@ const Dashboard: React.FC = () => {
   const activeQueries = useActiveQueries();
   const queryHistory = useQueryHistory();
 
+  // Analytics store data
+  const analyticsData = useAnalyticsData();
+  const analyticsLoading = useAnalyticsLoading();
+  const analyticsError = useAnalyticsError();
+  const { fetchAnalytics, setTimeRange, clearError } = useAnalyticsActions();
+  const fileAnalytics = useFileAnalytics();
+  const queryAnalytics = useQueryAnalytics();
+  const performanceMetrics = usePerformanceMetrics();
+
+  // Tab state for analytics section
+  const [analyticsTab, setAnalyticsTab] = React.useState(0);
+
+  // Initialize analytics data on component mount
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
   // Calculate statistics
   const stats = {
     totalFiles: files.length,
@@ -80,6 +97,11 @@ const Dashboard: React.FC = () => {
 
   // Get recent queries for display
   const recentQueries = queryHistory.slice(0, 5);
+
+  // Handle analytics tab changes
+  const handleAnalyticsTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setAnalyticsTab(newValue);
+  };
 
   return (
     <Box>
@@ -93,80 +115,180 @@ const Dashboard: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Statistics Cards */}
+      {/* Enhanced Statistics Cards with Analytics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <FileIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.totalFiles}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Hochgeladene Dateien
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Hochgeladene Dateien"
+            value={stats.totalFiles}
+            subtitle="Gesamt verfügbar"
+            trend={performanceMetrics?.trendsGrowth.files}
+            icon={<FileIcon />}
+            color="primary"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <PendingIcon color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.activeQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Aktive Abfragen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Aktive Abfragen"
+            value={stats.activeQueries}
+            subtitle="Aktuell in Bearbeitung"
+            icon={<PendingIcon />}
+            color="warning"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <CompletedIcon color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.completedQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Abgeschlossen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Erfolgsrate"
+            value={performanceMetrics ? `${performanceMetrics.successRate.toFixed(1)}%` : `${stats.completedQueries}`}
+            subtitle={performanceMetrics ? "Durchschnittliche Erfolgsrate" : "Abgeschlossene Abfragen"}
+            icon={<CompletedIcon />}
+            color="success"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <ErrorIcon color="error" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.failedQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Fehlgeschlagen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Verarbeitungszeit"
+            value={performanceMetrics ? `${performanceMetrics.averageProcessingTime.toFixed(2)}s` : `${stats.failedQueries}`}
+            subtitle={performanceMetrics ? "Durchschnittliche Zeit" : "Fehlgeschlagene Abfragen"}
+            trend={performanceMetrics?.trendsGrowth.performance}
+            icon={performanceMetrics ? <PerformanceIcon /> : <ErrorIcon />}
+            color={performanceMetrics ? "info" : "error"}
+            loading={analyticsLoading}
+          />
         </Grid>
       </Grid>
+
+      {/* Analytics Section */}
+      {analyticsError && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 3 }}
+          onClose={clearError}
+        >
+          Analytics Error: {analyticsError}
+        </Alert>
+      )}
+
+      <Card sx={{ mb: 4 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={analyticsTab} onChange={handleAnalyticsTabChange}>
+            <Tab 
+              label="Übersicht" 
+              icon={<AnalyticsIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Leistung" 
+              icon={<PerformanceIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Trends" 
+              icon={<TimelineIcon />}
+              iconPosition="start"
+            />
+          </Tabs>
+        </Box>
+
+        <CardContent>
+          {/* Analytics Overview Tab */}
+          {analyticsTab === 0 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Datei-Upload Trends"
+                  data={fileAnalytics?.uploadTrend || []}
+                  type="area"
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Abfrage-Volumen"
+                  data={queryAnalytics?.volumeTrend || []}
+                  type="line"
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Dateityp-Verteilung"
+                  data={fileAnalytics?.typeBreakdown || []}
+                  type="pie"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Abfrage-Status"
+                  data={queryAnalytics?.statusDistribution || []}
+                  type="pie"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Performance Analysis Tab */}
+          {analyticsTab === 1 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <ProcessingTimeChart
+                  data={queryAnalytics?.processingTimes || []}
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Vertrauens-Score Verteilung"
+                  data={queryAnalytics?.confidenceScores || []}
+                  type="bar"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Dateigrößen-Verteilung"
+                  data={fileAnalytics?.sizeDistribution || []}
+                  type="bar"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Trend Analysis Tab */}
+          {analyticsTab === 2 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TrendAnalysis
+                  data={analyticsData}
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </CardContent>
+      </Card>
 
       <Grid container spacing={3}>
         {/* Quick Actions */}
