@@ -21,6 +21,7 @@ import Layout from '@components/layout/Layout';
 import NotificationContainer from '@components/notifications/NotificationContainer';
 import ErrorBoundary from '@components/error/ErrorBoundary';
 import LazyWrapper from '@components/common/LazyWrapper';
+import OfflineIndicator from '@components/common/OfflineIndicator';
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('@pages/Dashboard'));
@@ -259,6 +260,9 @@ const App: React.FC = () => {
           
           {/* Global notification container */}
           <NotificationContainer />
+          
+          {/* PWA Offline Indicator */}
+          <OfflineIndicator />
           
           {/* React Query DevTools (only in development) */}
           {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
