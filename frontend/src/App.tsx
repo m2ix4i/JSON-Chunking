@@ -1,9 +1,9 @@
 /**
  * Main App component for IFC JSON Chunking Frontend.
- * Sets up theme, routing, and global providers.
+ * Sets up theme, routing, and global providers with performance optimizations.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
@@ -13,17 +13,20 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 // Store hooks
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
-// Components
+// Components (non-lazy loaded for immediate availability)
 import Layout from '@components/layout/Layout';
-import Dashboard from '@pages/Dashboard';
-import UploadPage from '@pages/UploadPage';
-import QueryPage from '@pages/QueryPage';
-import ResultsPage from '@pages/ResultsPage';
-import HistoryPage from '@pages/HistoryPage';
-import SettingsPage from '@pages/SettingsPage';
-import { DocumentationPage } from '@pages/DocumentationPage';
 import NotificationContainer from '@components/notifications/NotificationContainer';
 import ErrorBoundary from '@components/error/ErrorBoundary';
+import LazyWrapper from '@components/common/LazyWrapper';
+
+// Lazy-loaded pages for code splitting
+const Dashboard = lazy(() => import('@pages/Dashboard'));
+const UploadPage = lazy(() => import('@pages/UploadPage'));
+const QueryPage = lazy(() => import('@pages/QueryPage'));
+const ResultsPage = lazy(() => import('@pages/ResultsPage'));
+const HistoryPage = lazy(() => import('@pages/HistoryPage'));
+const SettingsPage = lazy(() => import('@pages/SettingsPage'));
+const DocumentationPage = lazy(() => import('@pages/DocumentationPage').then(module => ({ default: module.DocumentationPage })));
 
 // Query client configuration
 const queryClient = new QueryClient({
@@ -165,15 +168,78 @@ const App: React.FC = () => {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/upload" element={<UploadPage />} />
-                  <Route path="/query" element={<QueryPage />} />
-                  <Route path="/results" element={<ResultsPage />} />
-                  <Route path="/results/:queryId" element={<ResultsPage />} />
-                  <Route path="/history" element={<HistoryPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/docs" element={<DocumentationPage />} />
-                  <Route path="/documentation" element={<DocumentationPage />} />
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <LazyWrapper type="page">
+                        <Dashboard />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/upload" 
+                    element={
+                      <LazyWrapper type="page">
+                        <UploadPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/query" 
+                    element={
+                      <LazyWrapper type="page">
+                        <QueryPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/results" 
+                    element={
+                      <LazyWrapper type="page">
+                        <ResultsPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/results/:queryId" 
+                    element={
+                      <LazyWrapper type="page">
+                        <ResultsPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/history" 
+                    element={
+                      <LazyWrapper type="page">
+                        <HistoryPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/settings" 
+                    element={
+                      <LazyWrapper type="page">
+                        <SettingsPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/docs" 
+                    element={
+                      <LazyWrapper type="page">
+                        <DocumentationPage />
+                      </LazyWrapper>
+                    } 
+                  />
+                  <Route 
+                    path="/documentation" 
+                    element={
+                      <LazyWrapper type="page">
+                        <DocumentationPage />
+                      </LazyWrapper>
+                    } 
+                  />
                   {/* Catch-all route */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>

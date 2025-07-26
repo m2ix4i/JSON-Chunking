@@ -1,41 +1,18 @@
 /**
-<<<<<<< HEAD
- * Results page with real-time WebSocket integration for live query status updates.
- */
-
-import React, { useEffect, useState } from 'react';
-=======
- * Results page - display query results.
- * Shows structured query results with live status updates.
+ * Results page with real-time WebSocket integration and enhanced functionality.
+ * Combines live query status updates with export/share capabilities.
  */
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 import {
   Box,
   Typography,
   Card,
   CardContent,
-<<<<<<< HEAD
   Grid,
   Alert,
   CircularProgress,
-  Button,
-} from '@mui/material';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Assessment as ResultsIcon, ArrowBack as BackIcon } from '@mui/icons-material';
-
-// Components
-import QueryProgressTracker from '@components/progress/QueryProgressTracker';
-import QueryResultDisplay from '@components/results/QueryResultDisplay';
-import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
-
-// Store hooks
-import { useQueryMonitoring, useQueryStore } from '@stores/queryStore';
-=======
-  CircularProgress,
-  Alert,
   Button,
   LinearProgress,
   Chip,
@@ -49,12 +26,14 @@ import {
 } from '@mui/icons-material';
 
 // Store hooks
-import { useQueryStore } from '@stores/queryStore';
+import { useQueryMonitoring, useQueryStore } from '@stores/queryStore';
 import { showErrorNotification, showSuccessNotification } from '@stores/appStore';
 
 // Components
+import QueryProgressTracker from '@components/progress/QueryProgressTracker';
 import QueryResultDisplay from '@components/results/QueryResultDisplay';
 import QueryProgress from '@components/query/QueryProgress';
+import ConnectionErrorHandler from '@components/error/ConnectionErrorHandler';
 
 // Utils
 import { exportQueryResult, shareQueryResult } from '@utils/export';
@@ -64,10 +43,23 @@ import type { ExportFormat } from '@utils/export';
 const ResultsPage: React.FC = () => {
   const { queryId } = useParams<{ queryId: string }>();
   const navigate = useNavigate();
-<<<<<<< HEAD
+  
+  // Combined state from both hooks
   const { activeQuery, status, result, isConnected } = useQueryMonitoring();
-  const { connectWebSocket, setActiveQuery } = useQueryStore();
+  const { connectWebSocket, setActiveQuery, error, isSubmitting, queryResult } = useQueryStore();
+  
+  // Local state
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Check if we have data to display
+  const hasResult = result !== null || queryResult !== null;
+  const hasActiveQuery = activeQuery !== null;
+  const displayResult = result || queryResult;
+  const displayStatus = status;
+  const isProcessing = displayStatus && ['started', 'preprocessing', 'processing'].includes(displayStatus.status);
+  const isCompleted = displayStatus?.status === 'completed';
+  const isFailed = displayStatus?.status === 'failed' || error !== null;
 
   // Connect WebSocket for live updates when accessing a specific query
   useEffect(() => {
@@ -96,39 +88,6 @@ const ResultsPage: React.FC = () => {
     }
   }, [queryId, activeQuery, connectWebSocket, setActiveQuery]);
 
-  // If no queryId in URL, show general results page
-  if (!queryId) {
-=======
-  
-  // Query store state
-  const { 
-    error, 
-    isSubmitting, 
-    activeQuery, 
-    queryStatus, 
-    queryResult, 
-    isConnected: isWebSocketConnected 
-  } = useQueryStore();
-  
-  // Local state
-  const [isExporting, setIsExporting] = useState(false);
-
-  // Check if we have a result to display
-  const hasResult = queryResult !== null;
-  const hasActiveQuery = activeQuery !== null;
-  const isProcessing = queryStatus && ['started', 'preprocessing', 'processing'].includes(queryStatus.status);
-  const isCompleted = queryStatus?.status === 'completed';
-  const isFailed = queryStatus?.status === 'failed' || error !== null;
-
-  // Effect to handle URL-based query ID (for future implementation)
-  useEffect(() => {
-    if (queryId && queryId !== activeQuery?.query_id) {
-      // TODO: Implement loading specific query by ID
-      // For now, if the URL query ID doesn't match active query, show message
-      console.log('Loading query by ID not yet implemented:', queryId);
-    }
-  }, [queryId, activeQuery?.query_id]);
-
   // Auto-refresh status when processing
   useEffect(() => {
     if (isProcessing && !isSubmitting) {
@@ -139,11 +98,11 @@ const ResultsPage: React.FC = () => {
 
   // Export handler
   const handleExport = async (format: ExportFormat) => {
-    if (!queryResult) return;
+    if (!displayResult) return;
 
     setIsExporting(true);
     try {
-      await exportQueryResult(queryResult, format);
+      await exportQueryResult(displayResult, format);
       showSuccessNotification(`Ergebnis als ${format.toUpperCase()} exportiert`);
     } catch (error: any) {
       showErrorNotification(`Export fehlgeschlagen: ${error.message}`);
@@ -154,10 +113,10 @@ const ResultsPage: React.FC = () => {
 
   // Share handler
   const handleShare = async () => {
-    if (!queryResult) return;
+    if (!displayResult) return;
 
     try {
-      await shareQueryResult(queryResult);
+      await shareQueryResult(displayResult);
       showSuccessNotification('Ergebnis in Zwischenablage kopiert');
     } catch (error: any) {
       showErrorNotification(`Teilen fehlgeschlagen: ${error.message}`);
@@ -172,7 +131,6 @@ const ResultsPage: React.FC = () => {
   const handleBackToDashboard = () => {
     navigate('/dashboard');
   };
-
 
   // Render loading state
   if (isProcessing && !hasResult) {
@@ -192,8 +150,8 @@ const ResultsPage: React.FC = () => {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
               <Chip 
-                label={isWebSocketConnected ? 'Live-Updates' : 'Standard-Polling'} 
-                color={isWebSocketConnected ? 'success' : 'info'}
+                label={isConnected ? 'Live-Updates' : 'Standard-Polling'} 
+                color={isConnected ? 'success' : 'info'}
                 size="small"
                 variant="outlined"
               />
@@ -231,7 +189,7 @@ const ResultsPage: React.FC = () => {
             Fehler bei der Abfrageverarbeitung
           </Typography>
           <Typography variant="body2">
-            {error || queryStatus?.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
+            {error || displayStatus?.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
           </Typography>
         </Alert>
 
@@ -256,7 +214,6 @@ const ResultsPage: React.FC = () => {
 
   // Render empty state
   if (!hasResult && !hasActiveQuery) {
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
     return (
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
@@ -271,21 +228,6 @@ const ResultsPage: React.FC = () => {
             <ResultsIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
             
             <Typography variant="h6" gutterBottom>
-<<<<<<< HEAD
-              Keine Abfrage ausgewählt
-            </Typography>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Erstellen Sie eine neue Abfrage oder wählen Sie eine bestehende aus.
-            </Typography>
-
-            <Button 
-              variant="contained" 
-              onClick={() => navigate('/query')}
-              startIcon={<BackIcon />}
-            >
-              Neue Abfrage erstellen
-=======
               Keine Abfrage-Ergebnisse
             </Typography>
             
@@ -296,9 +238,9 @@ const ResultsPage: React.FC = () => {
             <Button
               variant="contained"
               onClick={handleBackToQuery}
+              startIcon={<BackIcon />}
             >
               Neue Abfrage starten
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
             </Button>
           </CardContent>
         </Card>
@@ -306,17 +248,52 @@ const ResultsPage: React.FC = () => {
     );
   }
 
-<<<<<<< HEAD
+  // Render results - hybrid approach combining both implementations
   return (
     <Box>
-      {/* Page header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Abfrage-Ergebnisse
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Live-Überwachung und Ergebnisse für Abfrage {queryId.slice(0, 8)}...
-        </Typography>
+      {/* Enhanced header with status information */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Button
+            startIcon={<BackIcon />}
+            onClick={handleBackToQuery}
+            sx={{ mr: 2 }}
+          >
+            Zurück zur Abfrage
+          </Button>
+          <Box>
+            <Typography variant="h4" component="h1">
+              Abfrage-Ergebnisse
+            </Typography>
+            {queryId && (
+              <Typography variant="body1" color="text.secondary">
+                Live-Überwachung für Abfrage {queryId.slice(0, 8)}...
+              </Typography>
+            )}
+            {displayResult && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                <Chip 
+                  label={isCompleted ? 'Abgeschlossen' : 'Verarbeitung'} 
+                  color={isCompleted ? 'success' : 'primary'}
+                  size="small"
+                />
+                {isProcessing && (
+                  <Chip 
+                    label={isConnected ? 'Live-Updates' : 'Polling'} 
+                    color={isConnected ? 'success' : 'info'}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+                {displayResult.processing_time && (
+                  <Typography variant="body2" color="text.secondary">
+                    • {formatDuration(displayResult.processing_time)}
+                  </Typography>
+                )}
+              </Box>
+            )}
+          </Box>
+        </Box>
       </Box>
 
       <Grid container spacing={3}>
@@ -333,8 +310,22 @@ const ResultsPage: React.FC = () => {
             </Card>
           ) : (
             <>
+              {/* Processing status banner (if still processing) */}
+              {isProcessing && hasResult && (
+                <Box sx={{ mb: 3 }}>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      Die Abfrage wird noch verarbeitet. 
+                      {isConnected 
+                        ? ' Die Ergebnisse werden in Echtzeit aktualisiert.' 
+                        : ' Die Ergebnisse werden regelmäßig aktualisiert.'}
+                    </Typography>
+                  </Alert>
+                </Box>
+              )}
+
               {/* Real-time progress tracking */}
-              {activeQuery && status?.status !== 'completed' && (
+              {activeQuery && displayStatus?.status !== 'completed' && (
                 <Box sx={{ mb: 3 }}>
                   <QueryProgressTracker 
                     queryId={queryId}
@@ -344,18 +335,20 @@ const ResultsPage: React.FC = () => {
                 </Box>
               )}
 
-              {/* Query results display */}
-              {result && status?.status === 'completed' ? (
+              {/* Query results display with enhanced functionality */}
+              {displayResult && displayStatus?.status === 'completed' ? (
                 <QueryResultDisplay 
-                  result={result}
+                  result={displayResult}
+                  onExport={handleExport}
+                  onShare={handleShare}
                 />
-              ) : status?.status === 'failed' ? (
+              ) : displayStatus?.status === 'failed' ? (
                 <Alert severity="error" sx={{ mb: 3 }}>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
                     Abfrage fehlgeschlagen
                   </Typography>
                   <Typography variant="body2">
-                    {status.error_message || 'Ein unbekannter Fehler ist aufgetreten.'}
+                    {displayStatus.error_message || error || 'Ein unbekannter Fehler ist aufgetreten.'}
                   </Typography>
                 </Alert>
               ) : (
@@ -374,7 +367,7 @@ const ResultsPage: React.FC = () => {
           )}
         </Grid>
 
-        {/* Sidebar */}
+        {/* Sidebar with connection status and controls */}
         <Grid item xs={12} lg={4}>
           {/* Connection status and controls */}
           <Card sx={{ mb: 3 }}>
@@ -388,7 +381,7 @@ const ResultsPage: React.FC = () => {
               
               <Button 
                 variant="outlined" 
-                onClick={() => navigate('/query')}
+                onClick={handleBackToQuery}
                 startIcon={<BackIcon />}
                 fullWidth
               >
@@ -410,75 +403,6 @@ const ResultsPage: React.FC = () => {
           )}
         </Grid>
       </Grid>
-=======
-  // Render results
-  return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Button
-            startIcon={<BackIcon />}
-            onClick={handleBackToQuery}
-            sx={{ mr: 2 }}
-          >
-            Zurück zur Abfrage
-          </Button>
-          <Box>
-            <Typography variant="h4" component="h1">
-              Abfrage-Ergebnisse
-            </Typography>
-            {queryResult && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <Chip 
-                  label={isCompleted ? 'Abgeschlossen' : 'Verarbeitung'} 
-                  color={isCompleted ? 'success' : 'primary'}
-                  size="small"
-                />
-                {isProcessing && (
-                  <Chip 
-                    label={isWebSocketConnected ? 'Live-Updates' : 'Polling'} 
-                    color={isWebSocketConnected ? 'success' : 'info'}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
-                {queryResult.processing_time && (
-                  <Typography variant="body2" color="text.secondary">
-                    • {formatDuration(queryResult.processing_time)}
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Processing status banner (if still processing) */}
-      {isProcessing && hasResult && (
-        <Box sx={{ mb: 3 }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              Die Abfrage wird noch verarbeitet. 
-              {isWebSocketConnected 
-                ? ' Die Ergebnisse werden in Echtzeit aktualisiert.' 
-                : ' Die Ergebnisse werden regelmäßig aktualisiert.'}
-            </Typography>
-          </Alert>
-          
-          {/* Compact progress indicator */}
-          <QueryProgress compact={true} />
-        </Box>
-      )}
-
-      {/* Results display */}
-      {queryResult && (
-        <QueryResultDisplay
-          result={queryResult}
-          onExport={handleExport}
-          onShare={handleShare}
-        />
-      )}
 
       {/* Loading indicator for exports */}
       {isExporting && (
@@ -493,7 +417,6 @@ const ResultsPage: React.FC = () => {
           </Card>
         </Box>
       )}
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
     </Box>
   );
 };

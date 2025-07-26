@@ -1,46 +1,15 @@
 /**
  * Query templates component for enhanced query interface.
-<<<<<<< HEAD
- * Orchestrates template display using smaller, focused components.
- * Follows Single Responsibility Principle and Rule of 5.
- */
-
-import React, { useState } from 'react';
-=======
  * Provides browsable templates for common IFC building analysis queries.
+ * Combines both implementations with improved architecture.
  */
 
 import React, { useState, useMemo } from 'react';
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 import {
   Box,
   Card,
   CardContent,
   Typography,
-<<<<<<< HEAD
-  Alert,
-  Divider,
-} from '@mui/material';
-
-import type { QueryTemplate } from '@/types/app';
-import {
-  queryTemplates,
-  getPopularTemplates,
-  templateCategories
-} from '@/data/queryTemplates';
-
-// Custom hooks
-import { useTemplateFiltering } from '@/hooks/useTemplateFiltering';
-import { useTemplateCustomization } from '@/hooks/useTemplateCustomization';
-import { useFavoriteTemplates } from '@/hooks/useFavoriteTemplates';
-import { useTemplateSection } from '@/hooks/useTemplateSection';
-
-// Components
-import TemplateFilters from './TemplateFilters';
-import TemplateSection from './TemplateSection';
-import CustomizationDialog from './CustomizationDialog';
-
-=======
   Tabs,
   Tab,
   List,
@@ -96,7 +65,6 @@ import {
   templateCategories 
 } from '@/data/queryTemplates';
 
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 interface QueryTemplatesProps {
   onTemplateSelect?: (template: QueryTemplate, customizedQuery: string) => void;
   compact?: boolean;
@@ -104,53 +72,19 @@ interface QueryTemplatesProps {
   maxHeight?: number;
 }
 
-<<<<<<< HEAD
-=======
 interface TemplateCustomizationState {
   template: QueryTemplate | null;
   variables: Record<string, any>;
   preview: string;
 }
 
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 const QueryTemplates: React.FC<QueryTemplatesProps> = ({
   onTemplateSelect,
   compact = false,
   showSearchFilter = true,
   maxHeight = 600,
 }) => {
-<<<<<<< HEAD
   // Filter state
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-
-  // Custom hooks for separation of concerns
-  const { favorites, toggleFavorite } = useFavoriteTemplates();
-  const { isExpanded, toggleSection } = useTemplateSection(['popular']);
-  const {
-    customizationDialog,
-    openCustomization,
-    closeCustomization,
-    updateVariables,
-  } = useTemplateCustomization();
-
-  // Filter templates using custom hook
-  const filteredTemplates = useTemplateFiltering(queryTemplates, {
-    searchTerm,
-    selectedCategory,
-    selectedDifficulty,
-  });
-
-  // Popular templates
-  const popularTemplates = getPopularTemplates(5);
-
-  // Handle template selection - orchestration only
-  const handleTemplateSelect = (template: QueryTemplate) => {
-    if (template.variables.length > 0) {
-      openCustomization(template);
-    } else {
-=======
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
@@ -213,35 +147,10 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
       });
     } else {
       // Use template directly
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
       onTemplateSelect?.(template, template.template);
     }
   };
 
-<<<<<<< HEAD
-  // Handle template customization confirmation
-  const handleCustomizeTemplate = () => {
-    if (!customizationDialog.template) return;
-
-    onTemplateSelect?.(customizationDialog.template, customizationDialog.preview);
-    closeCustomization();
-  };
-
-  // Render template section using component
-  const renderTemplateSection = (title: string, templates: QueryTemplate[], sectionKey: string) => (
-    <TemplateSection
-      key={sectionKey}
-      title={title}
-      templates={templates}
-      sectionKey={sectionKey}
-      isExpanded={isExpanded(sectionKey)}
-      favoriteTemplates={favorites}
-      compact={compact}
-      onToggleSection={toggleSection}
-      onTemplateSelect={handleTemplateSelect}
-      onToggleFavorite={toggleFavorite}
-    />
-=======
   // Handle template customization
   const handleCustomizeTemplate = () => {
     if (!customizationDialog.template) return;
@@ -536,7 +445,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
         </>
       )}
     </Dialog>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
   );
 
   if (compact) {
@@ -549,16 +457,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
           </Typography>
 
           {showSearchFilter && (
-<<<<<<< HEAD
-            <TemplateFilters
-              searchTerm={searchTerm}
-              selectedCategory={selectedCategory}
-              selectedDifficulty={selectedDifficulty}
-              onSearchChange={setSearchTerm}
-              onCategoryChange={setSelectedCategory}
-              onDifficultyChange={setSelectedDifficulty}
-              compact={true}
-=======
             <TextField
               fullWidth
               size="small"
@@ -580,7 +478,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
                 ),
               }}
               sx={{ mb: 2 }}
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
             />
           )}
 
@@ -603,17 +500,7 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
             )}
           </Box>
 
-<<<<<<< HEAD
-          <CustomizationDialog
-            open={!!customizationDialog.template}
-            customizationDialog={customizationDialog}
-            onClose={closeCustomization}
-            onConfirm={handleCustomizeTemplate}
-            onVariableChange={updateVariables}
-          />
-=======
           {renderCustomizationDialog()}
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
         </CardContent>
       </Card>
     );
@@ -632,16 +519,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
         </Typography>
 
         {/* Search and filters */}
-<<<<<<< HEAD
-        <TemplateFilters
-          searchTerm={searchTerm}
-          selectedCategory={selectedCategory}
-          selectedDifficulty={selectedDifficulty}
-          onSearchChange={setSearchTerm}
-          onCategoryChange={setSelectedCategory}
-          onDifficultyChange={setSelectedDifficulty}
-        />
-=======
         <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <TextField
             placeholder="Templates suchen..."
@@ -687,7 +564,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
             </Select>
           </FormControl>
         </Box>
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
 
         <Divider sx={{ mb: 3 }} />
 
@@ -709,17 +585,7 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
           )}
         </Box>
 
-<<<<<<< HEAD
-        <CustomizationDialog
-          open={!!customizationDialog.template}
-          customizationDialog={customizationDialog}
-          onClose={closeCustomization}
-          onConfirm={handleCustomizeTemplate}
-          onVariableChange={updateVariables}
-        />
-=======
         {renderCustomizationDialog()}
->>>>>>> 057e15e5bbcfbdf9cfaaddab3cc19f3c9655126e
       </CardContent>
     </Card>
   );
