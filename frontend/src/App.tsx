@@ -13,6 +13,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 // Store hooks
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
+// Service Worker for PWA functionality
+import { serviceWorkerManager } from '@services/serviceWorker';
+
 // Components (non-lazy loaded for immediate availability)
 import Layout from '@components/layout/Layout';
 import NotificationContainer from '@components/notifications/NotificationContainer';
@@ -54,6 +57,13 @@ const App: React.FC = () => {
   // Initialize app on mount
   useEffect(() => {
     initialize();
+    
+    // Initialize service worker in production
+    if (import.meta.env.PROD) {
+      serviceWorkerManager.register().catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+    }
   }, [initialize]);
 
   // Create Material-UI theme
