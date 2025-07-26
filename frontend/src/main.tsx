@@ -7,9 +7,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
-// Service Worker registration for PWA
-import './services/serviceWorker.ts';
-
 // Global styles
 import '@fontsource/inter/300.css';
 import '@fontsource/inter/400.css';
