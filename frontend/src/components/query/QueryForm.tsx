@@ -21,7 +21,7 @@ import { useQueryStore } from '@stores/queryStore';
 import { useSelectedFile } from '@stores/fileStore';
 
 // Components
-import QueryPreview from './QueryPreview';
+// QueryPreview removed for PR #59 focus on WebSocket real-time updates
 
 export interface QueryFormProps {
   disabled?: boolean;
@@ -105,13 +105,7 @@ const QueryForm: React.FC<QueryFormProps> = ({
         )}
       </Box>
 
-      {/* Query Preview - shows when user types */}
-      {localQuery.trim() && (
-        <QueryPreview
-          queryText={localQuery}
-          fileId={selectedFile?.file_id}
-        />
-      )}
+      {/* Query Preview removed for PR #59 focus on WebSocket real-time updates */}
     </Box>
   );
 };
