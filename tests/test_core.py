@@ -6,9 +6,9 @@ import pytest
 from pathlib import Path
 from typing import Dict, Any
 
-from ifc_json_chunking.core import ChunkingEngine
-from ifc_json_chunking.config import Config
-from ifc_json_chunking.exceptions import IFCChunkingError
+from src.ifc_json_chunking.core import ChunkingEngine
+from src.ifc_json_chunking.config import Config
+from src.ifc_json_chunking.exceptions import IFCChunkingError
 
 from .conftest import assert_valid_metadata
 
@@ -37,7 +37,7 @@ class TestChunkingEngine:
         
         assert_valid_metadata(metadata)
         assert metadata["file_path"] == str(sample_ifc_file)
-        assert metadata["status"] == "processed"
+        assert metadata["status"] == "completed"
         assert isinstance(metadata["chunks_created"], int)
         assert isinstance(metadata["processing_time_ms"], (int, float))
 
@@ -54,7 +54,7 @@ class TestChunkingEngine:
         """Test processing empty file."""
         metadata = await chunking_engine.process_file(empty_file)
         assert_valid_metadata(metadata)
-        assert metadata["status"] == "processed"
+        assert metadata["status"] == "completed"
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -79,7 +79,7 @@ class TestChunkingEngine:
         metadata = await chunking_engine.process_file(large_ifc_file)
         
         assert_valid_metadata(metadata)
-        assert metadata["status"] == "processed"
+        assert metadata["status"] == "completed"
         # This test will be more meaningful when chunking is fully implemented
 
     @pytest.mark.unit
@@ -115,7 +115,7 @@ class TestChunkingEngine:
         assert len(results) == 2
         for metadata in results:
             assert_valid_metadata(metadata)
-            assert metadata["status"] == "processed"
+            assert metadata["status"] == "completed"
 
     @pytest.mark.unit
     def test_engine_string_representation(self, chunking_engine: ChunkingEngine):

@@ -3,6 +3,7 @@
     "playwright": "^1.54.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.1"
+    "@playwright/test": "^1.54.1",
+    "puppeteer": "^24.15.0"
   }
 }

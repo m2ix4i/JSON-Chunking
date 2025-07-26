@@ -9,9 +9,9 @@ from typing import Dict, Any, Generator
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from ifc_json_chunking.config import Config
-from ifc_json_chunking.core import ChunkingEngine
-from ifc_json_chunking.logging import configure_logging
+from src.ifc_json_chunking.config import Config
+from src.ifc_json_chunking.core import ChunkingEngine
+from src.ifc_json_chunking.logging import configure_logging
 
 
 @pytest.fixture(scope="session")

@@ -1,0 +1,95 @@
+{
+  "ifc_project": {
+    "global_id": "3pVEkZl5j5wRd7L8s2k6m3",
+    "name": "Test Building Project",
+    "description": "IFC JSON Test Building with German components"
+  },
+  "building_elements": [
+    {
+      "global_id": "1Ak8WqJvT0wOlMnRzXc2s1",
+      "type": "IfcBeam",
+      "name": "Hauptträger HT-01",
+      "material": "Fichte GL24h",
+      "dimensions": {
+        "length": 4500,
+        "width": 200,
+        "height": 400
+      },
+      "location": {
+        "floor": "Erdgeschoss",
+        "position": "Südfassade"
+      },
+      "properties": {
+        "structural_type": "Hauptträger",
+        "load_bearing": true,
+        "fire_resistance": "R30"
+      }
+    },
+    {
+      "global_id": "2Bk9XrKwU1xPmNoSaYd3t2",
+      "type": "IfcBeam",
+      "name": "Nebenträger NT-05",
+      "material": "Kiefer GL28c",
+      "dimensions": {
+        "length": 3200,
+        "width": 180,
+        "height": 360
+      },
+      "location": {
+        "floor": "Obergeschoss",
+        "position": "Mittelachse"
+      },
+      "properties": {
+        "structural_type": "Nebenträger",
+        "load_bearing": true,
+        "fire_resistance": "R45"
+      }
+    },
+    {
+      "global_id": "3Cl0YsLxV2yQnOpTbZe4u3",
+      "type": "IfcWall",
+      "name": "Außenwand AW-Nord",
+      "material": "Brettsperrholz BSP",
+      "dimensions": {
+        "length": 8000,
+        "width": 200,
+        "height": 2800
+      },
+      "location": {
+        "floor": "Erdgeschoss",
+        "position": "Nordfassade"
+      },
+      "properties": {
+        "wall_type": "Außenwand",
+        "insulation": "Holzfaser 160mm",
+        "u_value": 0.15
+      }
+    }
+  ],
+  "materials": [
+    {
+      "name": "Fichte GL24h",
+      "type": "Brettschichtholz",
+      "density": 420,
+      "strength_class": "GL24h"
+    },
+    {
+      "name": "Kiefer GL28c",
+      "type": "Brettschichtholz",
+      "density": 450,
+      "strength_class": "GL28c"
+    },
+    {
+      "name": "Brettsperrholz BSP",
+      "type": "Massivholz",
+      "density": 470,
+      "strength_class": "C24"
+    }
+  ],
+  "metadata": {
+    "created": "2025-07-26T10:12:11.234Z",
+    "source": "complete_workflow_test",
+    "format": "IFC_JSON_REALISTIC",
+    "version": "1.0"
+  }
+}

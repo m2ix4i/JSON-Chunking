@@ -9,14 +9,14 @@ import pytest
 import asyncio
 from typing import Dict, Any, List
 
-from ifc_json_chunking.ifc_schema import (
+from src.ifc_json_chunking.ifc_schema import (
     IFCEntity, IFCEntityType, IFCHierarchy, IFCSchemaParser, Discipline
 )
-from ifc_json_chunking.relationships import (
+from src.ifc_json_chunking.relationships import (
     RelationshipType, RelationshipDirection, EntityRelationship, 
     RelationshipGraph, RelationshipMapper
 )
-from ifc_json_chunking.config import Config
+from src.ifc_json_chunking.config import Config
 
 
 class TestIFCEntity:

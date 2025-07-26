@@ -61,7 +61,6 @@ interface QueryStore {
   disconnectWebSocket: () => void;
   setConnectionStatus: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void;
   startPolling: (queryId: string) => Promise<void>;
-  
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
   setIsConnected: (connected: boolean) => void;
@@ -316,7 +315,6 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     // Start polling
     poll();
   },
-
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),

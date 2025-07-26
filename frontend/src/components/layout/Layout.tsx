@@ -36,7 +36,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore, useSidebarOpen, useDarkMode } from '@stores/appStore';
 
 // Types
-import type { AppPage } from '@types/app';
+import type { AppPage } from '@/types/app';
 
 interface LayoutProps {
   children: React.ReactNode;

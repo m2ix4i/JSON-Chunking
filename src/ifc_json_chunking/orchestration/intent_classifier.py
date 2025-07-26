@@ -47,9 +47,9 @@ class IntentClassifier:
         self.pattern_weights = {
             QueryIntent.QUANTITY: 1.0,
             QueryIntent.COMPONENT: 1.0,
-            QueryIntent.MATERIAL: 1.0,
-            QueryIntent.SPATIAL: 1.0,
-            QueryIntent.COST: 1.0,
+            QueryIntent.MATERIAL: 0.9,  # Slightly lower to avoid competing with cost for "materialkosten"
+            QueryIntent.SPATIAL: 1.1,  # Slightly higher for clear spatial queries
+            QueryIntent.COST: 1.2,  # Higher weight for cost patterns
             QueryIntent.RELATIONSHIP: 0.8,
             QueryIntent.PROPERTY: 0.8
         }
@@ -89,10 +89,11 @@ class IntentClassifier:
         best_intent = max(intent_scores.keys(), key=lambda k: intent_scores[k])
         best_score = intent_scores[best_intent]
         
-        # Apply confidence threshold
-        if best_score < 0.3:
+        # Apply confidence threshold - lower threshold for German building queries
+        if best_score < 0.2:
             best_intent = QueryIntent.UNKNOWN
             best_score = 0.0
+            matched_patterns[best_intent] = []  # Add empty patterns for UNKNOWN
         
         # Extract parameters based on intent
         parameters = self._extract_parameters(query_lower, best_intent)
@@ -177,14 +178,33 @@ class IntentClassifier:
                 if pattern.search(query[:20]):
                     match_score *= 1.5
                 
+                # Bonus for longer matches (more specific patterns)
+                for match in matches:
+                    if len(match) > 5:  # Longer patterns are more specific
+                        match_score *= 1.3
+                
                 total_score += match_score
         
         # Normalize score based on query length and pattern weight
         query_length = len(query.split())
-        normalized_score = min(total_score / max(query_length * 0.5, 1), 1.0)
+        # Use gentler normalization for short queries to avoid over-penalizing
+        normalization_factor = max(query_length * 0.2, 1.0)  # Reduced from 0.5 to 0.2
+        normalized_score = min(total_score / normalization_factor, 1.0)
         
         # Apply intent-specific weight
         weighted_score = normalized_score * self.pattern_weights.get(intent, 1.0)
+        
+        # Context-aware bonus for spatial patterns
+        if intent == QueryIntent.SPATIAL:
+            # Extra bonus for spatial context combined with other patterns
+            spatial_context_indicators = [
+                r"(?:im|in)\s+(?:bereich|raum|stock|zone)",
+                r"(?:alle?|welche?)\s+\w+\s+(?:im|in)\s+"
+            ]
+            for context_pattern in spatial_context_indicators:
+                if re.search(context_pattern, query, re.IGNORECASE):
+                    weighted_score *= 1.4  # Strong spatial context bonus
+                    break
         
         return weighted_score, matched_patterns
     
@@ -257,10 +277,12 @@ class IntentClassifier:
         if room_match:
             constraints["room"] = room_match.group(1)
         
-        # Floor/level constraints
-        floor_match = re.search(r"(?:stock|stockwerk|etage|ebene)\s+(\d+)", query, re.IGNORECASE)
+        # Floor/level constraints - handle both "2. Stock" and "Stock 2" formats
+        floor_match = re.search(r"(?:(?:stock|stockwerk|etage|ebene)\s+(\d+))|(\d+)\.\s+(?:stock|stockwerk|etage|ebene|geschoss)", query, re.IGNORECASE)
         if floor_match:
-            constraints["floor"] = int(floor_match.group(1))
+            # Group 1: "Stock 2", Group 2: "2. Stock"
+            floor_num = floor_match.group(1) or floor_match.group(2)
+            constraints["floor"] = int(floor_num)
         
         # Zone constraints
         zone_match = re.search(r"(?:bereich|zone)\s+(\w+)", query, re.IGNORECASE)

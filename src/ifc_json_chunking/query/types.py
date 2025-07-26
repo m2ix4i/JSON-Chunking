@@ -354,24 +354,49 @@ MATERIAL_PATTERNS = [
     r"(?:beton|stahl|holz|glas|ziegel)",
     r"werkstoff(?:e?)",
     r"stofflich",
-    r"materialart(?:en?)?"
+    r"materialart(?:en?)?",
+    r"konstruktionsvollholz",
+    r"brettschichtholz",
+    r"festigkeitsklasse(?:n?)?",
+    r"holzart(?:en?)?",
+    r"rohdichte",
+    r"(?:c24|gl70)\b",  # strength/material classes (word boundary to avoid false matches)
+    r"(?:fichte|buche|eiche)",  # wood types
+    r"baustoffklasse"
 ]
 
 SPATIAL_PATTERNS = [
     r"raum\s+(?:r?\d+|\w+)",
     r"(?:stock|stockwerk|etage|ebene)\s+\d+",
+    r"\d+\.\s+(?:stock|stockwerk|etage|ebene|geschoss)",  # matches "3. Stock"
     r"(?:in|im|am|auf)\s+(?:raum|stock|ebene)",
-    r"bereich",
-    r"zone",
-    r"geschoss"
+    r"(?:im|in)\s+(?:bereich|zone)\s+\w+",  # "im Bereich A" - stronger spatial context
+    r"bereich\s+\w+",  # "Bereich A"
+    r"zone\s+\w+",  # "Zone A"
+    r"geschoss\s*\d*",
+    r"(?:erd|dach)geschoss",  # EG, DG
+    r"(?:eg|1og|2og|3og|dg)",  # floor abbreviations
+    r"obergeschoss",
+    r"bauteilzugehörigkeits?(?:-?nr\.?)?",  # component association numbers
+    r"w_\d+",  # wall numbering like W_035
+    r"bauabschnitt",
+    r"bauteilschicht"
 ]
 
 COST_PATTERNS = [
-    r"kosten",
+    r"materialkosten",  # specific material cost pattern first
+    r"(?:material|bau|gesamt|transport|produktions)?kosten",  # broader cost patterns
     r"preis(?:e?)",
     r"budget",
     r"aufwand",
     r"investition(?:en?)?",
     r"ausgaben?",
-    r"euro|€|\$"
+    r"euro|€|\$",
+    r"wirtschaftlich",  # economic
+    r"finanzierung",  # financing
+    r"kostengruppe(?:n?)?",  # cost groups
+    r"din\s*276",  # DIN 276 cost classification
+    r"hersteller(?:/produkt)?",  # manufacturer/product
+    r"produktionsnummer",
+    r"transportnummer"
 ]

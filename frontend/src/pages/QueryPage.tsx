@@ -3,7 +3,7 @@
  * Refactored to follow SOLID principles with reduced coupling.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -32,6 +32,7 @@ const QueryPage: React.FC = () => {
     handleQuerySubmit,
     navigateToUpload,
   } = useQueryPage();
+
 
   return (
     <Box>

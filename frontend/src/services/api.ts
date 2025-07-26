@@ -16,7 +16,7 @@ import type {
   PaginationParams,
   APIError,
   FileUploadProgress
-} from '@types/api';
+} from '@/types/api';
 
 class APIService {
   private client: AxiosInstance;
@@ -130,10 +130,10 @@ class APIService {
   }
 
   async listFiles(params?: PaginationParams): Promise<FileStatusResponse[]> {
-    const response = await this.client.get<FileStatusResponse[]>('/files', {
+    const response = await this.client.get<{files: FileStatusResponse[]}>('/files', {
       params,
     });
-    return response.data;
+    return response.data.files;
   }
 
   // Query methods
@@ -148,7 +148,7 @@ class APIService {
   }
 
   async getQueryResult(queryId: string): Promise<QueryResultResponse> {
-    const response = await this.client.get<QueryResultResponse>(`/queries/${queryId}/result`);
+    const response = await this.client.get<QueryResultResponse>(`/queries/${queryId}/results`);
     return response.data;
   }
 

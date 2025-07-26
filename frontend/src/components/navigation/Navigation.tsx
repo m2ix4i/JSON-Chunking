@@ -24,6 +24,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useErrorState } from '@stores/appStore';
 import { useActiveQueries } from '@stores/queryStore';
 
+// Components
+import SystemStatus from '@components/status/SystemStatus';
+
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +107,9 @@ const Navigation: React.FC = () => {
             </Tooltip>
           ))}
         </Box>
+
+        {/* System Status Indicator */}
+        <SystemStatus sx={{ mr: 1 }} />
 
         {/* Error Indicator */}
         {lastError && (
