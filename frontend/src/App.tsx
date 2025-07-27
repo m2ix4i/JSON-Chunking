@@ -3,33 +3,50 @@
  * Sets up theme, routing, and global providers with performance optimizations.
  */
 
-import React, { useEffect, lazy } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box, CircularProgress, Skeleton } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Store hooks
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
-// Service Worker for PWA functionality
-import { serviceWorkerManager } from '@services/serviceWorker';
-
-// Components (non-lazy loaded for immediate availability)
+// Components (non-lazy)
 import Layout from '@components/layout/Layout';
 import NotificationContainer from '@components/notifications/NotificationContainer';
 import ErrorBoundary from '@components/error/ErrorBoundary';
-import LazyWrapper from '@components/common/LazyWrapper';
+import PerformanceIndicator from '@components/common/PerformanceIndicator';
 
-// Lazy-loaded pages for code splitting
+// Lazy-loaded page components
 const Dashboard = lazy(() => import('@pages/Dashboard'));
 const UploadPage = lazy(() => import('@pages/UploadPage'));
 const QueryPage = lazy(() => import('@pages/QueryPage'));
 const ResultsPage = lazy(() => import('@pages/ResultsPage'));
 const HistoryPage = lazy(() => import('@pages/HistoryPage'));
 const SettingsPage = lazy(() => import('@pages/SettingsPage'));
-const DocumentationPage = lazy(() => import('@pages/DocumentationPage').then(module => ({ default: module.DocumentationPage })));
+const DocumentationPage = lazy(() => import('@pages/DocumentationPage').then(module => ({ 
+  default: module.DocumentationPage 
+})));
+
+// Loading fallback component
+const PageLoadingFallback: React.FC = () => (
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: '60vh',
+      gap: 2
+    }}
+  >
+    <CircularProgress size={40} />
+    <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 2 }} />
+    <Skeleton variant="rectangular" width="80%" height={100} sx={{ borderRadius: 2 }} />
+  </Box>
+);
 
 // Query client configuration
 const queryClient = new QueryClient({
@@ -57,13 +74,6 @@ const App: React.FC = () => {
   // Initialize app on mount
   useEffect(() => {
     initialize();
-    
-    // Initialize service worker in production
-    if (import.meta.env.PROD) {
-      serviceWorkerManager.register().catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
-    }
   }, [initialize]);
 
   // Create Material-UI theme
@@ -176,89 +186,31 @@ const App: React.FC = () => {
           <Router>
             <Box sx={{ display: 'flex', minHeight: '100vh' }}>
               <Layout>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route 
-                    path="/dashboard" 
-                    element={
-                      <LazyWrapper type="page">
-                        <Dashboard />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/upload" 
-                    element={
-                      <LazyWrapper type="page">
-                        <UploadPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/query" 
-                    element={
-                      <LazyWrapper type="page">
-                        <QueryPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/results" 
-                    element={
-                      <LazyWrapper type="page">
-                        <ResultsPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/results/:queryId" 
-                    element={
-                      <LazyWrapper type="page">
-                        <ResultsPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/history" 
-                    element={
-                      <LazyWrapper type="page">
-                        <HistoryPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/settings" 
-                    element={
-                      <LazyWrapper type="page">
-                        <SettingsPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/docs" 
-                    element={
-                      <LazyWrapper type="page">
-                        <DocumentationPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  <Route 
-                    path="/documentation" 
-                    element={
-                      <LazyWrapper type="page">
-                        <DocumentationPage />
-                      </LazyWrapper>
-                    } 
-                  />
-                  {/* Catch-all route */}
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/upload" element={<UploadPage />} />
+                    <Route path="/query" element={<QueryPage />} />
+                    <Route path="/results" element={<ResultsPage />} />
+                    <Route path="/results/:queryId" element={<ResultsPage />} />
+                    <Route path="/history" element={<HistoryPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/docs" element={<DocumentationPage />} />
+                    <Route path="/documentation" element={<DocumentationPage />} />
+                    {/* Catch-all route */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </Suspense>
               </Layout>
             </Box>
           </Router>
           
           {/* Global notification container */}
           <NotificationContainer />
+          
+          {/* Performance monitoring (only in development) */}
+          {import.meta.env.DEV && <PerformanceIndicator showDetailedMetrics />}
           
           {/* React Query DevTools (only in development) */}
           {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

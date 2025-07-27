@@ -7,6 +7,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
+// Service Worker
+import { registerServiceWorker } from '@services/serviceWorker';
+
 // Global styles
 import '@fontsource/inter/300.css';
 import '@fontsource/inter/400.css';
@@ -43,3 +46,22 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>
 );
+
+// Register service worker for offline support and caching
+if (import.meta.env.PROD) {
+  registerServiceWorker({
+    onSuccess: () => {
+      console.log('✅ App is cached and ready to work offline');
+    },
+    onUpdate: () => {
+      console.log('🔄 New version available, please refresh');
+    },
+    onOfflineReady: () => {
+      console.log('📱 App is ready for offline use');
+    },
+    onNeedRefresh: () => {
+      console.log('🔄 App needs refresh for latest version');
+      // You could show a user notification here
+    },
+  });
+}
