@@ -3,8 +3,6 @@ import {
   Box,
   Container,
   Typography,
-  Tabs,
-  Tab,
   Paper,
   Breadcrumbs,
   Link,
@@ -24,7 +22,6 @@ import {
   Home as HomeIcon,
   Api as ApiIcon,
   Code as CodeIcon,
-  Description as DescriptionIcon,
   School as SchoolIcon,
   Settings as SettingsIcon
 } from '@mui/icons-material';
@@ -98,7 +95,7 @@ export const DocumentationPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const theme = useTheme();
-  const { isMobile } = useResponsiveLayout();
+  useResponsiveLayout();
   const isMobileView = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {

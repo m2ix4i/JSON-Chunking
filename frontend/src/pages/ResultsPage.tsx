@@ -14,15 +14,12 @@ import {
   Alert,
   CircularProgress,
   Button,
-  LinearProgress,
   Chip,
-  Divider,
 } from '@mui/material';
 import {
   Assessment as ResultsIcon,
   ArrowBack as BackIcon,
   Refresh as RefreshIcon,
-  Timer as TimerIcon,
 } from '@mui/icons-material';
 
 // Store hooks

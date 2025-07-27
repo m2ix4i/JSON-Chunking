@@ -15,8 +15,6 @@ import {
   TextField,
   Alert,
   Grid,
-  useTheme,
-  useMediaQuery
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -240,7 +238,6 @@ export const ApiDocumentation: React.FC = () => {
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | false>('POST-/api/query');
   const [testingEndpoint, setTestingEndpoint] = useState<string | null>(null);
   const [testRequestBody, setTestRequestBody] = useState('');
-  const theme = useTheme();
   const { isMobile } = useResponsiveLayout();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {

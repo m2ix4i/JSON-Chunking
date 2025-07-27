@@ -9,7 +9,6 @@ import type {
   QueryResponse,
   QueryStatusResponse,
   QueryResultResponse,
-  QueryListResponse,
   ProgressMessage,
   ErrorMessage,
   CompletionMessage,
@@ -248,7 +247,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     console.log('Received WebSocket message:', message);
     
     switch (message.type) {
-      case 'progress':
+      case 'progress': {
         const progressMsg = message as ProgressMessage;
         set({ 
           lastProgressUpdate: progressMsg,
@@ -264,8 +263,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
           }
         });
         break;
+      }
 
-      case 'error':
+      case 'error': {
         const errorMsg = message as ErrorMessage;
         set({ 
           error: errorMsg.message || 'Query processing error',
@@ -282,8 +282,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
           }
         });
         break;
+      }
 
-      case 'completion':
+      case 'completion': {
         const completionMsg = message as CompletionMessage;
         set({ 
           queryResult: completionMsg.result,
@@ -302,6 +303,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         // Clean up WebSocket connection after completion
         setTimeout(() => get().disconnectWebSocket(), 2000);
         break;
+      }
 
       case 'connected':
         console.log('WebSocket connection confirmed');
@@ -369,7 +371,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   // History actions
   loadQueryHistory: async (params = {}) => {
     const { history } = get();
-    const { page = history.pagination.page, limit = history.pagination.limit, status, search } = params;
+    const { page = history.pagination.page, limit = history.pagination.limit, status } = params;
     
     set((state) => ({
       history: { ...state.history, loading: true, error: null }

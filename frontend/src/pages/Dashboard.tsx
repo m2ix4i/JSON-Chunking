@@ -21,9 +21,7 @@ import {
 import {
   CloudUpload as UploadIcon,
   Search as QueryIcon,
-  Assessment as StatsIcon,
   Description as FileIcon,
-  PlayArrow as StartIcon,
   CheckCircle as CompletedIcon,
   Error as ErrorIcon,
   Schedule as PendingIcon,

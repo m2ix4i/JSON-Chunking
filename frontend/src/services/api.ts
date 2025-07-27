@@ -3,7 +3,7 @@
  * Handles all HTTP requests and error handling.
  */
 
-import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   HealthStatus,
   FileUploadResponse,
