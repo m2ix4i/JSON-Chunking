@@ -68,7 +68,7 @@ const QueryProgress: React.FC<QueryProgressProps> = ({
   const getStatusInfo = () => {
     if (!queryStatus) return { color: 'default' as const, text: 'Warten...' };
 
-    switch (queryStatus) {
+    switch (queryStatus.status) {
       case 'started':
         return { color: 'info' as const, text: 'Gestartet' };
       case 'processing':
@@ -78,7 +78,7 @@ const QueryProgress: React.FC<QueryProgressProps> = ({
       case 'failed':
         return { color: 'error' as const, text: 'Fehlgeschlagen' };
       default:
-        return { color: 'default' as const, text: queryStatus };
+        return { color: 'default' as const, text: queryStatus.status };
     }
   };
 
@@ -107,11 +107,11 @@ const QueryProgress: React.FC<QueryProgressProps> = ({
   const statusInfo = getStatusInfo();
   const connectionInfo = getConnectionInfo();
   const progressPercentage = 0; // Progress not available in current store
-  const currentStep = 0;
-  const totalSteps = 1;
-  const isProcessing = queryStatus === 'processing';
-  const isCompleted = queryStatus === 'completed';
-  const isFailed = queryStatus === 'failed';
+  const currentStep = queryStatus?.current_step || 0;
+  const totalSteps = queryStatus?.total_steps || 1;
+  const isProcessing = queryStatus?.status === 'processing';
+  const isCompleted = queryStatus?.status === 'completed';
+  const isFailed = queryStatus?.status === 'failed';
 
   return (
     <Fade in timeout={300}>

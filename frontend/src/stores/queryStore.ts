@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { apiService } from '@/services/api';
 import type {
   QueryResponse,
   QueryStatusResponse,
@@ -452,23 +453,37 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     }
   },
 
-  rerunQuery: (queryId: string) => {
+  rerunQuery: async (queryId: string) => {
     // Find the query in history
     const { history } = get();
     const query = history.queries.find(q => q.query_id === queryId);
     
-    if (query && query.original_query) {
-      // Update current query with the previous query text
-      set((state) => ({
-        currentQuery: {
-          ...state.currentQuery,
-          text: query.original_query || '',
+    if (query) {
+      try {
+        // Fetch the full query result to get the original query text
+        const result = await apiService.getQueryResult(queryId);
+        
+        if (result && result.original_query) {
+          // Update current query with the previous query text
+          set((state) => ({
+            currentQuery: {
+              ...state.currentQuery,
+              text: result.original_query || '',
+            }
+          }));
+          
+          console.log('Rerunning query:', result.original_query);
         }
-      }));
-      
-      // Navigate to query page - we'll handle this in the component
-      // For now, just set the query text
-      console.log('Rerunning query:', query.original_query);
+      } catch (error) {
+        console.error('Failed to fetch query result for rerun:', error);
+        // Fallback to using the query message if available
+        set((state) => ({
+          currentQuery: {
+            ...state.currentQuery,
+            text: query.message || '',
+          }
+        }));
+      }
     }
   },
   // UI actions

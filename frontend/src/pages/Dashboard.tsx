@@ -50,12 +50,12 @@ const Dashboard: React.FC = () => {
   const stats = {
     totalFiles: files.length,
     activeQueries: Object.keys(activeQueries).length,
-    completedQueries: queryHistory.filter(q => q.confidence_score > 0.5).length,
-    failedQueries: queryHistory.filter(q => q.confidence_score <= 0.5).length,
+    completedQueries: queryHistory.queries.filter(q => q.status === 'completed').length,
+    failedQueries: queryHistory.queries.filter(q => q.status === 'failed').length,
   };
 
   // Get recent queries for display
-  const recentQueries = queryHistory.slice(0, 5);
+  const recentQueries = queryHistory.queries.slice(0, 5);
 
   return (
     <Box>
@@ -282,26 +282,31 @@ const Dashboard: React.FC = () => {
                       divider={index < recentQueries.length - 1}
                     >
                       <ListItemIcon>
-                        {query.confidence_score > 0.5 ? (
+                        {query.status === 'completed' ? (
                           <CompletedIcon color="success" />
-                        ) : (
+                        ) : query.status === 'failed' ? (
                           <ErrorIcon color="error" />
+                        ) : (
+                          <PendingIcon color="warning" />
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={query.original_query || 'Keine Abfrage verfügbar'}
+                        primary={query.message || 'Keine Abfrage verfügbar'}
                         secondary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" color="text.secondary">
-                              Query {query.query_id.slice(0, 8)}... • {new Date().toLocaleString('de-DE')}
+                              Query {query.query_id.slice(0, 8)}... • {new Date(query.created_at).toLocaleString('de-DE')}
                             </Typography>
-                            {query.confidence_score && (
-                              <Chip
-                                label={`${Math.round(query.confidence_score * 100)}% Vertrauen`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            )}
+                            <Chip
+                              label={query.status}
+                              size="small"
+                              variant="outlined"
+                              color={
+                                query.status === 'completed' ? 'success' :
+                                query.status === 'failed' ? 'error' :
+                                'primary'
+                              }
+                            />
                           </Box>
                         }
                       />
@@ -316,7 +321,7 @@ const Dashboard: React.FC = () => {
                 </List>
               )}
               
-              {queryHistory.length > 5 && (
+              {queryHistory.queries.length > 5 && (
                 <Box sx={{ textAlign: 'center', mt: 2 }}>
                   <Button onClick={() => navigate('/history')}>
                     Alle Abfragen anzeigen
