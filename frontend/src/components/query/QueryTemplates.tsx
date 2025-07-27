@@ -1,7 +1,6 @@
 /**
  * Query templates component for enhanced query interface.
  * Provides browsable templates for common IFC building analysis queries.
- * Combines both implementations with improved architecture.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -84,7 +83,6 @@ const QueryTemplates: React.FC<QueryTemplatesProps> = ({
   showSearchFilter = true,
   maxHeight = 600,
 }) => {
-  // Filter state
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');

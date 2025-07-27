@@ -33,6 +33,7 @@
       "@pages/*": ["./src/pages/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "src/types/vitest.d.ts"],
+  "types": ["vitest/globals", "@testing-library/jest-dom"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

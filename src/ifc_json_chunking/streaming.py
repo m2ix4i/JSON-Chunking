@@ -5,12 +5,13 @@ This module provides memory-efficient streaming JSON parsing capabilities
 using ijson for token-by-token processing of large files.
 """
 
+import asyncio
 import gc
 import gzip
-from pathlib import Path
-from typing import Any, AsyncIterator, Dict, Optional, Tuple, Union
-import asyncio
 import time
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 try:
     import ijson
@@ -25,14 +26,14 @@ except ImportError:
 import structlog
 
 from .config import Config
-from .exceptions import ProcessingError, ChunkingError, ValidationError
+from .exceptions import ChunkingError, ProcessingError, ValidationError
 
 logger = structlog.get_logger(__name__)
 
 
 class MemoryMonitor:
     """Memory usage monitoring and management utilities."""
-    
+
     def __init__(self, max_memory_mb: int = 500):
         """
         Initialize memory monitor.
@@ -42,33 +43,33 @@ class MemoryMonitor:
         """
         self.max_memory_bytes = max_memory_mb * 1024 * 1024
         self.process = psutil.Process()
-        
+
     def get_memory_usage(self) -> int:
         """Get current memory usage in bytes."""
         return self.process.memory_info().rss
-    
+
     def get_memory_usage_mb(self) -> float:
         """Get current memory usage in MB."""
         return self.get_memory_usage() / (1024 * 1024)
-    
+
     def should_trigger_gc(self) -> bool:
         """Check if garbage collection should be triggered."""
         return self.get_memory_usage() > (self.max_memory_bytes * 0.8)
-    
+
     def trigger_gc(self) -> int:
         """Trigger garbage collection and return freed memory."""
         memory_before = self.get_memory_usage()
         gc.collect()
         memory_after = self.get_memory_usage()
         freed = memory_before - memory_after
-        
+
         logger.info(
             "Garbage collection triggered",
             memory_before_mb=memory_before / (1024 * 1024),
             memory_after_mb=memory_after / (1024 * 1024),
             freed_mb=freed / (1024 * 1024)
         )
-        
+
         return freed
 
 
@@ -79,7 +80,7 @@ class StreamingJSONParser:
     Uses ijson for token-by-token processing to handle files larger than
     available memory while maintaining low memory footprint.
     """
-    
+
     def __init__(self, config: Optional[Config] = None):
         """
         Initialize the streaming parser.
@@ -91,13 +92,13 @@ class StreamingJSONParser:
         self.memory_monitor = MemoryMonitor(max_memory_mb=500)
         self.tokens_processed = 0
         self.gc_triggers = 0
-        
+
         logger.info(
             "StreamingJSONParser initialized",
             max_memory_mb=500,
             config=str(self.config)
         )
-    
+
     def _open_file(self, file_path: Path):
         """
         Open file handle with support for compressed files.
@@ -114,9 +115,9 @@ class StreamingJSONParser:
         else:
             logger.info("Opening uncompressed file", file_path=str(file_path))
             return open(file_path, 'rb')
-    
+
     async def parse_file(
-        self, 
+        self,
         file_path: Path,
         prefix: str = ""
     ) -> AsyncIterator[Tuple[str, Any]]:
@@ -136,17 +137,17 @@ class StreamingJSONParser:
         """
         if not file_path.exists():
             raise ProcessingError(f"File not found: {file_path}")
-        
+
         start_time = time.time()
         file_size = file_path.stat().st_size
-        
+
         logger.info(
             "Starting streaming parse",
             file_path=str(file_path),
             file_size_mb=file_size / (1024 * 1024),
             prefix=prefix
         )
-        
+
         # Handle empty files gracefully
         if file_size == 0:
             logger.info(
@@ -154,17 +155,17 @@ class StreamingJSONParser:
                 file_path=str(file_path)
             )
             return
-        
+
         try:
             with self._open_file(file_path) as file_handle:
                 parser = ijson.parse(file_handle, multiple_values=True)
-                
+
                 current_path = []
-                
+
                 for prefix_part, event, value in parser:
                     # Update parsing statistics
                     self.tokens_processed += 1
-                    
+
                     # Memory management
                     if self.tokens_processed % 1000 == 0:
                         if self.memory_monitor.should_trigger_gc():
@@ -172,15 +173,15 @@ class StreamingJSONParser:
                             self.gc_triggers += 1
                         # Yield control periodically
                         await asyncio.sleep(0)
-                    
+
                     # Process the parsing event
                     json_path = self._process_parse_event_sync(
                         event, value, current_path, prefix
                     )
-                    
+
                     if json_path is not None:
                         yield json_path, value
-                        
+
         except Exception as e:
             elapsed = time.time() - start_time
             logger.error(
@@ -191,7 +192,7 @@ class StreamingJSONParser:
                 tokens_processed=self.tokens_processed
             )
             raise ChunkingError(f"Failed to parse JSON file {file_path}: {e}") from e
-        
+
         elapsed = time.time() - start_time
         logger.info(
             "Streaming parse completed",
@@ -201,12 +202,12 @@ class StreamingJSONParser:
             gc_triggers=self.gc_triggers,
             final_memory_mb=self.memory_monitor.get_memory_usage_mb()
         )
-    
+
     def _process_parse_event_sync(
-        self, 
-        event: str, 
-        value: Any, 
-        current_path: list, 
+        self,
+        event: str,
+        value: Any,
+        current_path: list,
         prefix: str
     ) -> Optional[str]:
         """
@@ -240,10 +241,10 @@ class StreamingJSONParser:
             # This is a complete value
             full_path = prefix + '.'.join(current_path) if current_path else prefix
             return full_path
-        
+
         return None
-    
-    
+
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get parsing statistics.
@@ -261,12 +262,12 @@ class StreamingJSONParser:
 
 class StreamingValidator:
     """JSON validation for streaming data with IFC-specific checks."""
-    
+
     def __init__(self):
         """Initialize the streaming validator."""
         self.validation_errors = []
         logger.info("StreamingValidator initialized")
-    
+
     def process_element(self, json_path: str, value: Any) -> 'ValidationResult':
         """
         Process and validate a single JSON element.
@@ -279,21 +280,21 @@ class StreamingValidator:
             ValidationResult with validation outcome
         """
         from .models import ValidationResult
-        
+
         try:
             # Use existing validation logic
             is_valid = self.validate_ifc_structure(json_path, value)
-            
+
             if is_valid:
                 return ValidationResult.valid()
             else:
                 return ValidationResult.invalid(f"Validation failed for {json_path}")
-                
+
         except Exception as e:
             error_msg = f"Validation error for {json_path}: {e}"
             logger.warning("Validation exception", json_path=json_path, error=str(e))
             return ValidationResult.invalid(error_msg)
-    
+
     def validate_ifc_structure(self, json_path: str, value: Any) -> bool:
         """
         Validate IFC JSON structure elements.
@@ -313,9 +314,9 @@ class StreamingValidator:
             elif json_path.startswith('header.') and isinstance(value, dict):
                 # Validate IFC header structure
                 return self._validate_ifc_header(value)
-            
+
             return True  # Allow other structures
-            
+
         except Exception as e:
             error = ValidationError(f"Validation failed for {json_path}: {e}")
             self.validation_errors.append(error)
@@ -325,7 +326,7 @@ class StreamingValidator:
                 error=str(e)
             )
             return False
-    
+
     def _validate_ifc_object(self, obj: Dict[str, Any]) -> bool:
         """Validate IFC object structure."""
         required_fields = ['type', 'id']
@@ -333,16 +334,16 @@ class StreamingValidator:
             if field not in obj:
                 return False
         return True
-    
+
     def _validate_ifc_header(self, header: Dict[str, Any]) -> bool:
         """Validate IFC header structure."""
         # Basic header validation
         return isinstance(header, dict)
-    
+
     def get_errors(self) -> list:
         """Get validation errors."""
         return self.validation_errors.copy()
-    
+
     def clear_errors(self):
         """Clear validation errors."""
         self.validation_errors.clear()

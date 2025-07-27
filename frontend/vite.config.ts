@@ -1,3 +1,4 @@
+/// <reference types="@testing-library/jest-dom" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
@@ -33,8 +34,14 @@ export default defineConfig({
       '@utils': resolve(__dirname, './src/utils'),
       '@hooks': resolve(__dirname, './src/hooks'),
       '@stores': resolve(__dirname, './src/stores'),
-      '@pages': resolve(__dirname, './src/pages')
+      '@pages': resolve(__dirname, './src/pages'),
+      '@data': resolve(__dirname, './src/data')
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
   },
   server: {
     port: 3000,

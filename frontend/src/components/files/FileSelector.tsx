@@ -3,7 +3,7 @@
  * Provides radio-button selection interface with file details.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -23,9 +23,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Checkbox,
-  Toolbar,
-  Divider,
 } from '@mui/material';
 import {
   Description as FileIcon,
@@ -33,9 +30,6 @@ import {
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
-  SelectAll as SelectAllIcon,
-  ClearAll as ClearAllIcon,
-  DeleteSweep as BulkDeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -78,30 +72,38 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // Memoize the selected file to avoid unnecessary lookups
-  const selectedFile = useMemo(() => 
-    selectedFileId ? files.find(f => f.file_id === selectedFileId) || null : null,
-    [selectedFileId, files]
-  );
 
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
     
     // Call callback if provided
     if (onFileSelected) {
-      const file = fileId ? files.find(f => f.file_id === fileId) || null : null;
-      onFileSelected(file);
+      const selectedFile = fileId ? files.find(f => f.file_id === fileId) || null : null;
+      onFileSelected(selectedFile);
     }
   };
+
 
   const getFileStatus = (file: UploadedFile) => {
     if (file.status === 'uploaded') {
       return { icon: <SuccessIcon color="success" />, label: 'Bereit', color: 'success' as const };
-    } else if (file.status === 'failed') {
+    } else if (file.status === 'error') {
       return { icon: <ErrorIcon color="error" />, label: 'Fehler', color: 'error' as const };
     } else {
       return { icon: <FileIcon color="primary" />, label: 'Verarbeitung', color: 'primary' as const };
     }
+  };
+
+  /**
+   * Get validation summary text - Single Responsibility: Validation display logic
+   * Fixes Law of Demeter violation by encapsulating validation_result access
+   */
+  const getValidationSummary = (file: UploadedFile): string | null => {
+    if (!file.validation_result) return null;
+    
+    return file.validation_result.is_valid 
+      ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
+      : 'Validierung fehlgeschlagen';
   };
 
   // Delete handlers
@@ -129,26 +131,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     setFileToDelete(null);
   };
 
-  // Bulk selection handlers
-  const handleBulkSelect = (fileId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedFiles(prev => [...prev, fileId]);
-    } else {
-      setSelectedFiles(prev => prev.filter(id => id !== fileId));
-    }
-  };
-
-  const handleSelectAll = () => {
-    setSelectedFiles(files.map(f => f.file_id));
-  };
-
-  const handleClearSelection = () => {
-    setSelectedFiles([]);
-  };
-
-  const handleBulkDelete = () => {
-    setBulkDeleteOpen(true);
-  };
 
   const handleBulkDeleteConfirm = async () => {
     try {
@@ -166,7 +148,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const handleBulkDeleteCancel = () => {
     setBulkDeleteOpen(false);
   };
-
   // Show empty state if no files
   if (files.length === 0) {
     return (
@@ -210,176 +191,112 @@ const FileSelector: React.FC<FileSelectorProps> = ({
         <Typography variant="h6" gutterBottom>
           {title}
         </Typography>
+        
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Wählen Sie eine Datei für Ihre Abfrage aus:
         </Typography>
 
-        {/* Bulk action toolbar */}
-        {enableBulkSelection && files.length > 0 && (
-          <>
-            <Toolbar variant="dense" sx={{ pl: 0, pr: 0, minHeight: 48 }}>
-              <Button
-                size="small"
-                startIcon={<SelectAllIcon />}
-                onClick={handleSelectAll}
-                disabled={selectedFiles.length === files.length}
-              >
-                Alle auswählen
-              </Button>
-              <Button
-                size="small"
-                startIcon={<ClearAllIcon />}
-                onClick={handleClearSelection}
-                disabled={selectedFiles.length === 0}
-                sx={{ ml: 1 }}
-              >
-                Auswahl aufheben
-              </Button>
-              <Box sx={{ flexGrow: 1 }} />
-              {selectedFiles.length > 0 && (
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<BulkDeleteIcon />}
-                  onClick={handleBulkDelete}
-                >
-                  {selectedFiles.length} löschen
-                </Button>
-              )}
-            </Toolbar>
-            <Divider sx={{ mb: 1 }} />
-          </>
-        )}
-
-        {/* Use virtual scrolling for large file lists, standard list for smaller ones */}
-        {files.length > 50 ? (
-          <VirtualFileList
-            files={files}
-            selectedFileId={selectedFileId}
-            onFileSelect={handleFileSelect}
-            compact={compact}
-            enableBulkSelection={enableBulkSelection}
-            selectedFiles={selectedFiles}
-            onBulkSelect={handleBulkSelect}
-            containerHeight={400}
-          />
-        ) : (
-          <List dense={compact}>
-            {/* Option to deselect */}
-            <ListItem
-              button
-              onClick={() => handleFileSelect(null)}
-              sx={{ 
-                borderRadius: 1,
-                mb: 1,
-                bgcolor: selectedFileId === null ? 'action.selected' : 'transparent',
-              }}
-            >
-              <ListItemIcon>
-                <Radio
-                  checked={selectedFileId === null}
-                  onChange={() => handleFileSelect(null)}
-                  value=""
-                  name="file-selector"
-                />
-              </ListItemIcon>
-              <ListItemText
-                primary="Keine Datei ausgewählt"
-                secondary="Dateiauswahl zurücksetzen"
+        <List dense={compact}>
+          {/* Option to deselect */}
+          <ListItem
+            button
+            onClick={() => handleFileSelect(null)}
+            sx={{ 
+              borderRadius: 1,
+              mb: 1,
+              bgcolor: selectedFileId === null ? 'action.selected' : 'transparent',
+            }}
+          >
+            <ListItemIcon>
+              <Radio
+                checked={selectedFileId === null}
+                onChange={() => handleFileSelect(null)}
+                value=""
+                name="file-selector"
               />
-            </ListItem>
+            </ListItemIcon>
+            <ListItemText
+              primary="Keine Datei ausgewählt"
+              secondary="Dateiauswahl zurücksetzen"
+            />
+          </ListItem>
 
-            {/* File options */}
-            {files.map((file) => {
-              const status = getFileStatus(file);
-              const isSelected = selectedFileId === file.file_id;
-              const isBulkSelected = selectedFiles.includes(file.file_id);
+          {/* File options */}
+          {files.map((file) => {
+            const status = getFileStatus(file);
+            const isSelected = selectedFileId === file.file_id;
 
-              return (
-                <ListItem
-                  key={file.file_id}
-                  button
-                  onClick={() => enableBulkSelection ? undefined : handleFileSelect(file.file_id)}
-                  sx={{ 
-                    borderRadius: 1,
-                    mb: 1,
-                    bgcolor: isSelected ? 'action.selected' : 'transparent',
-                  }}
-                >
-                  <ListItemIcon>
-                    {enableBulkSelection ? (
-                      <Checkbox
-                        checked={isBulkSelected}
-                        onChange={(e) => handleBulkSelect(file.file_id, e.target.checked)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <Radio
-                        checked={isSelected}
-                        onChange={() => handleFileSelect(file.file_id)}
-                        value={file.file_id}
-                        name="file-selector"
-                      />
-                    )}
-                  </ListItemIcon>
-
-                  <ListItemIcon>
-                    {status.icon}
-                  </ListItemIcon>
-
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body1" component="span">
-                          {file.filename}
-                        </Typography>
-                        <Chip
-                          label={status.label}
-                          size="small"
-                          color={status.color}
-                          variant="outlined"
-                        />
-                      </Box>
-                    }
-                    secondary={
-                      <Typography variant="body2" color="text.secondary">
-                        {formatFileSize(file.size)} • Hochgeladen: {formatTimestamp(file.upload_timestamp)}
-                        {file.validation_result && (
-                          <span>
-                            {' • '}
-                            {file.validation_result.is_valid 
-                              ? `${file.validation_result.estimated_chunks} Chunks geschätzt`
-                              : 'Validierung fehlgeschlagen'
-                            }
-                          </span>
-                        )}
-                      </Typography>
-                    }
+            return (
+              <ListItem
+                key={file.file_id}
+                button
+                onClick={() => handleFileSelect(file.file_id)}
+                sx={{ 
+                  borderRadius: 1,
+                  mb: 1,
+                  bgcolor: isSelected ? 'action.selected' : 'transparent',
+                }}
+              >
+                <ListItemIcon>
+                  <Radio
+                    checked={isSelected}
+                    onChange={() => handleFileSelect(file.file_id)}
+                    value={file.file_id}
+                    name="file-selector"
                   />
+                </ListItemIcon>
 
-                  {/* Delete button - only show in single-selection mode */}
-                  {!enableBulkSelection && (
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={(e) => handleDeleteClick(e, file)}
-                      size="small"
-                      sx={{ ml: 1 }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
-                </ListItem>
-              );
-            })}
-          </List>
-        )}
+                <ListItemIcon>
+                  {status.icon}
+                </ListItemIcon>
+
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" component="span">
+                        {file.filename}
+                      </Typography>
+                      <Chip
+                        label={status.label}
+                        size="small"
+                        color={status.color}
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Typography variant="body2" color="text.secondary">
+                      {formatFileSize(file.size)} • Hochgeladen: {formatTimestamp(file.upload_timestamp)}
+                      {getValidationSummary(file) && (
+                        <span>
+                          {' • '}
+                          {getValidationSummary(file)}
+                        </span>
+                      )}
+                    </Typography>
+                  }
+                />
+
+                {/* Delete button */}
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={(e) => handleDeleteClick(e, file)}
+                  size="small"
+                  sx={{ ml: 1 }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </ListItem>
+            );
+          })}
+        </List>
 
         {/* Selected file summary */}
-        {selectedFile && (
+        {selectedFileId && (
           <Alert severity="success" sx={{ mt: 2 }}>
             <Typography variant="body2">
-              <strong>Ausgewählt:</strong> {selectedFile.filename}
+              <strong>Ausgewählt:</strong> {files.find(f => f.file_id === selectedFileId)?.filename}
             </Typography>
           </Alert>
         )}

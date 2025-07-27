@@ -1,19 +1,9 @@
 /**
  * Query templates for German building industry IFC analysis.
- * Provides pre-built templates for common query use cases with template repository pattern implementation.
+ * Provides pre-built templates for common query use cases.
  */
 
 import type { QueryTemplate, QueryVariable } from '@/types/app';
-
-// Template categories for organization
-export const templateCategories = [
-  { id: 'quantity', name: 'Mengenermittlung' },
-  { id: 'material', name: 'Materialanalyse' },
-  { id: 'spatial', name: 'Räumliche Abfragen' },
-  { id: 'component', name: 'Bauteile' },
-  { id: 'cost', name: 'Kostenschätzung' },
-];
-
 // Common variables used across templates
 const commonVariables: Record<string, QueryVariable> = {
   component: {

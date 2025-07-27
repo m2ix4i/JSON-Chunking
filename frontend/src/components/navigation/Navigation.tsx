@@ -30,7 +30,8 @@ import SystemStatus from '@components/status/SystemStatus';
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { lastError } = useErrorState();
+  const errors = useErrorState();
+  const lastError = errors.length > 0 ? errors[errors.length - 1] : null;
   const activeQueries = useActiveQueries();
 
   // Count active queries

@@ -15,7 +15,6 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Divider,
   IconButton,
   Tooltip,
   Accordion,
@@ -25,7 +24,6 @@ import {
 import {
   PlayArrow as PlayArrowIcon,
   ContentCopy as CopyIcon,
-  Refresh as RefreshIcon,
   ExpandMore as ExpandMoreIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
@@ -34,7 +32,7 @@ import {
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 
 interface ApiTestRequest {
-  method: 'GET' | 'POST' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   endpoint: string;
   headers: Record<string, string>;
   body?: string;

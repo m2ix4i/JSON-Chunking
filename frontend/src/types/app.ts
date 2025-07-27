@@ -9,6 +9,9 @@ import type {
   QueryIntentHint 
 } from './api';
 
+// Re-export for external use
+export type { QueryIntentHint };
+
 // App state types
 export interface AppState {
   // Current page/route
@@ -53,6 +56,7 @@ export interface UploadedFile extends FileUploadResponse {
   uploadProgress?: number;
   uploadError?: string;
   previewData?: any;
+  error_message?: string;
 }
 
 // Query management state  
@@ -109,11 +113,11 @@ export interface GermanQuerySuggestion {
 export interface QueryTemplate {
   id: string;
   name: string;
-  category: QueryIntentHint;
   description: string;
   template: string;
-  variables: QueryVariable[];
+  category: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
+  variables: QueryVariable[];
   examples: string[];
   expectedResult: string;
   tags: string[];
@@ -285,6 +289,11 @@ export interface AppNotification {
   timestamp: Date;
   autoHide?: boolean;
   duration?: number;
+  persistent?: boolean;
+  actions?: Array<{
+    label: string;
+    action: () => void;
+  }>;
 }
 
 // UI Component states
