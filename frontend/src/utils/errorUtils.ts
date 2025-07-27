@@ -5,7 +5,7 @@
 import type { AxiosError } from 'axios';
 
 export interface AppError {
-  type: 'network' | 'validation' | 'server' | 'auth' | 'timeout' | 'unknown';
+  type: 'api' | 'network' | 'validation' | 'websocket' | 'file' | 'server' | 'auth' | 'timeout' | 'unknown';
   message: string;
   details?: string;
   code?: string;

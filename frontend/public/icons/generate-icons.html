@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWA Icon Generator</title>
+    <style>
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        .icon-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+        .download-section { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>IFC JSON Chunking PWA Icons</h1>
+    <div class="icon-grid">
+        <canvas id="icon192" width="192" height="192"></canvas>
+        <canvas id="icon512" width="512" height="512"></canvas>
+        <canvas id="iconMaskable" width="512" height="512"></canvas>
+    </div>
+    
+    <div class="download-section">
+        <button onclick="downloadIcon('icon192', 'icon-192.png')">Download 192x192</button>
+        <button onclick="downloadIcon('icon512', 'icon-512.png')">Download 512x512</button>
+        <button onclick="downloadIcon('iconMaskable', 'icon-maskable.png')">Download Maskable</button>
+        <button onclick="downloadAll()">Download All</button>
+    </div>
+
+    <script>
+        function createIcon(canvasId, size, isMaskable = false) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Background (white for regular, with safe zone for maskable)
+            if (isMaskable) {
+                // Maskable icons need a larger safe zone
+                const safeZone = size * 0.1; // 10% safe zone
+                ctx.fillStyle = '#1976d2'; // Material Design Blue
+                ctx.fillRect(0, 0, size, size);
+                
+                // Inner content area
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(safeZone, safeZone, size - 2 * safeZone, size - 2 * safeZone);
+            } else {
+                ctx.fillStyle = '#1976d2';
+                ctx.fillRect(0, 0, size, size);
+            }
+            
+            // IFC text
+            ctx.fillStyle = isMaskable ? '#1976d2' : '#ffffff';
+            ctx.font = `bold ${size / 6}px Inter, Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const centerX = size / 2;
+            const centerY = size / 2;
+            
+            // Main IFC text
+            ctx.fillText('IFC', centerX, centerY - size / 12);
+            
+            // Subtitle
+            ctx.font = `${size / 12}px Inter, Arial, sans-serif`;
+            ctx.fillText('JSON', centerX, centerY + size / 12);
+            
+            // Add building icon representation
+            ctx.strokeStyle = isMaskable ? '#1976d2' : '#ffffff';
+            ctx.lineWidth = size / 64;
+            
+            // Simple building outline
+            const buildingWidth = size / 4;
+            const buildingHeight = size / 6;
+            const buildingX = centerX - buildingWidth / 2;
+            const buildingY = centerY + size / 4;
+            
+            ctx.strokeRect(buildingX, buildingY, buildingWidth, buildingHeight);
+            ctx.strokeRect(buildingX + buildingWidth / 4, buildingY + buildingHeight / 4, buildingWidth / 2, buildingHeight / 2);
+        }
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        function downloadAll() {
+            setTimeout(() => downloadIcon('icon192', 'icon-192.png'), 100);
+            setTimeout(() => downloadIcon('icon512', 'icon-512.png'), 200);
+            setTimeout(() => downloadIcon('iconMaskable', 'icon-maskable.png'), 300);
+        }
+        
+        // Generate icons on load
+        window.onload = function() {
+            createIcon('icon192', 192);
+            createIcon('icon512', 512);
+            createIcon('iconMaskable', 512, true);
+        };
+    </script>
+</body>
+</html>

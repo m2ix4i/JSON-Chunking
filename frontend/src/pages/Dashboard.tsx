@@ -1,8 +1,9 @@
 /**
  * Dashboard page - main overview of the application.
+ * Enhanced with interactive analytics and comprehensive data visualization.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -17,25 +18,46 @@ import {
   ListItemIcon,
   Chip,
   LinearProgress,
+  Tabs,
+  Tab,
+  Alert,
+  Skeleton,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
   Search as QueryIcon,
-  Assessment as StatsIcon,
   Description as FileIcon,
-  PlayArrow as StartIcon,
   CheckCircle as CompletedIcon,
   Error as ErrorIcon,
   Schedule as PendingIcon,
+  Analytics as AnalyticsIcon,
+  Timeline as TimelineIcon,
+  Speed as PerformanceIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Store hooks
 import { useFiles, useSelectedFile } from '@stores/fileStore';
 import { useActiveQueries, useQueryHistory } from '@stores/queryStore';
+import { 
+  useAnalyticsStore,
+  useAnalyticsData,
+  useAnalyticsLoading,
+  useAnalyticsError,
+  useAnalyticsActions,
+  useFileAnalytics,
+  useQueryAnalytics,
+  usePerformanceMetrics,
+} from '@stores/analyticsStore';
 
 // Components
 import FileSelector from '@components/files/FileSelector';
+import {
+  MetricsWidget,
+  ChartWidget,
+  ProcessingTimeChart,
+  TrendAnalysis,
+} from '@components/analytics';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -46,16 +68,38 @@ const Dashboard: React.FC = () => {
   const activeQueries = useActiveQueries();
   const queryHistory = useQueryHistory();
 
+  // Analytics store data
+  const analyticsData = useAnalyticsData();
+  const analyticsLoading = useAnalyticsLoading();
+  const analyticsError = useAnalyticsError();
+  const { fetchAnalytics, setTimeRange, clearError } = useAnalyticsActions();
+  const fileAnalytics = useFileAnalytics();
+  const queryAnalytics = useQueryAnalytics();
+  const performanceMetrics = usePerformanceMetrics();
+
+  // Tab state for analytics section
+  const [analyticsTab, setAnalyticsTab] = React.useState(0);
+
+  // Initialize analytics data on component mount
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
   // Calculate statistics
   const stats = {
     totalFiles: files.length,
     activeQueries: Object.keys(activeQueries).length,
-    completedQueries: queryHistory.filter(q => q.confidence_score > 0.5).length,
-    failedQueries: queryHistory.filter(q => q.confidence_score <= 0.5).length,
+    completedQueries: queryHistory.queries.filter(q => q.status === 'completed').length,
+    failedQueries: queryHistory.queries.filter(q => q.status === 'failed').length,
   };
 
   // Get recent queries for display
-  const recentQueries = queryHistory.slice(0, 5);
+  const recentQueries = queryHistory.queries.slice(0, 5);
+
+  // Handle analytics tab changes
+  const handleAnalyticsTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setAnalyticsTab(newValue);
+  };
 
   return (
     <Box>
@@ -69,80 +113,180 @@ const Dashboard: React.FC = () => {
         </Typography>
       </Box>
 
-      {/* Statistics Cards */}
+      {/* Enhanced Statistics Cards with Analytics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <FileIcon color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.totalFiles}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Hochgeladene Dateien
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Hochgeladene Dateien"
+            value={stats.totalFiles}
+            subtitle="Gesamt verfügbar"
+            trend={performanceMetrics?.trendsGrowth.files}
+            icon={<FileIcon />}
+            color="primary"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <PendingIcon color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.activeQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Aktive Abfragen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Aktive Abfragen"
+            value={stats.activeQueries}
+            subtitle="Aktuell in Bearbeitung"
+            icon={<PendingIcon />}
+            color="warning"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <CompletedIcon color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.completedQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Abgeschlossen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Erfolgsrate"
+            value={performanceMetrics ? `${performanceMetrics.successRate.toFixed(1)}%` : `${stats.completedQueries}`}
+            subtitle={performanceMetrics ? "Durchschnittliche Erfolgsrate" : "Abgeschlossene Abfragen"}
+            icon={<CompletedIcon />}
+            color="success"
+            loading={analyticsLoading}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                <ErrorIcon color="error" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h4" component="div">
-                    {stats.failedQueries}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    Fehlgeschlagen
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+          <MetricsWidget
+            title="Verarbeitungszeit"
+            value={performanceMetrics ? `${performanceMetrics.averageProcessingTime.toFixed(2)}s` : `${stats.failedQueries}`}
+            subtitle={performanceMetrics ? "Durchschnittliche Zeit" : "Fehlgeschlagene Abfragen"}
+            trend={performanceMetrics?.trendsGrowth.performance}
+            icon={performanceMetrics ? <PerformanceIcon /> : <ErrorIcon />}
+            color={performanceMetrics ? "info" : "error"}
+            loading={analyticsLoading}
+          />
         </Grid>
       </Grid>
+
+      {/* Analytics Section */}
+      {analyticsError && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 3 }}
+          onClose={clearError}
+        >
+          Analytics Error: {analyticsError}
+        </Alert>
+      )}
+
+      <Card sx={{ mb: 4 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={analyticsTab} onChange={handleAnalyticsTabChange}>
+            <Tab 
+              label="Übersicht" 
+              icon={<AnalyticsIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Leistung" 
+              icon={<PerformanceIcon />}
+              iconPosition="start"
+            />
+            <Tab 
+              label="Trends" 
+              icon={<TimelineIcon />}
+              iconPosition="start"
+            />
+          </Tabs>
+        </Box>
+
+        <CardContent>
+          {/* Analytics Overview Tab */}
+          {analyticsTab === 0 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Datei-Upload Trends"
+                  data={fileAnalytics?.uploadTrend || []}
+                  type="area"
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Abfrage-Volumen"
+                  data={queryAnalytics?.volumeTrend || []}
+                  type="line"
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Dateityp-Verteilung"
+                  data={fileAnalytics?.typeBreakdown || []}
+                  type="pie"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Abfrage-Status"
+                  data={queryAnalytics?.statusDistribution || []}
+                  type="pie"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Performance Analysis Tab */}
+          {analyticsTab === 1 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <ProcessingTimeChart
+                  data={queryAnalytics?.processingTimes || []}
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Vertrauens-Score Verteilung"
+                  data={queryAnalytics?.confidenceScores || []}
+                  type="bar"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <ChartWidget
+                  title="Dateigrößen-Verteilung"
+                  data={fileAnalytics?.sizeDistribution || []}
+                  type="bar"
+                  loading={analyticsLoading}
+                />
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Trend Analysis Tab */}
+          {analyticsTab === 2 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TrendAnalysis
+                  data={analyticsData}
+                  loading={analyticsLoading}
+                  timeRange={useAnalyticsStore.getState().timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </CardContent>
+      </Card>
 
       <Grid container spacing={3}>
         {/* Quick Actions */}
@@ -227,16 +371,16 @@ const Dashboard: React.FC = () => {
               ) : (
                 <List dense>
                   {Object.values(activeQueries).map((query) => (
-                    <ListItem key={query.query_id} divider>
+                    <ListItem key={query.queryId} divider>
                       <ListItemIcon>
                         <QueryIcon />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`Abfrage ${query.query_id?.slice(0, 8) || 'Unbekannt'}...`}
+                        primary={`Abfrage ${query.queryId?.slice(0, 8) || 'Unbekannt'}...`}
                         secondary={
                           <Box>
                             <Typography variant="body2" color="text.secondary">
-                              {query.message || 'Wird verarbeitet...'}
+                              {query.status.message || 'Wird verarbeitet...'}
                             </Typography>
                             <LinearProgress 
                               variant="indeterminate"
@@ -246,11 +390,11 @@ const Dashboard: React.FC = () => {
                         }
                       />
                       <Chip
-                        label={query.status || 'processing'}
+                        label={query.status.status || 'processing'}
                         size="small"
                         color={
-                          query.status === 'completed' ? 'success' :
-                          query.status === 'failed' ? 'error' :
+                          query.status.status === 'completed' ? 'success' :
+                          query.status.status === 'failed' ? 'error' :
                           'primary'
                         }
                       />
@@ -282,26 +426,31 @@ const Dashboard: React.FC = () => {
                       divider={index < recentQueries.length - 1}
                     >
                       <ListItemIcon>
-                        {query.confidence_score > 0.5 ? (
+                        {query.status === 'completed' ? (
                           <CompletedIcon color="success" />
-                        ) : (
+                        ) : query.status === 'failed' ? (
                           <ErrorIcon color="error" />
+                        ) : (
+                          <PendingIcon color="warning" />
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={query.original_query || 'Keine Abfrage verfügbar'}
+                        primary={query.message || 'Keine Abfrage verfügbar'}
                         secondary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" color="text.secondary">
-                              Query {query.query_id.slice(0, 8)}... • {new Date().toLocaleString('de-DE')}
+                              Query {query.query_id.slice(0, 8)}... • {new Date(query.created_at).toLocaleString('de-DE')}
                             </Typography>
-                            {query.confidence_score && (
-                              <Chip
-                                label={`${Math.round(query.confidence_score * 100)}% Vertrauen`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            )}
+                            <Chip
+                              label={query.status}
+                              size="small"
+                              variant="outlined"
+                              color={
+                                query.status === 'completed' ? 'success' :
+                                query.status === 'failed' ? 'error' :
+                                'primary'
+                              }
+                            />
                           </Box>
                         }
                       />
@@ -316,7 +465,7 @@ const Dashboard: React.FC = () => {
                 </List>
               )}
               
-              {queryHistory.length > 5 && (
+              {queryHistory.queries.length > 5 && (
                 <Box sx={{ textAlign: 'center', mt: 2 }}>
                   <Button onClick={() => navigate('/history')}>
                     Alle Abfragen anzeigen

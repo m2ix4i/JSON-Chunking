@@ -3,7 +3,7 @@
  * Provides radio-button selection interface with file details.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -23,9 +23,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Checkbox,
-  Toolbar,
-  Divider,
 } from '@mui/material';
 import {
   Description as FileIcon,
@@ -33,9 +30,6 @@ import {
   Error as ErrorIcon,
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
-  SelectAll as SelectAllIcon,
-  ClearAll as ClearAllIcon,
-  DeleteSweep as BulkDeleteIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,6 +38,9 @@ import { useFileSelection, useFileStore } from '@stores/fileStore';
 
 // Utils
 import { formatFileSize, formatTimestamp } from '@utils/time';
+
+// Components
+import VirtualFileList from '@components/common/VirtualFileList';
 
 // Types
 import type { UploadedFile } from '@/types/app';
@@ -75,11 +72,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // Memoize the selected file to avoid unnecessary lookups
-  const selectedFile = useMemo(() => 
-    selectedFileId ? files.find(f => f.file_id === selectedFileId) || null : null,
-    [selectedFileId, files]
-  );
 
   const handleFileSelect = (fileId: string | null) => {
     selectFile(fileId);
@@ -139,26 +131,6 @@ const FileSelector: React.FC<FileSelectorProps> = ({
     setFileToDelete(null);
   };
 
-  // Bulk selection handlers
-  const handleBulkSelect = (fileId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedFiles(prev => [...prev, fileId]);
-    } else {
-      setSelectedFiles(prev => prev.filter(id => id !== fileId));
-    }
-  };
-
-  const handleSelectAll = () => {
-    setSelectedFiles(files.map(f => f.file_id));
-  };
-
-  const handleClearSelection = () => {
-    setSelectedFiles([]);
-  };
-
-  const handleBulkDelete = () => {
-    setBulkDeleteOpen(true);
-  };
 
   const handleBulkDeleteConfirm = async () => {
     try {
@@ -305,18 +277,16 @@ const FileSelector: React.FC<FileSelectorProps> = ({
                   }
                 />
 
-                {/* Delete button - only show in single-selection mode */}
-                {!enableBulkSelection && (
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={(e) => handleDeleteClick(e, file)}
-                    size="small"
-                    sx={{ ml: 1 }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                )}
+                {/* Delete button */}
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={(e) => handleDeleteClick(e, file)}
+                  size="small"
+                  sx={{ ml: 1 }}
+                >
+                  <DeleteIcon />
+                </IconButton>
               </ListItem>
             );
           })}

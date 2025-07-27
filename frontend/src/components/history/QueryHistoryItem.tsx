@@ -163,7 +163,7 @@ const QueryHistoryItem: React.FC<QueryHistoryItemProps> = ({
               fontWeight: 500,
             }}
           >
-            {truncateQuery(query.original_query || 'Abfrage-ID: ' + query.query_id)}
+            {truncateQuery(query.message || 'Abfrage-ID: ' + query.query_id)}
           </Typography>
 
           {/* Progress information for processing queries */}

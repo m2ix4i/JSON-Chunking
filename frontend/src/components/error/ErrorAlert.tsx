@@ -56,18 +56,6 @@ const ErrorAlert: React.FC<ErrorAlertProps> = ({
     }
   };
 
-  const getDefaultTitle = () => {
-    switch (severity) {
-      case 'error':
-        return 'Fehler';
-      case 'warning':
-        return 'Warnung';
-      case 'info':
-        return 'Information';
-      default:
-        return 'Hinweis';
-    }
-  };
 
   return (
     <Alert

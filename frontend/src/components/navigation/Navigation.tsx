@@ -36,7 +36,7 @@ const Navigation: React.FC = () => {
 
   // Count active queries
   const activeQueryCount = Object.values(activeQueries).filter(
-    query => ['started', 'preprocessing', 'processing'].includes(query.status)
+    query => ['started', 'preprocessing', 'processing'].includes(query.status.status)
   ).length;
 
   const isActive = (path: string) => location.pathname === path;

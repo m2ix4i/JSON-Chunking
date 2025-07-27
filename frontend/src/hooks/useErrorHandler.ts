@@ -5,14 +5,31 @@
 import React, { useCallback } from 'react';
 import { useAppStore, useErrorState } from '@stores/appStore';
 import { 
-  normalizeError, 
+  normalizeError as utilsNormalizeError, 
   isRetryableError, 
   getRetryDelay,
-  type AppError 
+  type AppError as UtilsAppError
 } from '@utils/errorUtils';
+import type { AppError, AppPage } from '@/types/app';
+
+// Convert utils AppError to app AppError
+const normalizeError = (error: unknown): AppError => {
+  const utilsError = utilsNormalizeError(error);
+  return {
+    id: Math.random().toString(36).substr(2, 9),
+    type: utilsError.type as AppError['type'],
+    message: utilsError.message,
+    details: utilsError.details,
+    timestamp: new Date(utilsError.timestamp),
+  };
+};
 
 export interface UseErrorHandlerOptions {
-  context?: string;
+  context?: {
+    page: AppPage;
+    action: string;
+    data?: any;
+  };
   maxRetries?: number;
   onError?: (error: AppError) => void;
   onRetry?: (attempt: number) => void;
@@ -51,7 +68,12 @@ export const useErrorHandler = (
   const [retryCount, setRetryCount] = React.useState(0);
 
   const currentError = localError || lastError;
-  const isRetryable = currentError ? isRetryableError(currentError) : false;
+  const isRetryable = currentError ? isRetryableError({
+    type: currentError.type,
+    message: currentError.message,
+    details: currentError.details,
+    timestamp: currentError.timestamp.getTime(),
+  } as UtilsAppError) : false;
   const canRetry = isRetryable && retryCount < maxRetries && !!retryFunction;
 
   const handleError = useCallback((error: unknown) => {

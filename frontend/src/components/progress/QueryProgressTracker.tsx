@@ -2,7 +2,7 @@
  * Real-time query progress tracking component with WebSocket integration.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Card,
@@ -14,12 +14,7 @@ import {
   StepLabel,
   StepContent,
   Chip,
-  Button,
   Alert,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   CircularProgress,
   IconButton,
   Tooltip,
@@ -29,7 +24,6 @@ import {
   Autorenew as ProcessingIcon,
   Assessment as AnalysisIcon,
   CheckCircle as CompleteIcon,
-  Error as ErrorIcon,
   Cancel as CancelIcon,
   Refresh as RefreshIcon,
   Timeline as ProgressIcon,
@@ -41,7 +35,6 @@ import { showErrorNotification, showSuccessNotification } from '@stores/appStore
 
 // Types
 import type { ActiveQuery } from '@/types/app';
-import type { ProgressMessage, WebSocketMessage } from '@/types/api';
 
 interface QueryProgressTrackerProps {
   queryId?: string;
@@ -56,7 +49,6 @@ const QueryProgressTracker: React.FC<QueryProgressTrackerProps> = ({
 }) => {
   const activeQueries = useActiveQueries();
   const { cancelQuery, getQueryResult } = useQueryMonitoring();
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   // Get queries to display
   const queriesToShow = queryId
@@ -170,7 +162,6 @@ const QueryProgressTracker: React.FC<QueryProgressTrackerProps> = ({
   }
 
   const renderQueryProgress = (query: ActiveQuery) => {
-    const isCompleted = ['completed', 'failed', 'cancelled'].includes(query.status.status);
     const canCancel = ['started', 'preprocessing', 'processing'].includes(query.status.status);
 
     return (

@@ -13,9 +13,6 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Card,
-  CardContent,
-  Typography,
 } from 'recharts';
 import { Card, CardContent, Typography } from '@mui/material';
 import { FileUploadTrend, CHART_COLORS } from '@/types/analytics';

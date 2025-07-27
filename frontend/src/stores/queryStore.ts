@@ -4,17 +4,18 @@
  */
 
 import { create } from 'zustand';
+import { apiService } from '@/services/api';
 import type {
   QueryResponse,
   QueryStatusResponse,
   QueryResultResponse,
-  QueryListResponse,
   ProgressMessage,
   ErrorMessage,
   CompletionMessage,
   WebSocketMessage,
 } from '@/types/api';
 import type { WebSocketConnection } from '@/services/websocket';
+import type { ActiveQuery } from '@/types/app';
 
 export interface CurrentQuery {
   text: string;
@@ -87,6 +88,8 @@ interface QueryStore {
   updateHistoryFilters: (filters: Partial<QueryHistoryState['filters']>) => void;
   updateHistoryPagination: (pagination: Partial<QueryHistoryState['pagination']>) => void;
   deleteQuery: (queryId: string) => Promise<void>;
+  cancelQuery: (queryId: string) => Promise<void>;
+  getQueryResult: (queryId: string) => Promise<QueryResultResponse | null>;
   rerunQuery: (queryId: string) => void;
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
@@ -244,7 +247,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     console.log('Received WebSocket message:', message);
     
     switch (message.type) {
-      case 'progress':
+      case 'progress': {
         const progressMsg = message as ProgressMessage;
         set({ 
           lastProgressUpdate: progressMsg,
@@ -260,8 +263,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
           }
         });
         break;
+      }
 
-      case 'error':
+      case 'error': {
         const errorMsg = message as ErrorMessage;
         set({ 
           error: errorMsg.message || 'Query processing error',
@@ -278,8 +282,9 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
           }
         });
         break;
+      }
 
-      case 'completion':
+      case 'completion': {
         const completionMsg = message as CompletionMessage;
         set({ 
           queryResult: completionMsg.result,
@@ -298,6 +303,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
         // Clean up WebSocket connection after completion
         setTimeout(() => get().disconnectWebSocket(), 2000);
         break;
+      }
 
       case 'connected':
         console.log('WebSocket connection confirmed');
@@ -365,7 +371,7 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
   // History actions
   loadQueryHistory: async (params = {}) => {
     const { history } = get();
-    const { page = history.pagination.page, limit = history.pagination.limit, status, search } = params;
+    const { page = history.pagination.page, limit = history.pagination.limit, status } = params;
     
     set((state) => ({
       history: { ...state.history, loading: true, error: null }
@@ -452,25 +458,64 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
     }
   },
 
-  rerunQuery: (queryId: string) => {
+  rerunQuery: async (queryId: string) => {
     // Find the query in history
     const { history } = get();
     const query = history.queries.find(q => q.query_id === queryId);
     
-    if (query && query.original_query) {
-      // Update current query with the previous query text
-      set((state) => ({
-        currentQuery: {
-          ...state.currentQuery,
-          text: query.original_query || '',
+    if (query) {
+      try {
+        // Fetch the full query result to get the original query text
+        const result = await apiService.getQueryResult(queryId);
+        
+        if (result && result.original_query) {
+          // Update current query with the previous query text
+          set((state) => ({
+            currentQuery: {
+              ...state.currentQuery,
+              text: result.original_query || '',
+            }
+          }));
+          
+          console.log('Rerunning query:', result.original_query);
         }
-      }));
-      
-      // Navigate to query page - we'll handle this in the component
-      // For now, just set the query text
-      console.log('Rerunning query:', query.original_query);
+      } catch (error) {
+        console.error('Failed to fetch query result for rerun:', error);
+        // Fallback to using the query message if available
+        set((state) => ({
+          currentQuery: {
+            ...state.currentQuery,
+            text: query.message || '',
+          }
+        }));
+      }
     }
   },
+  
+  cancelQuery: async (queryId: string) => {
+    try {
+      await apiService.cancelQuery(queryId);
+      // Update state to reflect cancellation
+      set((state) => ({
+        activeQuery: state.activeQuery?.query_id === queryId ? null : state.activeQuery,
+        queryStatus: state.queryStatus?.query_id === queryId ? null : state.queryStatus,
+      }));
+    } catch (error) {
+      console.error('Failed to cancel query:', error);
+      throw error;
+    }
+  },
+
+  getQueryResult: async (queryId: string) => {
+    try {
+      const result = await apiService.getQueryResult(queryId);
+      return result;
+    } catch (error) {
+      console.error('Failed to get query result:', error);
+      return null;
+    }
+  },
+  
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),
@@ -480,8 +525,17 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
 
 // Selectors for better performance and component integration
 export const useActiveQueries = () => useQueryStore((state) => {
-  if (!state.activeQuery) return {};
-  return { [state.activeQuery.query_id]: state.activeQuery };
+  if (!state.activeQuery || !state.queryStatus) return {};
+  
+  const activeQuery: ActiveQuery = {
+    queryId: state.activeQuery.query_id,
+    status: state.queryStatus,
+    result: state.queryResult,
+    websocketConnected: state.isConnected,
+    startTime: new Date(), // Fallback since we don't store startTime
+  };
+  
+  return { [state.activeQuery.query_id]: activeQuery };
 });
 
 export const useQueryHistory = () => useQueryStore((state) => state.history);
@@ -509,6 +563,8 @@ export const useQueryMonitoring = () => useQueryStore((state) => ({
   connectionStatus: state.connectionStatus,
   lastProgressUpdate: state.lastProgressUpdate,
   isConnected: state.isConnected,
+  cancelQuery: state.cancelQuery,
+  getQueryResult: state.getQueryResult,
 }));
 
 export const useWebSocketStatus = () => useQueryStore((state) => ({
