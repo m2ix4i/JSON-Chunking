@@ -34,7 +34,7 @@ import {
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 
 interface ApiTestRequest {
-  method: 'GET' | 'POST' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   endpoint: string;
   headers: Record<string, string>;
   body?: string;

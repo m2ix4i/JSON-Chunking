@@ -227,16 +227,16 @@ const Dashboard: React.FC = () => {
               ) : (
                 <List dense>
                   {Object.values(activeQueries).map((query) => (
-                    <ListItem key={query.query_id} divider>
+                    <ListItem key={query.queryId} divider>
                       <ListItemIcon>
                         <QueryIcon />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`Abfrage ${query.query_id?.slice(0, 8) || 'Unbekannt'}...`}
+                        primary={`Abfrage ${query.queryId?.slice(0, 8) || 'Unbekannt'}...`}
                         secondary={
                           <Box>
                             <Typography variant="body2" color="text.secondary">
-                              {query.message || 'Wird verarbeitet...'}
+                              {query.status.message || 'Wird verarbeitet...'}
                             </Typography>
                             <LinearProgress 
                               variant="indeterminate"
@@ -246,11 +246,11 @@ const Dashboard: React.FC = () => {
                         }
                       />
                       <Chip
-                        label={query.status || 'processing'}
+                        label={query.status.status || 'processing'}
                         size="small"
                         color={
-                          query.status === 'completed' ? 'success' :
-                          query.status === 'failed' ? 'error' :
+                          query.status.status === 'completed' ? 'success' :
+                          query.status.status === 'failed' ? 'error' :
                           'primary'
                         }
                       />

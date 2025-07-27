@@ -26,7 +26,7 @@ const normalizeError = (error: unknown): AppError => {
 
 export interface UseErrorHandlerOptions {
   context?: {
-    page: string;
+    page: AppPage;
     action: string;
     data?: any;
   };
@@ -68,7 +68,12 @@ export const useErrorHandler = (
   const [retryCount, setRetryCount] = React.useState(0);
 
   const currentError = localError || lastError;
-  const isRetryable = currentError ? isRetryableError(currentError) : false;
+  const isRetryable = currentError ? isRetryableError({
+    type: currentError.type,
+    message: currentError.message,
+    details: currentError.details,
+    timestamp: currentError.timestamp.getTime(),
+  } as UtilsAppError) : false;
   const canRetry = isRetryable && retryCount < maxRetries && !!retryFunction;
 
   const handleError = useCallback((error: unknown) => {

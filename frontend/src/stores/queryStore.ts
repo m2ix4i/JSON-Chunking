@@ -16,6 +16,7 @@ import type {
   WebSocketMessage,
 } from '@/types/api';
 import type { WebSocketConnection } from '@/services/websocket';
+import type { ActiveQuery } from '@/types/app';
 
 export interface CurrentQuery {
   text: string;
@@ -88,6 +89,8 @@ interface QueryStore {
   updateHistoryFilters: (filters: Partial<QueryHistoryState['filters']>) => void;
   updateHistoryPagination: (pagination: Partial<QueryHistoryState['pagination']>) => void;
   deleteQuery: (queryId: string) => Promise<void>;
+  cancelQuery: (queryId: string) => Promise<void>;
+  getQueryResult: (queryId: string) => Promise<QueryResultResponse | null>;
   rerunQuery: (queryId: string) => void;
   // UI actions
   setIsSubmitting: (submitting: boolean) => void;
@@ -486,6 +489,31 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
       }
     }
   },
+  
+  cancelQuery: async (queryId: string) => {
+    try {
+      await apiService.cancelQuery(queryId);
+      // Update state to reflect cancellation
+      set((state) => ({
+        activeQuery: state.activeQuery?.query_id === queryId ? null : state.activeQuery,
+        queryStatus: state.queryStatus?.query_id === queryId ? null : state.queryStatus,
+      }));
+    } catch (error) {
+      console.error('Failed to cancel query:', error);
+      throw error;
+    }
+  },
+
+  getQueryResult: async (queryId: string) => {
+    try {
+      const result = await apiService.getQueryResult(queryId);
+      return result;
+    } catch (error) {
+      console.error('Failed to get query result:', error);
+      return null;
+    }
+  },
+  
   // UI actions
   setIsSubmitting: (submitting) => set({ isSubmitting: submitting }),
   setIsConnected: (connected) => set({ isConnected: connected }),
@@ -495,8 +523,17 @@ export const useQueryStore = create<QueryStore>((set, get) => ({
 
 // Selectors for better performance and component integration
 export const useActiveQueries = () => useQueryStore((state) => {
-  if (!state.activeQuery) return {};
-  return { [state.activeQuery.query_id]: state.activeQuery };
+  if (!state.activeQuery || !state.queryStatus) return {};
+  
+  const activeQuery: ActiveQuery = {
+    queryId: state.activeQuery.query_id,
+    status: state.queryStatus,
+    result: state.queryResult,
+    websocketConnected: state.isConnected,
+    startTime: new Date(), // Fallback since we don't store startTime
+  };
+  
+  return { [state.activeQuery.query_id]: activeQuery };
 });
 
 export const useQueryHistory = () => useQueryStore((state) => state.history);
@@ -524,6 +561,8 @@ export const useQueryMonitoring = () => useQueryStore((state) => ({
   connectionStatus: state.connectionStatus,
   lastProgressUpdate: state.lastProgressUpdate,
   isConnected: state.isConnected,
+  cancelQuery: state.cancelQuery,
+  getQueryResult: state.getQueryResult,
 }));
 
 export const useWebSocketStatus = () => useQueryStore((state) => ({
