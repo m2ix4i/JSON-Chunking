@@ -211,20 +211,31 @@ const ProcessingTimeChart: React.FC<ProcessingTimeChartProps> = ({
     </ResponsiveContainer>
   );
 
-  // Calculate summary statistics
+  // Calculate total number of queries
+  const calculateTotalQueries = (data: ProcessingTimeData[]) => 
+    data.reduce((sum, item) => sum + item.queryCount, 0);
+
+  // Calculate average processing time
+  const calculateAverageProcessingTime = (data: ProcessingTimeData[]) => 
+    data.reduce((sum, item) => sum + item.averageTime, 0) / data.length;
+
+  // Calculate maximum processing time
+  const calculateMaxProcessingTime = (data: ProcessingTimeData[]) => 
+    Math.max(...data.map(item => item.maxTime));
+
+  // Calculate minimum processing time
+  const calculateMinProcessingTime = (data: ProcessingTimeData[]) => 
+    Math.min(...data.map(item => item.minTime));
+
+  // Calculate summary statistics - simplified orchestration
   const summaryStats = React.useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    const totalQueries = data.reduce((sum, item) => sum + item.queryCount, 0);
-    const avgProcessingTime = data.reduce((sum, item) => sum + item.averageTime, 0) / data.length;
-    const maxProcessingTime = Math.max(...data.map(item => item.maxTime));
-    const minProcessingTime = Math.min(...data.map(item => item.minTime));
-
     return {
-      totalQueries,
-      avgProcessingTime,
-      maxProcessingTime,
-      minProcessingTime,
+      totalQueries: calculateTotalQueries(data),
+      avgProcessingTime: calculateAverageProcessingTime(data),
+      maxProcessingTime: calculateMaxProcessingTime(data),
+      minProcessingTime: calculateMinProcessingTime(data),
     };
   }, [data]);
 

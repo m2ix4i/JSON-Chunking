@@ -1,0 +1,206 @@
+{
+  "name": "IFC JSON Chunking",
+  "short_name": "IFC Chunking",
+  "description": "Plattform für die Analyse und Verwaltung von IFC JSON-Dateien mit intelligenter Chunking-Technologie für die deutsche Bauindustrie",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "lang": "de",
+  "dir": "ltr",
+  "categories": ["productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "IFC JSON Chunking Desktop Ansicht"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "IFC JSON Chunking Mobile Ansicht"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Neue Datei hochladen",
+      "short_name": "Upload",
+      "description": "IFC JSON-Datei direkt hochladen",
+      "url": "/upload",
+      "icons": [
+        {
+          "src": "/icon-upload.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Neue Abfrage",
+      "short_name": "Query",
+      "description": "Neue Abfrage erstellen",
+      "url": "/query",
+      "icons": [
+        {
+          "src": "/icon-query.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Übersicht und Statistiken",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-dashboard.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Verlauf",
+      "short_name": "History",
+      "description": "Abfragenverlauf einsehen",
+      "url": "/history",
+      "icons": [
+        {
+          "src": "/icon-history.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/upload",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "file",
+          "accept": [".json", "application/json"]
+        }
+      ]
+    }
+  },
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+ifc",
+      "url": "/upload?from=%s"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "application/json": [".json"],
+        "text/json": [".json"]
+      }
+    }
+  ],
+  "handle_links": "preferred",
+  "id": "ifc-json-chunking",
+  "iarc_rating_id": "",
+  "features": [
+    "offline-support",
+    "background-sync",
+    "push-notifications",
+    "file-handling",
+    "share-target"
+  ],
+  "developer": {
+    "name": "IFC JSON Chunking Team",
+    "url": "https://github.com/ifc-json-chunking"
+  },
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "background-sync",
+    "push",
+    "file-system-access"
+  ],
+  "custom": {
+    "offline_first": true,
+    "analytics_enabled": true,
+    "auto_update": true,
+    "cache_strategy": "network-first-api",
+    "supported_file_types": ["json"],
+    "max_file_size": "100MB",
+    "supported_languages": ["de", "en"]
+  }
+}

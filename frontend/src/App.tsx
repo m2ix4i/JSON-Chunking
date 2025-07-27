@@ -1,29 +1,55 @@
 /**
  * Main App component for IFC JSON Chunking Frontend.
- * Sets up theme, routing, and global providers.
+ * Sets up theme, routing, and global providers with performance optimizations.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
+import { CssBaseline, Box, CircularProgress, Skeleton } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Store hooks
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
-// Components
+// PWA Services
+import { serviceWorkerManager } from '@services/serviceWorker';
+
+// Components (non-lazy)
 import Layout from '@components/layout/Layout';
-import Dashboard from '@pages/Dashboard';
-import UploadPage from '@pages/UploadPage';
-import QueryPage from '@pages/QueryPage';
-import ResultsPage from '@pages/ResultsPage';
-import HistoryPage from '@pages/HistoryPage';
-import SettingsPage from '@pages/SettingsPage';
-import { DocumentationPage } from '@pages/DocumentationPage';
 import NotificationContainer from '@components/notifications/NotificationContainer';
 import ErrorBoundary from '@components/error/ErrorBoundary';
+import PerformanceIndicator from '@components/common/PerformanceIndicator';
+
+// Lazy-loaded page components
+const Dashboard = lazy(() => import('@pages/Dashboard'));
+const UploadPage = lazy(() => import('@pages/UploadPage'));
+const QueryPage = lazy(() => import('@pages/QueryPage'));
+const ResultsPage = lazy(() => import('@pages/ResultsPage'));
+const HistoryPage = lazy(() => import('@pages/HistoryPage'));
+const SettingsPage = lazy(() => import('@pages/SettingsPage'));
+const DocumentationPage = lazy(() => import('@pages/DocumentationPage').then(module => ({ 
+  default: module.DocumentationPage 
+})));
+
+// Loading fallback component
+const PageLoadingFallback: React.FC = () => (
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: '60vh',
+      gap: 2
+    }}
+  >
+    <CircularProgress size={40} />
+    <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 2 }} />
+    <Skeleton variant="rectangular" width="80%" height={100} sx={{ borderRadius: 2 }} />
+  </Box>
+);
 
 // Query client configuration
 const queryClient = new QueryClient({
@@ -48,9 +74,65 @@ const App: React.FC = () => {
   const darkMode = useDarkMode();
   const initialize = useAppStore((state) => state.initialize);
 
-  // Initialize app on mount
+  // Initialize app and PWA features on mount
   useEffect(() => {
-    initialize();
+    const initializeApp = async () => {
+      // Initialize app store
+      initialize();
+      
+      // Initialize PWA features
+      if (import.meta.env.PROD) {
+        try {
+          console.log('🔧 Initializing PWA features...');
+          
+          // Register service worker
+          await serviceWorkerManager.register();
+          
+          // Set up PWA event callbacks
+          serviceWorkerManager.setCallbacks({
+            onStatusChange: (status) => {
+              console.log('📱 PWA Status changed:', status);
+              
+              // You can dispatch to a PWA store or show notifications here
+              if (status.updateAvailable) {
+                console.log('📥 Service Worker update available');
+                // Could show update notification here
+              }
+              
+              if (status.isInstallable) {
+                console.log('💾 PWA installation available');
+                // Could show install prompt here
+              }
+            },
+            
+            onUpdateAvailable: (event) => {
+              console.log('🔄 Service Worker update detected:', event.type);
+              // Could show update notification component here
+            },
+            
+            onInstallPrompt: (event) => {
+              console.log('📱 PWA install prompt available');
+              // Store the install event for later use
+              // Could show custom install UI here
+            },
+            
+            onError: (error) => {
+              console.error('❌ PWA Error:', error);
+              // Handle PWA errors gracefully
+            }
+          });
+          
+          console.log('✅ PWA features initialized successfully');
+        } catch (error) {
+          console.error('❌ Failed to initialize PWA features:', error);
+          // PWA features are optional, continue without them
+        }
+      } else {
+        console.log('⚠️ PWA features disabled in development mode');
+      }
+    };
+    
+    initializeApp();
   }, [initialize]);
 
   // Create Material-UI theme
@@ -163,26 +245,31 @@ const App: React.FC = () => {
           <Router>
             <Box sx={{ display: 'flex', minHeight: '100vh' }}>
               <Layout>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/upload" element={<UploadPage />} />
-                  <Route path="/query" element={<QueryPage />} />
-                  <Route path="/results" element={<ResultsPage />} />
-                  <Route path="/results/:queryId" element={<ResultsPage />} />
-                  <Route path="/history" element={<HistoryPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/docs" element={<DocumentationPage />} />
-                  <Route path="/documentation" element={<DocumentationPage />} />
-                  {/* Catch-all route */}
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/upload" element={<UploadPage />} />
+                    <Route path="/query" element={<QueryPage />} />
+                    <Route path="/results" element={<ResultsPage />} />
+                    <Route path="/results/:queryId" element={<ResultsPage />} />
+                    <Route path="/history" element={<HistoryPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/docs" element={<DocumentationPage />} />
+                    <Route path="/documentation" element={<DocumentationPage />} />
+                    {/* Catch-all route */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </Suspense>
               </Layout>
             </Box>
           </Router>
           
           {/* Global notification container */}
           <NotificationContainer />
+          
+          {/* Performance monitoring (only in development) */}
+          {import.meta.env.DEV && <PerformanceIndicator showDetailedMetrics />}
           
           {/* React Query DevTools (only in development) */}
           {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

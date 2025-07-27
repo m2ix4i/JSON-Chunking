@@ -92,126 +92,158 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
     setActiveTab(newValue);
   };
 
-  // Generate insights based on the data
-  const generateInsights = React.useMemo(() => {
-    if (!data) return [];
-
-    const insights = [];
-
-    // File upload trends
-    const fileUploadTrend = data.fileAnalytics.uploadTrend;
-    if (fileUploadTrend.length > 1) {
-      const recent = fileUploadTrend.slice(-3);
-      const older = fileUploadTrend.slice(-6, -3);
-      
-      const recentAvg = recent.reduce((sum, item) => sum + item.uploads, 0) / recent.length;
-      const olderAvg = older.reduce((sum, item) => sum + item.uploads, 0) / older.length;
-      
-      if (recentAvg > olderAvg * 1.2) {
-        insights.push({
-          type: 'positive',
-          title: 'Upload Activity Increasing',
-          description: `File uploads have increased by ${Math.round(((recentAvg - olderAvg) / olderAvg) * 100)}% recently.`,
-          icon: <TrendUpIcon color="success" />,
-        });
-      } else if (recentAvg < olderAvg * 0.8) {
-        insights.push({
-          type: 'negative',
-          title: 'Upload Activity Declining',
-          description: `File uploads have decreased by ${Math.round(((olderAvg - recentAvg) / olderAvg) * 100)}% recently.`,
-          icon: <TrendDownIcon color="error" />,
-        });
-      }
+  // Analyze file upload trends
+  const analyzeFileUploadTrends = (fileUploadTrend: FileUploadTrend[]) => {
+    if (fileUploadTrend.length <= 1) return null;
+    
+    const recent = fileUploadTrend.slice(-3);
+    const older = fileUploadTrend.slice(-6, -3);
+    
+    if (older.length === 0) return null;
+    
+    const recentAvg = recent.reduce((sum, item) => sum + item.uploads, 0) / recent.length;
+    const olderAvg = older.reduce((sum, item) => sum + item.uploads, 0) / older.length;
+    
+    if (recentAvg > olderAvg * 1.2) {
+      return {
+        type: 'positive',
+        title: 'Upload Activity Increasing',
+        description: `File uploads have increased by ${Math.round(((recentAvg - olderAvg) / olderAvg) * 100)}% recently.`,
+        icon: <TrendUpIcon color="success" />,
+      };
+    } else if (recentAvg < olderAvg * 0.8) {
+      return {
+        type: 'negative',
+        title: 'Upload Activity Declining',
+        description: `File uploads have decreased by ${Math.round(((olderAvg - recentAvg) / olderAvg) * 100)}% recently.`,
+        icon: <TrendDownIcon color="error" />,
+      };
     }
+    
+    return null;
+  };
 
-    // Query performance trends
-    const processingTimes = data.queryAnalytics.processingTimes;
-    if (processingTimes.length > 1) {
-      const recent = processingTimes.slice(-3);
-      const older = processingTimes.slice(-6, -3);
-      
-      const recentAvg = recent.reduce((sum, item) => sum + item.averageTime, 0) / recent.length;
-      const olderAvg = older.reduce((sum, item) => sum + item.averageTime, 0) / older.length;
-      
-      if (recentAvg < olderAvg * 0.9) {
-        insights.push({
-          type: 'positive',
-          title: 'Performance Improving',
-          description: `Query processing time has improved by ${Math.round(((olderAvg - recentAvg) / olderAvg) * 100)}%.`,
-          icon: <TrendUpIcon color="success" />,
-        });
-      } else if (recentAvg > olderAvg * 1.1) {
-        insights.push({
-          type: 'warning',
-          title: 'Performance Degrading',
-          description: `Query processing time has increased by ${Math.round(((recentAvg - olderAvg) / olderAvg) * 100)}%.`,
-          icon: <TrendDownIcon color="warning" />,
-        });
-      }
+  // Analyze query performance trends
+  const analyzeQueryPerformanceTrends = (processingTimes: ProcessingTimeData[]) => {
+    if (processingTimes.length <= 1) return null;
+    
+    const recent = processingTimes.slice(-3);
+    const older = processingTimes.slice(-6, -3);
+    
+    if (older.length === 0) return null;
+    
+    const recentAvg = recent.reduce((sum, item) => sum + item.averageTime, 0) / recent.length;
+    const olderAvg = older.reduce((sum, item) => sum + item.averageTime, 0) / older.length;
+    
+    if (recentAvg < olderAvg * 0.9) {
+      return {
+        type: 'positive',
+        title: 'Performance Improving',
+        description: `Query processing time has improved by ${Math.round(((olderAvg - recentAvg) / olderAvg) * 100)}%.`,
+        icon: <TrendUpIcon color="success" />,
+      };
+    } else if (recentAvg > olderAvg * 1.1) {
+      return {
+        type: 'warning',
+        title: 'Performance Degrading',
+        description: `Query processing time has increased by ${Math.round(((recentAvg - olderAvg) / olderAvg) * 100)}%.`,
+        icon: <TrendDownIcon color="warning" />,
+      };
     }
+    
+    return null;
+  };
 
-    // Success rate analysis
-    const metrics = data.performanceMetrics;
-    if (metrics.successRate < 85) {
-      insights.push({
+  // Analyze success rate metrics
+  const analyzeSuccessRate = (successRate: number) => {
+    if (successRate < 85) {
+      return {
         type: 'negative',
         title: 'Low Success Rate',
-        description: `Current success rate of ${metrics.successRate.toFixed(1)}% is below optimal threshold.`,
+        description: `Current success rate of ${successRate.toFixed(1)}% is below optimal threshold.`,
         icon: <AnalyticsIcon color="error" />,
-      });
-    } else if (metrics.successRate > 95) {
-      insights.push({
+      };
+    } else if (successRate > 95) {
+      return {
         type: 'positive',
         title: 'Excellent Success Rate',
-        description: `Outstanding success rate of ${metrics.successRate.toFixed(1)}% indicates reliable performance.`,
+        description: `Outstanding success rate of ${successRate.toFixed(1)}% indicates reliable performance.`,
         icon: <AnalyticsIcon color="success" />,
-      });
+      };
     }
+    
+    return null;
+  };
 
+  // Generate insights based on the data - simplified main function
+  const generateInsights = React.useMemo(() => {
+    if (!data) return [];
+    
+    const insights = [
+      analyzeFileUploadTrends(data.fileAnalytics.uploadTrend),
+      analyzeQueryPerformanceTrends(data.queryAnalytics.processingTimes),
+      analyzeSuccessRate(data.performanceMetrics.successRate),
+    ].filter(Boolean);
+    
     return insights;
   }, [data]);
 
-  // Combined trend data for correlation analysis
-  const combinedTrendData = React.useMemo(() => {
-    if (!data) return [];
-
-    const fileUploads = data.fileAnalytics.uploadTrend;
-    const queryVolume = data.queryAnalytics.volumeTrend;
-    const processingTimes = data.queryAnalytics.processingTimes;
-
-    // Combine data by date
-    const combinedMap = new Map();
-
+  // Transform file upload data
+  const transformFileUploadData = (fileUploads: FileUploadTrend[]) => {
+    const dataMap = new Map();
     fileUploads.forEach(item => {
-      combinedMap.set(item.date, { 
+      dataMap.set(item.date, { 
         date: item.date, 
         uploads: item.uploads,
         totalSize: item.totalSize 
       });
     });
+    return dataMap;
+  };
 
+  // Transform query volume data
+  const transformQueryVolumeData = (queryVolume: QueryVolumeData[], dataMap: Map<string, any>) => {
     queryVolume.forEach(item => {
-      const existing = combinedMap.get(item.date) || { date: item.date };
-      combinedMap.set(item.date, {
+      const existing = dataMap.get(item.date) || { date: item.date };
+      dataMap.set(item.date, {
         ...existing,
         queries: item.total,
         completed: item.completed,
         failed: item.failed,
       });
     });
+    return dataMap;
+  };
 
+  // Transform processing time data
+  const transformProcessingTimeData = (processingTimes: ProcessingTimeData[], dataMap: Map<string, any>) => {
     processingTimes.forEach(item => {
-      const existing = combinedMap.get(item.date) || { date: item.date };
-      combinedMap.set(item.date, {
+      const existing = dataMap.get(item.date) || { date: item.date };
+      dataMap.set(item.date, {
         ...existing,
         avgProcessingTime: item.averageTime,
         queryCount: item.queryCount,
       });
     });
+    return dataMap;
+  };
 
-    return Array.from(combinedMap.values()).sort((a, b) => 
+  // Sort combined data by date
+  const sortCombinedDataByDate = (dataMap: Map<string, any>) => {
+    return Array.from(dataMap.values()).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+  };
+
+  // Combined trend data for correlation analysis - simplified orchestration
+  const combinedTrendData = React.useMemo(() => {
+    if (!data) return [];
+
+    let combinedMap = transformFileUploadData(data.fileAnalytics.uploadTrend);
+    combinedMap = transformQueryVolumeData(data.queryAnalytics.volumeTrend, combinedMap);
+    combinedMap = transformProcessingTimeData(data.queryAnalytics.processingTimes, combinedMap);
+    
+    return sortCombinedDataByDate(combinedMap);
   }, [data]);
 
   if (loading) {
