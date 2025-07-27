@@ -49,6 +49,7 @@ const mapFileStatusToUploadedFile = (fileStatus: FileStatusResponse): UploadedFi
     status: fileStatus.status,
     validation_result: fileStatus.processing_metadata ? {
       is_valid: true,
+      json_structure_valid: true,
       estimated_chunks: fileStatus.processing_metadata.chunk_count || 0,
       estimated_tokens: fileStatus.processing_metadata.estimated_tokens || 0,
       processing_time: fileStatus.processing_metadata.processing_time || 0,

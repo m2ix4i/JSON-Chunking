@@ -219,7 +219,7 @@ export const getBrowserLanguage = (): 'de' | 'en' => {
  */
 export const migrateSettings = (settings: any, fromVersion: string, toVersion: string): UserSettings => {
   // Currently no migration needed, but structure for future use
-  let migrated = { ...settings };
+  const migrated = { ...settings };
   
   // Example migration logic for future versions:
   // if (fromVersion === '1.0' && toVersion === '1.1') {

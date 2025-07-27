@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .bg { fill: #1976d2; }
+      .text { fill: white; font-family: Arial, sans-serif; font-weight: bold; text-anchor: middle; dominant-baseline: middle; }
+      .title { font-size: 32px; }
+      .subtitle { font-size: 16px; }
+      .border { stroke: white; stroke-width: 3; fill: none; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="192" height="192" class="bg"/>
+  
+  
+  
+  <!-- IFC Text -->
+  <text x="96" y="80" class="text title " >IFC</text>
+  <text x="96" y="112" class="text subtitle " >JSON</text>
+  
+  <!-- Building icon -->
+  <rect x="72" y="128" width="48" height="24" class="border" />
+  <rect x="84" y="138.66666666666666" width="24" height="12" class="border" />
+</svg>

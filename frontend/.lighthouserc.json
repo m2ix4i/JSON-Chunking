@@ -1,0 +1,131 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:4173",
+        "http://localhost:4173/upload",
+        "http://localhost:4173/query",
+        "http://localhost:4173/dashboard"
+      ],
+      "startServerCommand": "npm run preview",
+      "startServerReadyPattern": "Local:.*:4173",
+      "startServerReadyTimeout": 30000,
+      "numberOfRuns": 3,
+      "settings": {
+        "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
+        "preset": "desktop",
+        "throttlingMethod": "devtools",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1,
+          "requestLatencyMs": 0,
+          "downloadThroughputKbps": 0,
+          "uploadThroughputKbps": 0
+        },
+        "emulatedFormFactor": "desktop",
+        "auditMode": false,
+        "gatherMode": false,
+        "disableDeviceEmulation": true,
+        "budgets": [
+          {
+            "path": "/*",
+            "timings": [
+              {
+                "metric": "first-contentful-paint",
+                "budget": 2000
+              },
+              {
+                "metric": "largest-contentful-paint", 
+                "budget": 3000
+              },
+              {
+                "metric": "interactive",
+                "budget": 4000
+              },
+              {
+                "metric": "first-meaningful-paint",
+                "budget": 2500
+              }
+            ],
+            "resourceSizes": [
+              {
+                "resourceType": "script",
+                "budget": 500
+              },
+              {
+                "resourceType": "stylesheet",
+                "budget": 100
+              },
+              {
+                "resourceType": "image",
+                "budget": 200
+              },
+              {
+                "resourceType": "document",
+                "budget": 50
+              },
+              {
+                "resourceType": "font",
+                "budget": 100
+              },
+              {
+                "resourceType": "total",
+                "budget": 1000
+              }
+            ],
+            "resourceCounts": [
+              {
+                "resourceType": "script",
+                "budget": 10
+              },
+              {
+                "resourceType": "stylesheet",
+                "budget": 5
+              },
+              {
+                "resourceType": "image",
+                "budget": 20
+              },
+              {
+                "resourceType": "total",
+                "budget": 50
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "assert": {
+      "preset": "lighthouse:recommended",
+      "assertions": {
+        "first-contentful-paint": ["error", {"maxNumericValue": 2000}],
+        "largest-contentful-paint": ["error", {"maxNumericValue": 3000}],
+        "interactive": ["warn", {"maxNumericValue": 4000}],
+        "cumulative-layout-shift": ["error", {"maxNumericValue": 0.1}],
+        "speed-index": ["warn", {"maxNumericValue": 3000}],
+        "total-blocking-time": ["warn", {"maxNumericValue": 300}],
+        
+        "uses-long-cache-ttl": "warn",
+        "uses-optimized-images": "warn",
+        "modern-image-formats": "warn",
+        "unused-css-rules": "warn",
+        "unused-javascript": "warn",
+        "render-blocking-resources": "warn",
+        "unminified-css": "error",
+        "unminified-javascript": "error",
+        "efficient-animated-content": "warn",
+        "uses-text-compression": "error",
+        "uses-responsive-images": "warn",
+        
+        "categories:performance": ["error", {"minScore": 0.85}],
+        "categories:accessibility": ["warn", {"minScore": 0.90}],
+        "categories:best-practices": ["warn", {"minScore": 0.85}],
+        "categories:seo": ["warn", {"minScore": 0.80}]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}

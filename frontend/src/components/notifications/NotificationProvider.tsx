@@ -17,7 +17,7 @@ import {
 } from '@mui/icons-material';
 import { TransitionProps } from '@mui/material/transitions';
 import { useNotifications } from '@stores/appStore';
-import useAppStore from '@stores/appStore';
+import { useAppStore } from '@stores/appStore';
 
 interface SlideTransitionProps extends TransitionProps {
   children: React.ReactElement<any, any>;

@@ -5,15 +5,16 @@ Command-line interface for IFC JSON Chunking system.
 import asyncio
 from pathlib import Path
 from typing import Optional
+
+import structlog
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
-import structlog
 
 from .config import Config
 from .core import ChunkingEngine
-from .logging import configure_logging
 from .exceptions import IFCChunkingError
+from .logging import configure_logging
 
 app = typer.Typer(
     name="ifc-chunking",
@@ -38,14 +39,14 @@ def process(
         # Load configuration
         config = _load_config(config_file, output_dir, chunk_size, max_workers, log_level)
         configure_logging(config)
-        
+
         if verbose:
             console.print(f"[green]Processing file:[/green] {file_path}")
             console.print(f"[green]Configuration:[/green] {config}")
-        
+
         # Run async processing
         asyncio.run(_process_file_async(file_path, config, verbose))
-        
+
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         logger.exception("Processing failed", file_path=str(file_path))
@@ -64,12 +65,12 @@ def serve(
     try:
         config = _load_config(config_file, log_level=log_level)
         configure_logging(config)
-        
+
         console.print(f"[green]Starting server on[/green] http://{host}:{port}")
-        
+
         # Placeholder for web service startup
         console.print("[yellow]Web service not implemented yet[/yellow]")
-        
+
     except Exception as e:
         console.print(f"[red]Error starting server:[/red] {e}")
         logger.exception("Server startup failed")
@@ -86,12 +87,12 @@ def validate(
     try:
         config = _load_config(config_file, log_level=log_level)
         configure_logging(config)
-        
+
         console.print(f"[green]Validating file:[/green] {file_path}")
-        
+
         # Placeholder for validation logic
         console.print("[yellow]Validation not implemented yet[/yellow]")
-        
+
     except Exception as e:
         console.print(f"[red]Validation error:[/red] {e}")
         logger.exception("Validation failed", file_path=str(file_path))
@@ -107,7 +108,7 @@ def config_show(
         config = _load_config(config_file)
         console.print("[green]Current Configuration:[/green]")
         console.print_json(data=config.to_dict())
-        
+
     except Exception as e:
         console.print(f"[red]Configuration error:[/red] {e}")
         raise typer.Exit(1)
@@ -130,7 +131,7 @@ async def _process_file_async(file_path: Path, config: Config, verbose: bool) ->
         verbose: Whether to show verbose output
     """
     engine = ChunkingEngine(config)
-    
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -138,15 +139,15 @@ async def _process_file_async(file_path: Path, config: Config, verbose: bool) ->
         disable=not verbose
     ) as progress:
         task = progress.add_task("Processing file...", total=None)
-        
+
         try:
             metadata = await engine.process_file(file_path)
             progress.update(task, description="Processing complete!")
-            
+
             if verbose:
                 console.print("[green]Processing Results:[/green]")
                 console.print_json(data=metadata)
-                
+
         except IFCChunkingError as e:
             progress.update(task, description="Processing failed!")
             raise e
@@ -177,7 +178,7 @@ def _load_config(
         config = Config.from_file(config_file)
     else:
         config = Config()
-    
+
     # Apply CLI overrides
     if output_dir:
         config.output_directory = output_dir
@@ -187,7 +188,7 @@ def _load_config(
         config.max_workers = max_workers
     if log_level:
         config.log_level = log_level
-    
+
     return config
 
 

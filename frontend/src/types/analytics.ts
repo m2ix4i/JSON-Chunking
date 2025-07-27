@@ -1,30 +1,23 @@
 /**
- * Analytics Types - Comprehensive type definitions for dashboard analytics
- * Supports file analytics, query analytics, performance metrics, and visualization
+ * Analytics types and interfaces for the dashboard
  */
 
-// Time range options for analytics
-export type TimeRange = '24h' | '7d' | '30d' | '90d' | 'all';
+// Time-based data point interface
+export interface TimeDataPoint {
+  date: string;
+  value: number;
+  label?: string;
+}
 
-// Export format options
-export type ExportFormat = 'png' | 'svg' | 'pdf' | 'csv' | 'json';
+// Chart data interfaces
+export interface ChartData {
+  name: string;
+  value: number;
+  fill?: string;
+  color?: string;
+}
 
-// Chart color scheme
-export const CHART_COLORS = {
-  primary: '#1976d2',
-  secondary: '#dc004e', 
-  success: '#2e7d32',
-  warning: '#ed6c02',
-  error: '#d32f2f',
-  info: '#0288d1',
-  chart: [
-    '#1976d2', '#dc004e', '#2e7d32', '#ed6c02', 
-    '#0288d1', '#7b1fa2', '#388e3c', '#f57c00',
-    '#5d4037', '#616161', '#455a64', '#e91e63'
-  ],
-} as const;
-
-// File Analytics Types
+// File analytics interfaces
 export interface FileUploadTrend {
   date: string;
   uploads: number;
@@ -51,14 +44,7 @@ export interface FileActivityData {
   label: string;
 }
 
-export interface FileAnalytics {
-  uploadTrend: FileUploadTrend[];
-  sizeDistribution: FileSizeDistribution[];
-  typeBreakdown: FileTypeBreakdown[];
-  activityHeatmap: FileActivityData[];
-}
-
-// Query Analytics Types
+// Query analytics interfaces
 export interface QueryVolumeData {
   date: string;
   total: number;
@@ -88,181 +74,85 @@ export interface ConfidenceScoreData {
   percentage: number;
 }
 
-export interface QueryAnalytics {
-  volumeTrend: QueryVolumeData[];
-  statusDistribution: QueryStatusDistribution[];
-  processingTimes: ProcessingTimeData[];
-  confidenceScores: ConfidenceScoreData[];
-}
-
-// Performance Metrics Types
-export interface TrendsGrowth {
-  files: number;
-  queries: number;
-  performance: number;
-}
-
+// Performance metrics
 export interface PerformanceMetrics {
   averageProcessingTime: number;
   successRate: number;
   totalQueries: number;
   totalFiles: number;
   averageConfidenceScore: number;
-  trendsGrowth: TrendsGrowth;
+  trendsGrowth: {
+    files: number;
+    queries: number;
+    performance: number;
+  };
 }
 
-// Main Dashboard Data Interface
+// Time range options
+export type TimeRange = '24h' | '7d' | '30d' | '90d' | 'all';
+
+export interface TimeRangeOption {
+  value: TimeRange;
+  label: string;
+  days?: number;
+}
+
+// Analytics dashboard data
 export interface AnalyticsDashboardData {
-  fileAnalytics: FileAnalytics;
-  queryAnalytics: QueryAnalytics;
+  fileAnalytics: {
+    uploadTrend: FileUploadTrend[];
+    sizeDistribution: FileSizeDistribution[];
+    typeBreakdown: FileTypeBreakdown[];
+    activityHeatmap: FileActivityData[];
+  };
+  queryAnalytics: {
+    volumeTrend: QueryVolumeData[];
+    statusDistribution: QueryStatusDistribution[];
+    processingTimes: ProcessingTimeData[];
+    confidenceScores: ConfidenceScoreData[];
+  };
   performanceMetrics: PerformanceMetrics;
   lastUpdated: Date;
 }
 
-// Chart Component Props
-export interface ChartWidgetProps {
-  title: string;
-  data: any[];
-  type: 'line' | 'bar' | 'pie' | 'area' | 'scatter';
-  height?: number;
-  showExport?: boolean;
-  loading?: boolean;
-  error?: string | null;
-  timeRange?: TimeRange;
-  onTimeRangeChange?: (range: TimeRange) => void;
-}
+// Chart theme colors
+export const CHART_COLORS = {
+  primary: '#1976d2',
+  secondary: '#dc004e',
+  success: '#2e7d32',
+  warning: '#ed6c02',
+  error: '#d32f2f',
+  info: '#0288d1',
+  grey: '#757575',
+  chart: [
+    '#1976d2', // Blue
+    '#dc004e', // Pink
+    '#2e7d32', // Green
+    '#ed6c02', // Orange
+    '#9c27b0', // Purple
+    '#d32f2f', // Red
+    '#0288d1', // Light Blue
+    '#f57c00', // Amber
+    '#5d4037', // Brown
+    '#607d8b', // Blue Grey
+  ],
+} as const;
 
-export interface MetricsWidgetProps {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  trend?: number;
-  icon?: React.ReactNode;
-  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
-  loading?: boolean;
-}
-
-// Analytics Store Types
-export interface AnalyticsState {
-  // Data
-  dashboardData: AnalyticsDashboardData | null;
-  isLoading: boolean;
-  error: string | null;
-  
-  // Configuration
+// Chart configuration options
+export interface ChartConfig {
   timeRange: TimeRange;
-  refreshInterval: number;
-  autoRefresh: boolean;
-  
-  // UI State
-  selectedChart: string | null;
-  exportFormat: ExportFormat;
+  refreshInterval: number; // in milliseconds
+  animationDuration: number;
+  showLegend: boolean;
+  showTooltip: boolean;
+  responsive: boolean;
 }
 
-export interface AnalyticsActions {
-  // Data fetching
-  fetchAnalytics: () => Promise<void>;
-  refreshData: () => Promise<void>;
-  
-  // Configuration
-  setTimeRange: (range: TimeRange) => void;
-  setRefreshInterval: (interval: number) => void;
-  toggleAutoRefresh: () => void;
-  
-  // UI actions
-  setSelectedChart: (chartId: string | null) => void;
-  setExportFormat: (format: ExportFormat) => void;
-  
-  // Export functionality
-  exportChart: (chartId: string, format: ExportFormat) => Promise<void>;
-  exportReport: (format: ExportFormat) => Promise<void>;
-  
-  // Error handling
-  clearError: () => void;
-  setError: (error: string) => void;
-}
-
-// Combined store interface
-export interface AnalyticsStore extends AnalyticsState, AnalyticsActions {}
-
-// Chart-specific data interfaces
-export interface LineChartData {
-  x: string | number;
-  y: number;
-  [key: string]: any;
-}
-
-export interface BarChartData {
-  name: string;
-  value: number;
-  [key: string]: any;
-}
-
-export interface PieChartData {
-  name: string;
-  value: number;
-  color?: string;
-}
-
-export interface AreaChartData {
-  x: string | number;
-  y: number;
-  [key: string]: any;
-}
-
-// Utility types for chart components
-export type ChartDataType = LineChartData[] | BarChartData[] | PieChartData[] | AreaChartData[];
-
-export interface ChartTheme {
-  colors: string[];
-  background: string;
-  textColor: string;
-  gridColor: string;
-  strokeWidth: number;
-}
-
-// Analytics API response types
-export interface AnalyticsApiResponse {
-  success: boolean;
-  data: AnalyticsDashboardData;
-  message?: string;
-  timestamp: string;
-}
-
-export interface AnalyticsApiError {
-  success: false;
-  error: string;
-  code: number;
-  timestamp: string;
-}
-
-// Real-time update types
-export interface AnalyticsUpdate {
-  type: 'file_upload' | 'query_complete' | 'query_start' | 'system_update';
-  data: any;
-  timestamp: Date;
-}
-
-// Filter and comparison types
-export interface AnalyticsFilter {
-  dateRange: {
-    start: Date;
-    end: Date;
-  };
-  fileTypes?: string[];
-  queryTypes?: string[];
-  minConfidence?: number;
-  maxProcessingTime?: number;
-}
-
-export interface ComparisonMetrics {
-  current: PerformanceMetrics;
-  previous: PerformanceMetrics;
-  comparison: {
-    files: number;
-    queries: number;
-    successRate: number;
-    avgProcessingTime: number;
-    avgConfidence: number;
-  };
-}
+export const DEFAULT_CHART_CONFIG: ChartConfig = {
+  timeRange: '7d',
+  refreshInterval: 30000, // 30 seconds
+  animationDuration: 300,
+  showLegend: true,
+  showTooltip: true,
+  responsive: true,
+};

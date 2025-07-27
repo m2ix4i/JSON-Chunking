@@ -13,6 +13,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 // Store hooks
 import { useAppStore, useDarkMode } from '@stores/appStore';
 
+// PWA Services
+import { serviceWorkerManager } from '@services/serviceWorker';
+
 // Components (non-lazy)
 import Layout from '@components/layout/Layout';
 import NotificationContainer from '@components/notifications/NotificationContainer';
@@ -71,9 +74,65 @@ const App: React.FC = () => {
   const darkMode = useDarkMode();
   const initialize = useAppStore((state) => state.initialize);
 
-  // Initialize app on mount
+  // Initialize app and PWA features on mount
   useEffect(() => {
-    initialize();
+    const initializeApp = async () => {
+      // Initialize app store
+      initialize();
+      
+      // Initialize PWA features
+      if (import.meta.env.PROD) {
+        try {
+          console.log('🔧 Initializing PWA features...');
+          
+          // Register service worker
+          await serviceWorkerManager.register();
+          
+          // Set up PWA event callbacks
+          serviceWorkerManager.setCallbacks({
+            onStatusChange: (status) => {
+              console.log('📱 PWA Status changed:', status);
+              
+              // You can dispatch to a PWA store or show notifications here
+              if (status.updateAvailable) {
+                console.log('📥 Service Worker update available');
+                // Could show update notification here
+              }
+              
+              if (status.isInstallable) {
+                console.log('💾 PWA installation available');
+                // Could show install prompt here
+              }
+            },
+            
+            onUpdateAvailable: (event) => {
+              console.log('🔄 Service Worker update detected:', event.type);
+              // Could show update notification component here
+            },
+            
+            onInstallPrompt: (event) => {
+              console.log('📱 PWA install prompt available');
+              // Store the install event for later use
+              // Could show custom install UI here
+            },
+            
+            onError: (error) => {
+              console.error('❌ PWA Error:', error);
+              // Handle PWA errors gracefully
+            }
+          });
+          
+          console.log('✅ PWA features initialized successfully');
+        } catch (error) {
+          console.error('❌ Failed to initialize PWA features:', error);
+          // PWA features are optional, continue without them
+        }
+      } else {
+        console.log('⚠️ PWA features disabled in development mode');
+      }
+    };
+    
+    initializeApp();
   }, [initialize]);
 
   // Create Material-UI theme

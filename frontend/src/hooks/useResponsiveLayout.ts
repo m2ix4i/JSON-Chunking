@@ -32,8 +32,6 @@ export const useResponsiveLayout = (): ResponsiveLayout => {
   const isLg = useMediaQuery(theme.breakpoints.only('lg'));
   const isXl = useMediaQuery(theme.breakpoints.only('xl'));
   
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
-  const isMedium = useMediaQuery(theme.breakpoints.between('sm', 'lg'));
   const isLarge = useMediaQuery(theme.breakpoints.up('lg'));
   
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));

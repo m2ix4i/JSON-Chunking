@@ -6,14 +6,21 @@ all components from PRs 1-4 into a coordinated workflow.
 """
 
 import time
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from ...query.types import QueryContext, ChunkResult, QueryResult, QueryIntent
+from ...query.types import ChunkResult, QueryContext, QueryIntent, QueryResult
 from ...types.aggregation_types import (
-    ExtractedData, Conflict, ConflictResolution, QualityMetrics, 
-    EnhancedQueryResult, AggregationMetadata, AggregationStrategy,
-    ConflictType, ValidationLevel
+    AggregationMetadata,
+    AggregationStrategy,
+    Conflict,
+    ConflictResolution,
+    ConflictType,
+    EnhancedQueryResult,
+    ExtractedData,
+    QualityMetrics,
+    ValidationLevel,
 )
 
 logger = structlog.get_logger(__name__)
@@ -21,7 +28,7 @@ logger = structlog.get_logger(__name__)
 
 class DataExtractionPhase:
     """Phase 1: Extract structured data from chunk results."""
-    
+
     def __init__(self):
         # Import data extractor (from PR 2)
         try:
@@ -30,15 +37,15 @@ class DataExtractionPhase:
         except ImportError:
             logger.warning("DataExtractor not available, using simple extraction")
             self.data_extractor = None
-    
+
     async def execute(self, chunk_results: List[ChunkResult], context: QueryContext) -> List[ExtractedData]:
         """Extract structured data from chunk results."""
         extracted_data_list = []
-        
+
         for chunk_result in chunk_results:
             if chunk_result.status != "completed":
                 continue
-                
+
             # Simple extraction fallback
             extracted_data = ExtractedData(
                 entities=[],
@@ -49,7 +56,7 @@ class DataExtractionPhase:
                 extraction_confidence=chunk_result.confidence_score,
                 data_quality="simple_extraction"
             )
-            
+
             # Parse content for basic information
             content = chunk_result.content
             if content:
@@ -61,7 +68,7 @@ class DataExtractionPhase:
                         extracted_data.quantities[f"value_{i}"] = float(num)
                     except ValueError:
                         pass
-                
+
                 # Simple entity extraction
                 lines = content.split('\n')
                 for line in lines[:3]:  # First 3 lines
@@ -70,16 +77,16 @@ class DataExtractionPhase:
                             'type': 'text_entity',
                             'content': line.strip()[:100]  # Limit length
                         })
-            
+
             extracted_data_list.append(extracted_data)
-        
+
         logger.debug(f"Data extraction completed: {len(extracted_data_list)} objects")
         return extracted_data_list
 
 
 class DataNormalizationPhase:
     """Phase 2: Normalize and standardize extracted data."""
-    
+
     def __init__(self):
         # Import normalizer (from PR 2)
         try:
@@ -88,12 +95,12 @@ class DataNormalizationPhase:
         except ImportError:
             logger.warning("DataNormalizer not available, using simple normalization")
             self.normalizer = None
-    
+
     async def execute(self, extracted_data_list: List[ExtractedData]) -> List[ExtractedData]:
         """Normalize extracted data."""
         # Simple normalization - ensure all data has required fields
         normalized_list = []
-        
+
         for data in extracted_data_list:
             # Create normalized copy
             normalized_data = ExtractedData(
@@ -106,14 +113,14 @@ class DataNormalizationPhase:
                 data_quality="normalized"
             )
             normalized_list.append(normalized_data)
-        
+
         logger.debug(f"Data normalization completed: {len(normalized_list)} objects")
         return normalized_list
 
 
 class ConflictDetectionPhase:
     """Phase 3: Detect conflicts between data sources."""
-    
+
     def __init__(self):
         # Import conflict detector (from PR 3)
         try:
@@ -122,14 +129,14 @@ class ConflictDetectionPhase:
         except ImportError:
             logger.warning("ConflictDetector not available, using simple detection")
             self.conflict_detector = None
-    
+
     async def execute(self, normalized_data_list: List[ExtractedData], context: QueryContext) -> List[Conflict]:
         """Detect conflicts in normalized data."""
         if len(normalized_data_list) < 2:
             return []
-        
+
         conflicts = []
-        
+
         # Simple conflict detection - check for contradictory quantities
         quantity_groups = {}
         for data in normalized_data_list:
@@ -137,7 +144,7 @@ class ConflictDetectionPhase:
                 if key not in quantity_groups:
                     quantity_groups[key] = []
                 quantity_groups[key].append((value, data.chunk_id))
-        
+
         # Check for significant differences
         for key, values in quantity_groups.items():
             if len(values) > 1:
@@ -154,27 +161,27 @@ class ConflictDetectionPhase:
                             evidence=[],
                             context={'quantity_key': key}
                         ))
-        
+
         logger.debug(f"Conflict detection completed: {len(conflicts)} conflicts found")
         return conflicts
 
 
 class ConflictResolutionPhase:
     """Phase 4: Resolve detected conflicts."""
-    
+
     def __init__(self):
         # Import conflict resolver (would be from PR 3)
         self.resolver = None
-    
+
     async def execute(
-        self, 
-        conflicts: List[Conflict], 
-        normalized_data_list: List[ExtractedData], 
+        self,
+        conflicts: List[Conflict],
+        normalized_data_list: List[ExtractedData],
         context: QueryContext
     ) -> List[ConflictResolution]:
         """Resolve conflicts using appropriate strategies."""
         resolutions = []
-        
+
         for conflict in conflicts:
             # Simple resolution: use average for quantitative conflicts
             if conflict.conflict_type == ConflictType.QUANTITATIVE_MISMATCH:
@@ -191,24 +198,24 @@ class ConflictResolutionPhase:
                         metadata={'resolution_method': 'average'}
                     )
                     resolutions.append(resolution)
-        
+
         logger.debug(f"Conflict resolution completed: {len(resolutions)} conflicts resolved")
         return resolutions
 
 
 class AggregationPhase:
     """Phase 5: Apply statistical aggregation strategies."""
-    
+
     def __init__(self):
         # Import aggregation strategies (from PR 4)
         self.strategies = {}
         try:
-            from ..strategies.quantity_strategy import QuantityAggregationStrategy
             from ..strategies.component_strategy import ComponentAggregationStrategy
-            from ..strategies.material_strategy import MaterialAggregationStrategy
-            from ..strategies.spatial_strategy import SpatialAggregationStrategy
             from ..strategies.cost_strategy import CostAggregationStrategy
-            
+            from ..strategies.material_strategy import MaterialAggregationStrategy
+            from ..strategies.quantity_strategy import QuantityAggregationStrategy
+            from ..strategies.spatial_strategy import SpatialAggregationStrategy
+
             self.strategies = {
                 QueryIntent.QUANTITY: QuantityAggregationStrategy(),
                 QueryIntent.COMPONENT: ComponentAggregationStrategy(),
@@ -218,28 +225,28 @@ class AggregationPhase:
             }
         except ImportError:
             logger.warning("Aggregation strategies not available, using simple aggregation")
-    
+
     async def execute(
-        self, 
-        normalized_data_list: List[ExtractedData], 
+        self,
+        normalized_data_list: List[ExtractedData],
         context: QueryContext,
         resolutions: List[ConflictResolution]
     ) -> Dict[str, Any]:
         """Apply appropriate aggregation strategy based on query intent."""
-        
+
         # Select strategy based on intent
         strategy = self.strategies.get(context.intent)
-        
+
         if strategy:
             try:
                 return await strategy.aggregate(normalized_data_list, context, resolutions)
             except Exception as e:
                 logger.warning(f"Strategy aggregation failed: {e}, falling back to simple")
-        
+
         # Simple aggregation fallback
         total_entities = sum(len(data.entities) for data in normalized_data_list)
         total_quantities = sum(len(data.quantities) for data in normalized_data_list)
-        
+
         return {
             "aggregation_method": "simple",
             "strategy": AggregationStrategy.QUANTITATIVE.value,
@@ -251,7 +258,7 @@ class AggregationPhase:
 
 class QualityAssessmentPhase:
     """Phase 6: Assess quality of aggregated results."""
-    
+
     async def execute(
         self,
         normalized_data_list: List[ExtractedData],
@@ -261,25 +268,25 @@ class QualityAssessmentPhase:
         context: QueryContext
     ) -> QualityMetrics:
         """Calculate quality metrics for the aggregation."""
-        
+
         # Calculate confidence score
         if normalized_data_list:
             confidence_score = sum(data.extraction_confidence for data in normalized_data_list) / len(normalized_data_list)
         else:
             confidence_score = 0.0
-        
+
         # Calculate completeness
         completeness_score = min(len(normalized_data_list) / max(1, len(normalized_data_list)), 1.0)
-        
+
         # Calculate consistency (fewer conflicts = higher consistency)
         if normalized_data_list:
             consistency_score = max(0.0, 1.0 - (len(conflicts) / len(normalized_data_list)))
         else:
             consistency_score = 1.0
-        
+
         # Resolution rate
         resolution_rate = len(resolutions) / max(1, len(conflicts)) if conflicts else 1.0
-        
+
         quality_metrics = QualityMetrics(
             confidence_score=confidence_score,
             completeness_score=completeness_score,
@@ -293,14 +300,14 @@ class QualityAssessmentPhase:
             conflict_resolution_rate=resolution_rate,
             calculation_method="standard"
         )
-        
+
         logger.debug(f"Quality assessment completed: overall={quality_metrics.overall_quality:.3f}")
         return quality_metrics
 
 
 class ResultGenerationPhase:
     """Phase 7: Generate final enhanced query result."""
-    
+
     async def execute(
         self,
         context: QueryContext,
@@ -315,9 +322,9 @@ class ResultGenerationPhase:
         start_time: float
     ) -> EnhancedQueryResult:
         """Generate the final enhanced query result."""
-        
+
         processing_time = time.time() - start_time
-        
+
         # Create aggregation metadata
         aggregation_metadata = AggregationMetadata(
             strategy_used=AggregationStrategy.QUANTITATIVE,  # Default
@@ -329,7 +336,7 @@ class ResultGenerationPhase:
             algorithms_used=["data_extraction", "normalization", "conflict_detection", "aggregation"],
             validation_level=ValidationLevel.STANDARD
         )
-        
+
         # Generate insights
         insights = []
         if conflicts:
@@ -338,14 +345,14 @@ class ResultGenerationPhase:
             insights.append("High quality aggregation achieved")
         elif quality_metrics.overall_quality < 0.5:
             insights.append("Low quality aggregation - results may be unreliable")
-        
+
         # Generate recommendations
         recommendations = []
         if quality_metrics.confidence_score < 0.7:
             recommendations.append("Consider improving data extraction quality")
         if len(conflicts) > len(normalized_data_list) * 0.5:
             recommendations.append("High conflict rate - review data sources")
-        
+
         # Use original result as base or create new one
         if original_query_result:
             base_result = original_query_result
@@ -372,7 +379,7 @@ class ResultGenerationPhase:
                 model_used="advanced_aggregation",
                 prompt_strategy=context.intent.value
             )
-        
+
         # Create enhanced result
         enhanced_result = EnhancedQueryResult(
             # Base QueryResult fields
@@ -394,7 +401,7 @@ class ResultGenerationPhase:
             relevance_score=base_result.relevance_score,
             model_used=base_result.model_used,
             prompt_strategy=base_result.prompt_strategy,
-            
+
             # Enhanced fields
             extracted_data=extracted_data_list,
             conflicts_detected=conflicts,
@@ -406,6 +413,6 @@ class ResultGenerationPhase:
             recommendations=recommendations,
             uncertainty_factors=[f"Confidence: {quality_metrics.confidence_score:.2f}"]
         )
-        
+
         logger.debug("Enhanced result generation completed")
         return enhanced_result

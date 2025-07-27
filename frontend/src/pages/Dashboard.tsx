@@ -26,9 +26,7 @@ import {
 import {
   CloudUpload as UploadIcon,
   Search as QueryIcon,
-  Assessment as StatsIcon,
   Description as FileIcon,
-  PlayArrow as StartIcon,
   CheckCircle as CompletedIcon,
   Error as ErrorIcon,
   Schedule as PendingIcon,
@@ -91,12 +89,12 @@ const Dashboard: React.FC = () => {
   const stats = {
     totalFiles: files.length,
     activeQueries: Object.keys(activeQueries).length,
-    completedQueries: queryHistory.filter(q => q.status === 'completed').length,
-    failedQueries: queryHistory.filter(q => q.status === 'failed').length,
+    completedQueries: queryHistory.queries.filter(q => q.status === 'completed').length,
+    failedQueries: queryHistory.queries.filter(q => q.status === 'failed').length,
   };
 
   // Get recent queries for display
-  const recentQueries = queryHistory.slice(0, 5);
+  const recentQueries = queryHistory.queries.slice(0, 5);
 
   // Handle analytics tab changes
   const handleAnalyticsTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -373,16 +371,16 @@ const Dashboard: React.FC = () => {
               ) : (
                 <List dense>
                   {Object.values(activeQueries).map((query) => (
-                    <ListItem key={query.query_id} divider>
+                    <ListItem key={query.queryId} divider>
                       <ListItemIcon>
                         <QueryIcon />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`Abfrage ${query.query_id?.slice(0, 8) || 'Unbekannt'}...`}
+                        primary={`Abfrage ${query.queryId?.slice(0, 8) || 'Unbekannt'}...`}
                         secondary={
                           <Box>
                             <Typography variant="body2" color="text.secondary">
-                              {query.message || 'Wird verarbeitet...'}
+                              {query.status.message || 'Wird verarbeitet...'}
                             </Typography>
                             <LinearProgress 
                               variant="indeterminate"
@@ -392,11 +390,11 @@ const Dashboard: React.FC = () => {
                         }
                       />
                       <Chip
-                        label={query.status || 'processing'}
+                        label={query.status.status || 'processing'}
                         size="small"
                         color={
-                          query.status === 'completed' ? 'success' :
-                          query.status === 'failed' ? 'error' :
+                          query.status.status === 'completed' ? 'success' :
+                          query.status.status === 'failed' ? 'error' :
                           'primary'
                         }
                       />
@@ -430,24 +428,29 @@ const Dashboard: React.FC = () => {
                       <ListItemIcon>
                         {query.status === 'completed' ? (
                           <CompletedIcon color="success" />
-                        ) : (
+                        ) : query.status === 'failed' ? (
                           <ErrorIcon color="error" />
+                        ) : (
+                          <PendingIcon color="warning" />
                         )}
                       </ListItemIcon>
                       <ListItemText
-                        primary={query.query || 'Keine Abfrage verfügbar'}
+                        primary={query.message || 'Keine Abfrage verfügbar'}
                         secondary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" color="text.secondary">
-                              {query.file_id || 'Unbekannte Datei'} • {new Date().toLocaleString('de-DE')}
+                              Query {query.query_id.slice(0, 8)}... • {new Date(query.created_at).toLocaleString('de-DE')}
                             </Typography>
-                            {query.confidence_score && (
-                              <Chip
-                                label={`${Math.round(query.confidence_score * 100)}% Vertrauen`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            )}
+                            <Chip
+                              label={query.status}
+                              size="small"
+                              variant="outlined"
+                              color={
+                                query.status === 'completed' ? 'success' :
+                                query.status === 'failed' ? 'error' :
+                                'primary'
+                              }
+                            />
                           </Box>
                         }
                       />
@@ -462,7 +465,7 @@ const Dashboard: React.FC = () => {
                 </List>
               )}
               
-              {queryHistory.length > 5 && (
+              {queryHistory.queries.length > 5 && (
                 <Box sx={{ textAlign: 'center', mt: 2 }}>
                   <Button onClick={() => navigate('/history')}>
                     Alle Abfragen anzeigen

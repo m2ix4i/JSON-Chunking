@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .bg { fill: #1976d2; }
+      .text { fill: white; font-family: Arial, sans-serif; font-weight: bold; text-anchor: middle; dominant-baseline: middle; }
+      .title { font-size: 68.26666666666667px; }
+      .subtitle { font-size: 34.13333333333333px; }
+      .border { stroke: white; stroke-width: 6.4; fill: none; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" class="bg"/>
+  
+  <!-- Safe zone for maskable -->
+  <rect x="51.2" y="51.2" width="409.6" height="409.6" fill="white"/>
+  
+  
+  <!-- IFC Text -->
+  <text x="256" y="221.86666666666667" class="text title bg" fill="#1976d2">IFC</text>
+  <text x="256" y="290.1333333333333" class="text subtitle bg" fill="#1976d2">JSON</text>
+  
+  <!-- Building icon -->
+  <rect x="204.8" y="324.26666666666665" width="102.4" height="51.2" class="border" stroke="#1976d2"/>
+  <rect x="230.4" y="347.02222222222224" width="51.2" height="25.6" class="border" stroke="#1976d2"/>
+</svg>

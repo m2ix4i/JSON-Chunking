@@ -4,13 +4,13 @@
  */
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
   Grid,
   Alert,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 // Components
 import QuerySuggestions from '@components/query/QuerySuggestions';
@@ -29,8 +29,7 @@ import type { GermanQuerySuggestion } from '@/types/app';
 const QueryPage: React.FC = () => {
   const navigate = useNavigate();
   const selectedFile = useSelectedFile();
-  const { updateCurrentQuery, submitQuery, isSubmitting, error } = useQueryStore();
-  const { activeQuery } = useQueryStore();
+  const { updateCurrentQuery, submitQuery, isSubmitting, error, activeQuery } = useQueryStore();
   const refreshFiles = useFileStore((state) => state.refreshFiles);
 
   // Load files on page mount
@@ -67,6 +66,7 @@ const QueryPage: React.FC = () => {
       // Error handling is already managed by the queryStore and displayed via error state
     }
   };
+
 
   return (
     <Box>

@@ -7,18 +7,13 @@ and event-driven updates for query processing pipelines.
 
 import asyncio
 import time
-from typing import Any, Dict, List, Optional, Callable, Set
-from dataclasses import dataclass, field
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set
 
 import structlog
 
-from ..query.types import (
-    ProgressEvent,
-    ProgressEventType,
-    QueryStatus,
-    ProgressCallback
-)
+from ..query.types import ProgressCallback, ProgressEvent, ProgressEventType, QueryStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -26,44 +21,44 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class ProgressState:
     """Current state of progress tracking."""
-    
+
     query_id: str
     total_steps: int
     current_step: int = 0
     status: QueryStatus = QueryStatus.PENDING
     start_time: float = field(default_factory=time.time)
     last_update: float = field(default_factory=time.time)
-    
+
     # Step details
     step_details: Dict[int, str] = field(default_factory=dict)
     step_times: Dict[int, float] = field(default_factory=dict)
-    
+
     # Error tracking
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    
+
     @property
     def progress_percentage(self) -> float:
         """Calculate progress percentage."""
         if self.total_steps <= 0:
             return 0.0
         return min((self.current_step / self.total_steps) * 100, 100.0)
-    
+
     @property
     def elapsed_time(self) -> float:
         """Get elapsed time since start."""
         return time.time() - self.start_time
-    
+
     @property
     def estimated_remaining_time(self) -> Optional[float]:
         """Estimate remaining time based on current progress."""
         if self.current_step <= 0 or self.progress_percentage >= 100:
             return None
-        
+
         avg_step_time = self.elapsed_time / self.current_step
         remaining_steps = self.total_steps - self.current_step
         return avg_step_time * remaining_steps
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -89,21 +84,21 @@ class ProgressTracker:
     Provides real-time progress updates, event broadcasting,
     and detailed tracking of query processing stages.
     """
-    
+
     def __init__(self):
         """Initialize progress tracker."""
         self._active_queries: Dict[str, ProgressState] = {}
         self._callbacks: Dict[str, List[ProgressCallback]] = defaultdict(list)
         self._global_callbacks: List[ProgressCallback] = []
-        
+
         # WebSocket connections (would be implemented with FastAPI WebSocket)
         self._websocket_connections: Set[Any] = set()
-        
+
         # Performance metrics
         self._step_performance: Dict[str, List[float]] = defaultdict(list)
-        
+
         logger.info("ProgressTracker initialized")
-    
+
     def start_tracking(
         self,
         query_id: str,
@@ -126,18 +121,18 @@ class ProgressTracker:
             total_steps=total_steps,
             status=QueryStatus.PENDING
         )
-        
+
         self._active_queries[query_id] = state
-        
+
         if callback:
             self._callbacks[query_id].append(callback)
-        
+
         logger.info(
             "Started progress tracking",
             query_id=query_id,
             total_steps=total_steps
         )
-        
+
         # Emit start event
         self._emit_event(
             query_id,
@@ -145,9 +140,9 @@ class ProgressTracker:
             "Query processing started",
             current_step=0
         )
-        
+
         return state
-    
+
     def update_progress(
         self,
         query_id: str,
@@ -169,24 +164,24 @@ class ProgressTracker:
         if query_id not in self._active_queries:
             logger.warning("Progress update for unknown query", query_id=query_id)
             return
-        
+
         state = self._active_queries[query_id]
-        
+
         # Update state
         prev_step = state.current_step
         state.current_step = current_step
         state.last_update = time.time()
         state.step_details[current_step] = message
-        
+
         # Record step timing
         if prev_step < current_step:
             step_time = time.time() - state.start_time
             state.step_times[current_step] = step_time
-            
+
             # Update performance metrics
             step_name = f"step_{current_step}"
             self._step_performance[step_name].append(step_time)
-        
+
         logger.debug(
             "Progress updated",
             query_id=query_id,
@@ -194,7 +189,7 @@ class ProgressTracker:
             progress=state.progress_percentage,
             message=message
         )
-        
+
         # Emit progress event
         self._emit_event(
             query_id,
@@ -203,43 +198,43 @@ class ProgressTracker:
             current_step=current_step,
             **kwargs
         )
-    
+
     def add_error(self, query_id: str, error_message: str) -> None:
         """Add error to query tracking."""
         if query_id not in self._active_queries:
             return
-        
+
         state = self._active_queries[query_id]
         state.errors.append(error_message)
         state.status = QueryStatus.FAILED
-        
+
         logger.warning(
             "Error added to query tracking",
             query_id=query_id,
             error=error_message
         )
-        
+
         self._emit_event(
             query_id,
             ProgressEventType.FAILED,
             f"Error: {error_message}",
             error_message=error_message
         )
-    
+
     def add_warning(self, query_id: str, warning_message: str) -> None:
         """Add warning to query tracking."""
         if query_id not in self._active_queries:
             return
-        
+
         state = self._active_queries[query_id]
         state.warnings.append(warning_message)
-        
+
         logger.info(
             "Warning added to query tracking",
             query_id=query_id,
             warning=warning_message
         )
-    
+
     def complete_tracking(
         self,
         query_id: str,
@@ -256,9 +251,9 @@ class ProgressTracker:
         """
         if query_id not in self._active_queries:
             return
-        
+
         state = self._active_queries[query_id]
-        
+
         if success:
             state.status = QueryStatus.COMPLETED
             state.current_step = state.total_steps
@@ -268,9 +263,9 @@ class ProgressTracker:
             state.status = QueryStatus.FAILED
             event_type = ProgressEventType.FAILED
             message = final_message or "Query processing failed"
-        
+
         state.last_update = time.time()
-        
+
         logger.info(
             "Progress tracking completed",
             query_id=query_id,
@@ -278,7 +273,7 @@ class ProgressTracker:
             total_time=state.elapsed_time,
             progress=state.progress_percentage
         )
-        
+
         # Emit completion event
         self._emit_event(
             query_id,
@@ -286,14 +281,14 @@ class ProgressTracker:
             message,
             current_step=state.current_step
         )
-        
+
         # Clean up after a delay (keep for short-term status queries)
         try:
             asyncio.create_task(self._cleanup_query(query_id, delay=300))  # 5 minutes
         except RuntimeError:
             # No event loop running (e.g., in tests) - skip cleanup task
             pass
-    
+
     def cancel_tracking(self, query_id: str) -> bool:
         """
         Cancel progress tracking for a query.
@@ -306,37 +301,37 @@ class ProgressTracker:
         """
         if query_id not in self._active_queries:
             return False
-        
+
         state = self._active_queries[query_id]
         state.status = QueryStatus.CANCELLED
         state.last_update = time.time()
-        
+
         logger.info("Progress tracking cancelled", query_id=query_id)
-        
+
         self._emit_event(
             query_id,
             ProgressEventType.CANCELLED,
             "Query processing cancelled"
         )
-        
+
         return True
-    
+
     def get_progress(self, query_id: str) -> Optional[ProgressState]:
         """Get current progress state for a query."""
         return self._active_queries.get(query_id)
-    
+
     def get_all_active_queries(self) -> Dict[str, ProgressState]:
         """Get all active query progress states."""
         return self._active_queries.copy()
-    
+
     def add_callback(self, query_id: str, callback: ProgressCallback) -> None:
         """Add callback for specific query progress updates."""
         self._callbacks[query_id].append(callback)
-    
+
     def add_global_callback(self, callback: ProgressCallback) -> None:
         """Add callback for all query progress updates."""
         self._global_callbacks.append(callback)
-    
+
     def remove_callback(self, query_id: str, callback: ProgressCallback) -> bool:
         """Remove callback for specific query."""
         if query_id in self._callbacks:
@@ -346,7 +341,7 @@ class ProgressTracker:
             except ValueError:
                 pass
         return False
-    
+
     def _emit_event(
         self,
         query_id: str,
@@ -358,9 +353,9 @@ class ProgressTracker:
         """Emit progress event to all registered callbacks."""
         if query_id not in self._active_queries:
             return
-        
+
         state = self._active_queries[query_id]
-        
+
         event = ProgressEvent(
             event_type=event_type,
             query_id=query_id,
@@ -370,7 +365,7 @@ class ProgressTracker:
             progress_percentage=state.progress_percentage,
             **kwargs
         )
-        
+
         # Call query-specific callbacks
         for callback in self._callbacks[query_id]:
             try:
@@ -381,7 +376,7 @@ class ProgressTracker:
                     query_id=query_id,
                     error=str(e)
                 )
-        
+
         # Call global callbacks
         for callback in self._global_callbacks:
             try:
@@ -392,22 +387,22 @@ class ProgressTracker:
                     query_id=query_id,
                     error=str(e)
                 )
-        
+
         # Broadcast to WebSocket connections (if event loop is running)
         try:
             asyncio.create_task(self._broadcast_websocket(event))
         except RuntimeError:
             # No event loop running (e.g., in tests) - skip websocket broadcast
             pass
-    
+
     async def _broadcast_websocket(self, event: ProgressEvent) -> None:
         """Broadcast progress event to WebSocket connections."""
         if not self._websocket_connections:
             return
-        
+
         event_data = event.to_dict()
         disconnected = set()
-        
+
         for websocket in self._websocket_connections:
             try:
                 # This would be implemented with actual WebSocket library
@@ -419,38 +414,38 @@ class ProgressTracker:
                     error=str(e)
                 )
                 disconnected.add(websocket)
-        
+
         # Clean up disconnected WebSockets
         self._websocket_connections -= disconnected
-    
+
     def add_websocket(self, websocket: Any) -> None:
         """Add WebSocket connection for progress updates."""
         self._websocket_connections.add(websocket)
         logger.debug("WebSocket connection added", total_connections=len(self._websocket_connections))
-    
+
     def remove_websocket(self, websocket: Any) -> None:
         """Remove WebSocket connection."""
         self._websocket_connections.discard(websocket)
         logger.debug("WebSocket connection removed", total_connections=len(self._websocket_connections))
-    
+
     async def _cleanup_query(self, query_id: str, delay: float = 300) -> None:
         """Clean up query tracking after delay."""
         await asyncio.sleep(delay)
-        
+
         if query_id in self._active_queries:
             state = self._active_queries[query_id]
-            
+
             # Only clean up completed or failed queries
             if state.status in [QueryStatus.COMPLETED, QueryStatus.FAILED, QueryStatus.CANCELLED]:
                 self._active_queries.pop(query_id, None)
                 self._callbacks.pop(query_id, None)
-                
+
                 logger.debug("Query tracking cleaned up", query_id=query_id)
-    
+
     def get_performance_metrics(self) -> Dict[str, Dict[str, Any]]:
         """Get performance metrics for step processing."""
         metrics = {}
-        
+
         for step_name, times in self._step_performance.items():
             if times:
                 metrics[step_name] = {
@@ -460,20 +455,20 @@ class ProgressTracker:
                     "max_time": max(times),
                     "total_time": sum(times)
                 }
-        
+
         return metrics
-    
+
     def reset_performance_metrics(self) -> None:
         """Reset performance metrics."""
         self._step_performance.clear()
         logger.info("Performance metrics reset")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get current tracker statistics."""
         active_by_status = defaultdict(int)
         for state in self._active_queries.values():
             active_by_status[state.status.value] += 1
-        
+
         return {
             "active_queries": len(self._active_queries),
             "queries_by_status": dict(active_by_status),
