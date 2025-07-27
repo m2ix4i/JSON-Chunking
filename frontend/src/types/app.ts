@@ -289,6 +289,11 @@ export interface AppNotification {
   timestamp: Date;
   autoHide?: boolean;
   duration?: number;
+  persistent?: boolean;
+  actions?: Array<{
+    label: string;
+    action: () => void;
+  }>;
 }
 
 // UI Component states

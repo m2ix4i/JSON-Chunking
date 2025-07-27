@@ -5,14 +5,31 @@
 import React, { useCallback } from 'react';
 import { useAppStore, useErrorState } from '@stores/appStore';
 import { 
-  normalizeError, 
+  normalizeError as utilsNormalizeError, 
   isRetryableError, 
   getRetryDelay,
-  type AppError 
+  type AppError as UtilsAppError
 } from '@utils/errorUtils';
+import type { AppError, AppPage } from '@/types/app';
+
+// Convert utils AppError to app AppError
+const normalizeError = (error: unknown): AppError => {
+  const utilsError = utilsNormalizeError(error);
+  return {
+    id: Math.random().toString(36).substr(2, 9),
+    type: utilsError.type as AppError['type'],
+    message: utilsError.message,
+    details: utilsError.details,
+    timestamp: new Date(utilsError.timestamp),
+  };
+};
 
 export interface UseErrorHandlerOptions {
-  context?: string;
+  context?: {
+    page: string;
+    action: string;
+    data?: any;
+  };
   maxRetries?: number;
   onError?: (error: AppError) => void;
   onRetry?: (attempt: number) => void;
