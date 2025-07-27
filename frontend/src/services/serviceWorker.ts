@@ -17,14 +17,16 @@ interface ServiceWorkerConfig {
 const swUrl = `/sw.js`;
 
 // Check if service worker is supported
-const isServiceWorkerSupported = 'serviceWorker' in navigator;
+const isServiceWorkerSupported = typeof navigator !== 'undefined' && 'serviceWorker' in navigator;
 
 // Check if app is running on localhost
 const isLocalhost = Boolean(
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '[::1]' ||
-  window.location.hostname.match(
-    /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
+  typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '[::1]' ||
+    window.location.hostname.match(
+      /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/
+    )
   )
 );
 

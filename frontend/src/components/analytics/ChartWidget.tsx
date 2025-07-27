@@ -102,185 +102,179 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({
     { value: 'all', label: 'All Time' },
   ];
 
-  // Render chart based on type
-  const renderChart = () => {
-    if (!data || data.length === 0) {
-      return (
-        <Box 
-          sx={{ 
-            height: height, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center' 
-          }}
-        >
-          <Typography color="text.secondary">No data available</Typography>
-        </Box>
-      );
-    }
+  // Common chart styling configuration
+  const getChartConfig = () => ({
+    colors: CHART_COLORS.chart,
+    tooltipStyle: {
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.divider}`,
+      borderRadius: theme.shape.borderRadius,
+    },
+    axisStyle: {
+      fontSize: 12,
+      stroke: theme.palette.text.secondary,
+    },
+    gridStyle: {
+      strokeDasharray: "3 3",
+      stroke: theme.palette.divider,
+    },
+  });
 
-    const colors = CHART_COLORS.chart;
+  // Render empty state
+  const renderEmptyState = () => (
+    <Box 
+      sx={{ 
+        height: height, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}
+    >
+      <Typography color="text.secondary">No data available</Typography>
+    </Box>
+  );
 
-    switch (type) {
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: theme.shape.borderRadius,
-                }}
-              />
-              <Legend />
-              {Object.keys(data[0] || {})
-                .filter(key => key !== 'date')
-                .map((key, index) => (
-                  <Line
-                    key={key}
-                    type="monotone"
-                    dataKey={key}
-                    stroke={colors[index % colors.length]}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                ))}
-            </LineChart>
-          </ResponsiveContainer>
-        );
+  // Render unsupported chart type
+  const renderUnsupportedType = () => (
+    <Box 
+      sx={{ 
+        height: height, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}
+    >
+      <Typography color="text.secondary">
+        Unsupported chart type: {type}
+      </Typography>
+    </Box>
+  );
 
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <AreaChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
+  // Render line chart
+  const renderLineChart = () => {
+    const { colors, tooltipStyle, axisStyle, gridStyle } = getChartConfig();
+    
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data}>
+          <CartesianGrid {...gridStyle} />
+          <XAxis dataKey="date" tick={axisStyle} />
+          <YAxis tick={axisStyle} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend />
+          {Object.keys(data[0] || {})
+            .filter(key => key !== 'date')
+            .map((key, index) => (
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={colors[index % colors.length]}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: theme.shape.borderRadius,
-                }}
-              />
-              <Legend />
-              {Object.keys(data[0] || {})
-                .filter(key => key !== 'date')
-                .map((key, index) => (
-                  <Area
-                    key={key}
-                    type="monotone"
-                    dataKey={key}
-                    stackId="1"
-                    stroke={colors[index % colors.length]}
-                    fill={colors[index % colors.length]}
-                    fillOpacity={0.6}
-                  />
-                ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        );
+            ))}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
 
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
+  // Render area chart
+  const renderAreaChart = () => {
+    const { colors, tooltipStyle, axisStyle, gridStyle } = getChartConfig();
+    
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <AreaChart data={data}>
+          <CartesianGrid {...gridStyle} />
+          <XAxis dataKey="date" tick={axisStyle} />
+          <YAxis tick={axisStyle} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend />
+          {Object.keys(data[0] || {})
+            .filter(key => key !== 'date')
+            .map((key, index) => (
+              <Area
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stackId="1"
+                stroke={colors[index % colors.length]}
+                fill={colors[index % colors.length]}
+                fillOpacity={0.6}
               />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                stroke={theme.palette.text.secondary}
-              />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: theme.shape.borderRadius,
-                }}
-              />
-              <Legend />
-              {Object.keys(data[0] || {})
-                .filter(key => key !== 'name')
-                .map((key, index) => (
-                  <Bar
-                    key={key}
-                    dataKey={key}
-                    fill={colors[index % colors.length]}
-                    radius={[2, 2, 0, 0]}
-                  />
-                ))}
-            </BarChart>
-          </ResponsiveContainer>
-        );
+            ))}
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  };
 
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="value"
-                label={({ name, percentage }) => `${name} ${percentage}%`}
-              >
-                {data.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.color || colors[index % colors.length]} 
-                  />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: theme.shape.borderRadius,
-                }}
+  // Render bar chart
+  const renderBarChart = () => {
+    const { colors, tooltipStyle, axisStyle, gridStyle } = getChartConfig();
+    
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={data}>
+          <CartesianGrid {...gridStyle} />
+          <XAxis dataKey="name" tick={axisStyle} />
+          <YAxis tick={axisStyle} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Legend />
+          {Object.keys(data[0] || {})
+            .filter(key => key !== 'name')
+            .map((key, index) => (
+              <Bar
+                key={key}
+                dataKey={key}
+                fill={colors[index % colors.length]}
+                radius={[2, 2, 0, 0]}
               />
-            </PieChart>
-          </ResponsiveContainer>
-        );
+            ))}
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
 
-      default:
-        return (
-          <Box 
-            sx={{ 
-              height: height, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}
+  // Render pie chart
+  const renderPieChart = () => {
+    const { colors, tooltipStyle } = getChartConfig();
+    
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            outerRadius={80}
+            dataKey="value"
+            label={({ name, percentage }) => `${name} ${percentage}%`}
           >
-            <Typography color="text.secondary">
-              Unsupported chart type: {type}
-            </Typography>
-          </Box>
-        );
+            {data.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={entry.color || colors[index % colors.length]} 
+              />
+            ))}
+          </Pie>
+          <Tooltip contentStyle={tooltipStyle} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  // Main chart renderer - simplified delegation
+  const renderChart = () => {
+    if (!data || data.length === 0) return renderEmptyState();
+    
+    switch (type) {
+      case 'line': return renderLineChart();
+      case 'area': return renderAreaChart();
+      case 'bar': return renderBarChart();
+      case 'pie': return renderPieChart();
+      default: return renderUnsupportedType();
     }
   };
 
