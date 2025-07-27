@@ -55,12 +55,16 @@ async function runPerformanceTests() {
     console.log('\n2️⃣  Testing PerformanceIndicator component...');
     
     const performanceIndicators = await page.$$eval('*', (elements) => {
-      return elements.filter(el => 
-        el.className?.includes('performance') ||
-        el.className?.includes('Performance') ||
-        el.getAttribute('data-testid')?.includes('performance') ||
-        el.textContent?.toLowerCase()?.includes('performance')
-      ).length;
+      return elements.filter(el => {
+        const className = el.className || '';
+        const dataTestId = el.getAttribute('data-testid') || '';
+        const textContent = el.textContent || '';
+        
+        return (typeof className === 'string' && className.includes('performance')) ||
+               (typeof className === 'string' && className.includes('Performance')) ||
+               dataTestId.includes('performance') ||
+               textContent.toLowerCase().includes('performance');
+      }).length;
     });
     
     if (performanceIndicators > 0) {

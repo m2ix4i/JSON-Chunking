@@ -13,6 +13,17 @@ interface ServiceWorkerConfig {
   onNeedRefresh?: () => void;
 }
 
+export type ServiceWorkerStatus = 'unsupported' | 'inactive' | 'active' | 'waiting' | 'installing';
+
+interface PWAInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 // Production service worker path
 const swUrl = `/sw.js`;
 
@@ -279,6 +290,131 @@ if (import.meta.env.PROD) {
   });
 }
 
+/**
+ * Service Worker Manager Class
+ * Provides a simplified interface for managing service worker functionality
+ */
+class ServiceWorkerManager {
+  private deferredPrompt: PWAInstallPromptEvent | null = null;
+  private status: ServiceWorkerStatus = 'inactive';
+  private callbacks: ServiceWorkerConfig = {};
+  private statusChangeListeners: Array<(status: ServiceWorkerStatus) => void> = [];
+
+  constructor() {
+    this.initializePWAPrompt();
+    this.updateStatus();
+  }
+
+  private initializePWAPrompt() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPrompt = e as PWAInstallPromptEvent;
+      this.updateStatus();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      this.deferredPrompt = null;
+      this.updateStatus();
+    });
+  }
+
+  private updateStatus() {
+    const newStatus = getServiceWorkerStatus() as ServiceWorkerStatus;
+    if (newStatus !== this.status) {
+      this.status = newStatus;
+      this.notifyStatusChange();
+    }
+  }
+
+  private notifyStatusChange() {
+    this.statusChangeListeners.forEach(listener => listener(this.status));
+  }
+
+  async register(config: ServiceWorkerConfig = {}) {
+    this.callbacks = config;
+    const registration = await registerServiceWorker(config);
+    this.updateStatus();
+    return registration;
+  }
+
+  async unregister() {
+    const result = await unregisterServiceWorker();
+    this.updateStatus();
+    return result;
+  }
+
+  async update() {
+    const result = await updateServiceWorker();
+    this.updateStatus();
+    return result;
+  }
+
+  async installPWA(): Promise<boolean> {
+    if (!this.deferredPrompt) {
+      return false;
+    }
+
+    try {
+      this.deferredPrompt.prompt();
+      const { outcome } = await this.deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the PWA install prompt');
+        this.deferredPrompt = null;
+        return true;
+      } else {
+        console.log('User dismissed the PWA install prompt');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error during PWA installation:', error);
+      return false;
+    }
+  }
+
+  async checkForUpdates() {
+    return await updateServiceWorker();
+  }
+
+  getStatus(): ServiceWorkerStatus {
+    return this.status;
+  }
+
+  canInstallPWA(): boolean {
+    return !!this.deferredPrompt;
+  }
+
+  setCallbacks(config: ServiceWorkerConfig) {
+    this.callbacks = { ...this.callbacks, ...config };
+  }
+
+  onStatusChange(callback: (status: ServiceWorkerStatus) => void): () => void {
+    this.statusChangeListeners.push(callback);
+    return () => {
+      const index = this.statusChangeListeners.indexOf(callback);
+      if (index > -1) {
+        this.statusChangeListeners.splice(index, 1);
+      }
+    };
+  }
+
+  async clearCaches() {
+    return await clearAllCaches();
+  }
+
+  async getCacheInfo() {
+    return await getCacheInfo();
+  }
+
+  async checkOfflineCapability() {
+    return await checkOfflineCapability();
+  }
+}
+
+// Export singleton instance
+export const serviceWorkerManager = new ServiceWorkerManager();
+
 export default {
   register: registerServiceWorker,
   unregister: unregisterServiceWorker,
@@ -288,4 +424,5 @@ export default {
   clearAllCaches,
   updateServiceWorker,
   getServiceWorkerStatus,
+  serviceWorkerManager,
 };
