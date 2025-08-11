@@ -69,7 +69,7 @@ isort = "^6.0.1"
 mypy = "^1.8.0"
 ruff = "^0.12.5"
 # Pre-commit hooks
-pre-commit = "^3.6.0"
+pre-commit = "^4.3.0"
 # Documentation
 sphinx = "^7.2.0"
 sphinx-rtd-theme = "^2.0.0"
